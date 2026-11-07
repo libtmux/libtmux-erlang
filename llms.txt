@@ -1,0 +1,16 @@
+# libtmux for Erlang
+
+Native Erlang/OTP 29 library for explicit tmux operations and captured graph queries.
+
+- [README](README.md): installation and executable first program.
+- [Guides](docs/guides.md): task-oriented navigation.
+- [Fields](docs/fields.md): canonical field and operator reference.
+- [Source querying](docs/querying.md): portable criteria, coverage and execution contracts.
+- [Operation ownership](docs/jobs.md): waits, completion, cancellation and cleanup.
+- [API browser](docs/api.md): build the native reference locally.
+- [Current gaps](docs/compatibility.md): control/streams/MCP/workspace and delivery status.
+
+Query construction and local snapshot/selection reads perform no tmux I/O.
+Opening an endpoint, live get/snapshot/fetch calls and actions perform explicit I/O.
+Local selections never load missing relationships. Payload keys never become atoms. MCP is not
+implemented yet; do not invent a server command or configuration.

@@ -33,8 +33,20 @@ default_shell explicitly requests tmux's configured default command/shell.
 -export([raw/2, validate/1, argv/1, literal_format/1, literal_format/2, launch/1]).
 -export_type([t/0]).
 
+-export_type([launch_spec/0]).
+-doc "Explicit executable argv, an explicitly requested shell command, or tmux's configured default shell.".
+-type launch_spec() :: default_shell | #{argv := nonempty_list(binary())} | #{shell := binary()}.
+
+-doc """
+A validated single-command value. Rendering and execution remain separate.
+""".
 -opaque t() :: {tmux_command, binary(), [binary()]}.
 
+-doc """
+Validate one trusted command name and binary argv, without I/O. The renderer
+protects tmux separators; it does not provide shell or nested-format quoting.
+External services still need their own allowlists and write policy.
+""".
 -spec raw(binary(), [binary()]) -> {ok, t()} | {error, map()}.
 raw(Name, Arguments) ->
     case valid_name(Name) of
@@ -46,10 +58,18 @@ raw(Name, Arguments) ->
             end
     end.
 
+-doc """
+Revalidate a command value at a submission boundary. Returns a compact
+validated command or a tagged shape/argument/resource error, without I/O.
+""".
 -spec validate(term()) -> {ok, t()} | {error, map()}.
 validate({tmux_command, Name, Arguments}) -> raw(Name, Arguments);
 validate(_) -> {error, #{code => invalid_command}}.
 
+-doc """
+Render a validated command into executable argv, protecting trailing tmux
+separators. Performs no I/O and raises for an invalid command value.
+""".
 -spec argv(t()) -> [binary()].
 argv(Command) ->
     case validate(Command) of
@@ -58,10 +78,19 @@ argv(Command) ->
         {error, Detail} -> error({invalid_command, Detail})
     end.
 
+-doc """
+Quote a complete literal argument for tmux format expansion. This does not
+encode operands nested inside another format expression. Performs no I/O.
+""".
 -spec literal_format(binary()) -> {ok, binary()} | {error, map()}.
 literal_format(Value) ->
     literal_format(Value, tmux).
 
+-doc """
+Quote a complete literal format argument. Mode tmux protects hash expansion;
+mode time also protects strftime percent directives. Stored-name semantics
+remain tmux's own. Performs no I/O.
+""".
 -spec literal_format(binary(), tmux | time) -> {ok, binary()} | {error, map()}.
 literal_format(Value, Mode) when Mode =:= tmux; Mode =:= time ->
     maybe
@@ -78,7 +107,12 @@ literal_format(Value, Mode) when Mode =:= tmux; Mode =:= time ->
     end;
 literal_format(_, _) -> {error, #{code => invalid_format_mode}}.
 
--spec launch(default_shell | #{argv := [binary()]} | #{shell := binary()}) ->
+-doc """
+Render explicit executable argv, an explicitly requested shell command, or
+default_shell. Singleton argv uses the installed helper's exec-only mode to
+avoid tmux interpreting it as shell syntax. Performs no I/O.
+""".
+-spec launch(launch_spec()) ->
     {ok, [binary()]} | {error, map()}.
 launch(default_shell) -> {ok, []};
 launch(#{argv := [Executable]} = Spec) when map_size(Spec) =:= 1 ->

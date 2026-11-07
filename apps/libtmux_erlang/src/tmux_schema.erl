@@ -9,10 +9,21 @@ binaries. Integer normalization uses the shared exact JSON integer range.
 -export([fields/1, relations/1, field/2, normalize/2, value/2, operators/1]).
 -export_type([entity/0, error_detail/0]).
 
+-doc """
+The built-in tmux graph entities; window_link represents a session membership.
+""".
 -type entity() :: session | window | window_link | pane.
+-doc """
+Structured boundary validation errors with a code and input path.
+""".
 -type error_detail() :: #{code := atom(), path := [term()], atom() => term()}.
 -define(MAX_INTEGER, 9007199254740991).
 
+-doc """
+Return generated field metadata for a known entity, or a tagged
+unknown_entity error. Field names, wire names and stable IDs are allowlisted;
+this is not reflection over arbitrary record fields.
+""".
 -spec fields(entity()) -> {ok, map()} | {error, error_detail()}.
 fields(Entity) ->
     case lists:member(Entity, tmux_schema_data:entities()) of
@@ -20,6 +31,10 @@ fields(Entity) ->
         false -> {error, #{code => unknown_entity, path => []}}
     end.
 
+-doc """
+Return generated relationship metadata, including target entities and
+one/many cardinality. Performs no I/O.
+""".
 -spec relations(entity()) -> {ok, map()} | {error, error_detail()}.
 relations(Entity) ->
     maybe
@@ -27,6 +42,10 @@ relations(Entity) ->
         {ok, tmux_schema_data:relations(Entity)}
     end.
 
+-doc """
+Look up one permitted field by its Erlang atom name. Unknown names return a
+tagged error; this does not turn input strings into atoms.
+""".
 -spec field(entity(), atom()) -> {ok, map()} | {error, error_detail()}.
 field(Entity, Field) ->
     maybe
@@ -37,6 +56,11 @@ field(Entity, Field) ->
         end
     end.
 
+-doc """
+Validate a domain-field map and normalize its scalar observations, retaining
+not_loaded/unavailable distinctly and deriving schema-defined values.
+Performs no I/O; constructors and action boundaries still validate records.
+""".
 -spec normalize(entity(), map()) -> {ok, map()} | {error, error_detail()}.
 normalize(Entity, Input) when is_map(Input) ->
     maybe
@@ -48,6 +72,11 @@ normalize(Entity, Input) when is_map(Input) ->
 normalize(_Entity, _Input) ->
     {error, #{code => invalid_object, path => []}}.
 
+-doc """
+Validate and normalize one value against generated field metadata. Integral
+JSON numbers obey the exact shared integer range and field bounds; text is
+validated UTF-8, while bytes remain arbitrary binaries. Performs no I/O.
+""".
 -spec value(map(), term()) -> {ok, term()} | {error, error_detail()}.
 value(#{nullable := true}, none) ->
     {ok, none};
@@ -84,6 +113,10 @@ value(#{type := Type} = Metadata, Value)
 value(Metadata, _Value) ->
     invalid(Metadata).
 
+-doc """
+Return the permitted scalar operators for this field type and nullability.
+The generated field reference uses this same validator. Performs no I/O.
+""".
 -spec operators(map()) -> [atom()].
 operators(#{type := Type, nullable := Nullable}) ->
     Base = [equals, 'not', in, not_in],

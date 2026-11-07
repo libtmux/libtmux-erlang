@@ -54,6 +54,18 @@ Run the unit, generated-source and tracked whitespace checks:
 $ time python3 tools/check.py mid
 ```
 
+The mid loop also checks public EEP-48 documentation/spec coverage, generated
+field references, guide links and exact example excerpts. Write contracts in
+`-moduledoc` and `-doc`; link functions with backticked `module:function/arity`
+and types with `t:module:type/arity`. Use `ct_doctest` shell transcripts for
+native code blocks. Prose-only contracts need no artificial example; every
+advertised Erlang block must execute without skips.
+
+[Building the API browser](../docs/api.md) explains the pinned ExDoc tool,
+captured source links and working-tree provenance. The HTML build treats
+warnings and broken local links/anchors as failures. Add complete runnable
+programs under examples/ and drift-checked excerpts to their reader guides.
+
 Run compilation, native helper qualification, Dialyzer, real subprocess/tmux
 integration, executable docs and the external OTP archive consumer:
 

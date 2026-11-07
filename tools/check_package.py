@@ -17,7 +17,7 @@ import tempfile
 import time
 
 
-def run(command: list[str], cwd: Path, env: dict[str, str]) -> dict:
+def run(command: list[str], cwd: Path, env: dict[str, str], *, json_output: bool = False) -> dict:
     started = time.monotonic()
     result = subprocess.run(
         command, cwd=cwd, env=env, capture_output=True, text=True, timeout=30
@@ -35,6 +35,8 @@ def run(command: list[str], cwd: Path, env: dict[str, str]) -> dict:
     }
     if result.returncode:
         raise RuntimeError(result.stdout + result.stderr)
+    if json_output:
+        receipt["output"] = json.loads(result.stdout)
     return receipt
 
 
@@ -54,6 +56,7 @@ def main() -> None:
     archive = artifact_dir / "libtmux_erlang-otp.tar.gz"
     prefix = "libtmux_erlang-0.0.0+development"
     members = [("ebin/" + path.name, path) for path in beams if path.is_file()]
+    members.append(("LICENSE", root / "apps/libtmux_erlang/LICENSE"))
     if (app / "priv").is_dir():
         members.extend(
             (path.relative_to(app).as_posix(), path)
@@ -81,6 +84,14 @@ def main() -> None:
         shutil.copyfile(root / "examples/native_consumer.erl", temp / "native_consumer.erl")
         shutil.copyfile(root / "test/tmux_test_fixture.erl", temp / "tmux_test_fixture.erl")
         shutil.copyfile(root / "test/tmux_fixture_watch.py", consumer_ebin / "tmux_fixture_watch.py")
+        for directory in (temp / "tools", temp / "test", temp / "examples"):
+            directory.mkdir()
+        shutil.copyfile(root / "tools/run_examples.escript", temp / "tools/run_examples.escript")
+        for name in ("tmux_test_fixture.erl", "tmux_fixture_watch.py"):
+            shutil.copyfile(root / "test" / name, temp / "test" / name)
+        for name in ("filter_demo", "inspect_demo", "readme_demo", "linked_graph", "job_demo"):
+            shutil.copyfile(root / "examples" / (name + ".erl"), temp / "examples" / (name + ".erl"))
+        shutil.copyfile(root / "examples/terminal_job.py", temp / "examples/terminal_job.py")
         env = dict(os.environ)
         env.pop("ERL_LIBS", None)
         env.pop("TMUX", None)
@@ -90,6 +101,9 @@ def main() -> None:
             raise RuntimeError("The installed endpoint check requires an absolute tmux executable")
         env["LIBTMUX_TEST_TMUX"] = tmux
         env["ERL_CRASH_DUMP"] = str(temp / "erl_crash.dump")
+        commands.append(run([
+            "escript", "tools/run_examples.escript", "--ebin", str(installed_ebin)
+        ], temp, env, json_output=True))
         commands.append(run([
             "erlc", "-Werror", "+debug_info", "-pa", str(installed_ebin),
             "-o", str(consumer_ebin), "native_consumer.erl", "tmux_test_fixture.erl"
@@ -144,6 +158,7 @@ def main() -> None:
         "public_domain_consumer": "PASS: create, split, bind, capture, rename, read and session cleanup",
         "public_snapshot_consumer": "PASS: captured graph, native pane lists, relationships and coverage",
         "public_filter_consumer": "PASS: local selection, graph filter, wire round trip, cardinality and prepared context",
+        "documentation_examples": "PASS: workspace/query, linked graph and completion/capture/cancellation from the installed archive",
         "public_tmux_command_api": "PARTIAL: command values, operations and initial domain facades",
         "publication": "UNVERIFIED",
     }

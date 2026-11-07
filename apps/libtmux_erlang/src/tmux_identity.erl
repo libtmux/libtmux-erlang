@@ -19,8 +19,15 @@ can still change between this check and a later one-shot command.
 -export([observe/1, check/2]).
 -export_type([t/0]).
 
+-doc """
+Observed Linux PID, boot identity and process-start token. It does not pin a connection.
+""".
 -opaque t() :: {process_identity, pos_integer(), binary(), non_neg_integer()}.
 
+-doc """
+Observe a Linux PID incarnation without signalling it. Returns a tagged error
+if the process cannot be identified; this performs local operating-system I/O.
+""".
 -spec observe(pos_integer()) -> {ok, t()} | {error, map()}.
 observe(Pid) when is_integer(Pid, 1, 2147483647) ->
     case os:type() of
@@ -29,6 +36,11 @@ observe(Pid) when is_integer(Pid, 1, 2147483647) ->
     end;
 observe(_) -> {error, #{code => invalid_pid}}.
 
+-doc """
+Re-observe the PID and compare its incarnation token. A successful result
+is a momentary observation, not ownership, permission to signal, or a
+same-connection guarantee.
+""".
 -spec check(t(), pos_integer()) -> ok | {error, map()}.
 check({process_identity, Pid, Boot, Started} = Identity, ObservedPid)
   when is_integer(Pid, 1, 2147483647), is_integer(ObservedPid, 1, 2147483647),

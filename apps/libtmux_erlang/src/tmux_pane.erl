@@ -7,7 +7,7 @@ Options are direction (horizontal or vertical), size ({cells, N} or
 {percent, N}), before, full_size, zoom, cwd, env, launch and detach. It defaults
 to a detached vertical split. get returns newly observed fields; existing rows
 remain unchanged. Reads span several commands and do not claim atomicity.
-Launch and environment options follow tmux_session:create/2.
+Launch and environment options follow `tmux_session:create/2`.
 An absent or zero tmux pane_pid is represented as none. A captured positive
 PID is an observation, not a guarantee that the process remains alive.
 
@@ -31,7 +31,30 @@ The endpoint's output limit applies; an oversized capture returns an error.
 """.
 -export([split/2, get/2, kill/1, send_text/2, send_keys/2, capture/2]).
 
--spec split(tmux_model:pane() | tmux_model:window(), map()) ->
+-export_type([split_options/0, capture_options/0, coordinate/0, key/0]).
+-doc "Split geometry, placement and explicit launch options. Defaults to a detached vertical split.".
+-type split_options() :: #{direction => horizontal | vertical,
+    size => {cells,1..2147483647} | {percent,1..100}, before => boolean(),
+    full_size => boolean(), zoom => boolean(), cwd => binary(),
+    env => #{binary() => binary()}, launch => tmux_command:launch_spec(), detach => boolean()}.
+-doc "A capture line coordinate, or all for tmux's full available range.".
+-type coordinate() :: -2147483648..32767 | all.
+-doc "Capture range and rendering flags. Byte output and its final newline are preserved.".
+-type capture_options() :: #{start => coordinate(), 'end' => coordinate(),
+    join_lines => boolean(), escape_sequences => boolean(), escape_control => boolean(),
+    retain_trailing_spaces => boolean(), alternate => boolean(), pending => boolean(), quiet => boolean()}.
+-doc "A validated named key, single UTF-8 character, function key or control-letter key.".
+-type key() :: binary() | enter | tab | escape | backspace | space | up | down | left | right |
+    home | 'end' | insert | delete | page_up | page_down | back_tab |
+    {function,1..12} | {control,binary()}.
+
+-doc """
+Split a pane, or the supplied window's active pane, and observe the new pane.
+Defaults to a detached vertical split. Options and launch semantics are
+described in the module docs. Performs I/O; a post-creation read error retains
+the completed mutation rather than pretending that no pane was created.
+""".
+-spec split(tmux_model:pane() | tmux_model:window(), split_options()) ->
     {ok, tmux_model:pane()} | {error, map()}.
 split(Row, Options) ->
     maybe
@@ -45,12 +68,27 @@ split(Row, Options) ->
         tmux_observe:created(Server, pane, Result)
     end.
 
+-doc """
+Read fresh fields for a physical pane ID. Performs I/O and returns target_gone
+for a vanished pane. A captured PID remains an observation, not a live-process
+guarantee.
+""".
 -spec get(tmux_server:t(), tmux_model:pane_id()) -> {ok, tmux_model:pane()} | {error, map()}.
 get(Server, Id) -> tmux_observe:get(Server, pane, Id).
 
+-doc """
+Destroy this registered pane. Performs I/O after validating its origin and
+stable ID; it never falls back to a positional target.
+""".
 -spec kill(tmux_model:pane()) -> {ok, map()} | {error, map()}.
 kill(Pane) -> tmux_target:act(pane, Pane, <<"kill-pane">>, []).
 
+-doc """
+Send at most 2,000 literal bytes as hexadecimal tmux keys. Adds no Enter key
+and does not invoke a shell. Performs I/O in one command; oversized input is
+rejected before partial submission. Completion does not prove that a terminal
+program processed the input.
+""".
 -spec send_text(tmux_model:pane(), binary()) -> {ok, map()} | {error, map()}.
 send_text(Pane, Bytes) when is_binary(Bytes), byte_size(Bytes) =< 2000 ->
     Hex = [integer_to_binary(Byte, 16) || <<Byte>> <= Bytes],
@@ -58,14 +96,25 @@ send_text(Pane, Bytes) when is_binary(Bytes), byte_size(Bytes) =< 2000 ->
 send_text(_, Bytes) when is_binary(Bytes) -> {error, #{code => command_limit}};
 send_text(_, _) -> {error, #{code => invalid_text}}.
 
--spec send_keys(tmux_model:pane(), [atom() | binary() | tuple()]) -> {ok, map()} | {error, map()}.
+-doc """
+Send at most 256 validated key tokens. Named keys, single UTF-8 characters,
+function keys and control-letter tuples are supported. Performs I/O; terminal
+modes determine the resulting input bytes. Use `send_text/2` for arbitrary bytes.
+""".
+-spec send_keys(tmux_model:pane(), [key()]) -> {ok, map()} | {error, map()}.
 send_keys(Pane, Keys) ->
     maybe
         {ok, Arguments} ?= keys(Keys, 256, []),
         send(Pane, [], Arguments)
     end.
 
--spec capture(tmux_model:pane(), map()) -> {ok, binary()} | {error, map()}.
+-doc """
+Capture terminal bytes, preserving final newlines. Options select line range,
+joined wraps, escapes, alternate screen and padding; defaults follow tmux
+current-screen capture. Performs I/O and returns an explicit output-limit
+error instead of silently truncating.
+""".
+-spec capture(tmux_model:pane(), capture_options()) -> {ok, binary()} | {error, map()}.
 capture(Pane, Options) ->
     maybe
         {ok, Flags} ?= tmux_args:options(Options,

@@ -22,17 +22,39 @@ Selections are opaque values; use to_list for ordinary list functions.
 -record(selection, {entity :: tmux_schema:entity(), rows :: [tmux_model:row()],
                     size :: non_neg_integer(),
                     context :: {snapshot, tmux_snapshot:t()} | {local, map()}}).
+-doc """
+Ordered captured rows with observation and coverage context, not an extensible list protocol.
+""".
 -opaque t(Row) :: #selection{rows :: [Row]}.
+-doc """
+A selection over schema-defined native domain records.
+""".
 -type t() :: t(tmux_model:row()).
 -type criteria() :: map() | tmux_filter:t().
 -type cardinality_error() :: {error, no_match | {multiple_matches, #{at_least := 2}}}.
 
+-doc """
+Select captured physical panes while retaining snapshot graph and coverage.
+Performs no I/O and preserves the snapshot's deterministic order.
+""".
 -spec panes(tmux_snapshot:t()) -> t(tmux_model:pane()).
 panes(Snapshot) -> from_snapshot(pane, Snapshot).
+-doc """
+Select unique captured physical windows with their complete graph context.
+Performs no I/O; session memberships remain separate window-link rows.
+""".
 -spec windows(tmux_snapshot:t()) -> t(tmux_model:window()).
 windows(Snapshot) -> from_snapshot(window, Snapshot).
+-doc """
+Select all captured session memberships, retaining repeated physical windows
+and session-relative indexes. Performs no I/O.
+""".
 -spec window_links(tmux_snapshot:t()) -> t(tmux_model:window_link()).
 window_links(Snapshot) -> from_snapshot(window_link, Snapshot).
+-doc """
+Select captured sessions with their relationship and coverage context.
+Performs no I/O.
+""".
 -spec sessions(tmux_snapshot:t()) -> t(tmux_model:session()).
 sessions(Snapshot) -> from_snapshot(session, Snapshot).
 
@@ -61,6 +83,12 @@ from_list(Entity, Rows) ->
         {error, Detail} -> error({bad_selection, Detail})
     end.
 
+-doc """
+Validate portable criteria and coverage, then preserve matching rows in order.
+Performs no I/O. Malformed trusted criteria raise bad_filter; missing coverage
+and runtime evaluation failures remain distinct exceptions. Use `try_where/2`
+for tagged library errors.
+""".
 -spec where(criteria(), t(Row)) -> t(Row) when Row :: tmux_model:row().
 where(Criteria, Selection) ->
     case try_where(Criteria, Selection) of
@@ -68,6 +96,11 @@ where(Criteria, Selection) ->
         {error, Detail} -> raise_filter(Detail)
     end.
 
+-doc """
+Apply the same local criteria and coverage checks as `where/2`, returning
+tagged validation or evaluation errors. It does not catch arbitrary
+application callback exceptions and never performs tmux I/O.
+""".
 -spec try_where(criteria(), t(Row)) -> {ok, t(Row)} | {error, map()} when Row :: tmux_model:row().
 try_where(Criteria, #selection{rows = Rows} = Selection) ->
     maybe
@@ -76,6 +109,11 @@ try_where(Criteria, #selection{rows = Rows} = Selection) ->
         {ok, with_rows(Matches, Selection)}
     end.
 
+-doc """
+Apply an ordinary unary Boolean function locally, preserving row order and
+context. Non-Booleans and callback failures propagate; they are not false
+matches. This is executable application code, not portable filter data.
+""".
 -spec filter(fun((Row) -> boolean()), t(Row)) -> t(Row) when Row :: tmux_model:row().
 filter(Predicate, #selection{rows = Rows} = Selection) when is_function(Predicate, 1) ->
     with_rows(lists:filter(Predicate, Rows), Selection).
@@ -98,16 +136,37 @@ matching({Module, State}, #selection{context = {snapshot, Snapshot}} = Selection
 matching({Module, _}, #selection{}) when is_atom(Module) ->
     {error, #{code => matcher_requires_snapshot}}.
 
+-doc """
+Return the current ordered rows as an ordinary Erlang list without I/O.
+Use list functions or comprehensions for transformations to other value types.
+""".
 -spec to_list(t(Row)) -> [Row] when Row :: tmux_model:row().
 to_list(#selection{rows = Rows}) -> Rows.
+-doc """
+Fold over current rows in order without I/O, using the function, accumulator,
+selection argument order. Arbitrary results are ordinary Erlang values.
+""".
 -spec fold(fun((Row, Acc) -> Acc), Acc, t(Row)) -> Acc when Row :: tmux_model:row().
 fold(Function, Accumulator, #selection{rows = Rows}) -> lists:foldl(Function, Accumulator, Rows).
+-doc """
+Keep the first N rows and retain the original observation and coverage.
+Performs no I/O; taking a subset cannot establish missing field coverage.
+""".
 -spec take(non_neg_integer(), t(Row)) -> t(Row) when Row :: tmux_model:row().
 take(Count, #selection{rows = Rows} = Selection) when is_integer(Count), Count >= 0 ->
     with_rows(lists:sublist(Rows, Count), Selection).
+-doc """
+Return the cached number of materialized rows in this selection without
+traversing tmux or re-evaluating criteria.
+""".
 -spec size(t()) -> non_neg_integer().
 size(#selection{size = Size}) -> Size.
 
+-doc """
+Return a compact Erlang diagnostic map with entity, size, capture identity,
+interval and coverage. Fetched queries include candidate/attempt information.
+Opaque snapshot references make this a diagnostic value, not a wire format.
+""".
 -spec summary(t()) -> map().
 summary(#selection{entity = Entity, size = Size, context = Context}) ->
     Base = #{entity => Entity, size => Size},
@@ -123,40 +182,86 @@ summary(#selection{entity = Entity, size = Size, context = Context}) ->
                        relations => maps:map(fun(_, _) -> not_loaded end, Relations)}}
     end.
 
+-doc """
+Return the first current row or none. Additional matches are allowed.
+Performs no I/O.
+""".
 -spec first(t(Row)) -> {ok, Row} | none when Row :: tmux_model:row().
 first(#selection{rows = []}) -> none;
 first(#selection{rows = [Row | _]}) -> {ok, Row}.
+-doc """
+Validate criteria and coverage, then stop at the first local match.
+Returns none when no row matches; performs no I/O.
+""".
 -spec first(criteria(), t(Row)) -> {ok, Row} | none when Row :: tmux_model:row().
 first(Criteria, Selection) -> first(matching_prefix(Criteria, Selection, 1)).
 
+-doc """
+Return the sole current row or a no_match/multiple_matches error.
+Ambiguity reports at_least = 2 rather than computing a needless exact count.
+""".
 -spec one(t(Row)) -> {ok, Row} | cardinality_error() when Row :: tmux_model:row().
 one(#selection{rows = []}) -> {error, no_match};
 one(#selection{rows = [Row]}) -> {ok, Row};
 one(#selection{rows = [_, _ | _]}) -> {error, {multiple_matches, #{at_least => 2}}}.
+-doc """
+Validate criteria and coverage, then stop after enough local matches to
+establish cardinality. Returns a tagged cardinality result; performs no I/O.
+""".
 -spec one(criteria(), t(Row)) -> {ok, Row} | cardinality_error() when Row :: tmux_model:row().
 one(Criteria, Selection) -> one(matching_prefix(Criteria, Selection, 2)).
 
+-doc """
+Return the sole current row, {ok, none} on absence, or a multiple-match
+error. Performs no I/O.
+""".
 -spec one_or_none(t(Row)) -> {ok, Row | none} | cardinality_error() when Row :: tmux_model:row().
 one_or_none(Selection) ->
     case one(Selection) of {error, no_match} -> {ok, none}; Result -> Result end.
+-doc """
+Validate local criteria and return one row or known absence. A second
+match is an explicit ambiguity error; performs no I/O.
+""".
 -spec one_or_none(criteria(), t(Row)) -> {ok, Row | none} | cardinality_error() when Row :: tmux_model:row().
 one_or_none(Criteria, Selection) -> one_or_none(matching_prefix(Criteria, Selection, 2)).
 
+-doc """
+Return the sole row directly, raising on zero or multiple matches.
+Use `one/1` for tagged cardinality errors.
+""".
 -spec one_or_error(t(Row)) -> Row when Row :: tmux_model:row().
 one_or_error(Selection) ->
     case one(Selection) of
         {ok, Row} -> Row;
         {error, Reason} -> error(Reason)
     end.
+-doc """
+Filter locally with complete validation, then return the sole row directly.
+Raises on zero or multiple matches; performs no I/O.
+""".
 -spec one_or_error(criteria(), t(Row)) -> Row when Row :: tmux_model:row().
 one_or_error(Criteria, Selection) -> one_or_error(matching_prefix(Criteria, Selection, 2)).
 
+-doc """
+Return whether this materialized selection is nonempty, without I/O.
+""".
 -spec exists(t()) -> boolean().
 exists(#selection{size = Size}) -> Size > 0.
+-doc """
+Validate all criteria/coverage first, then stop at the first local match.
+Performs no I/O; an empty selection does not bypass validation.
+""".
 -spec exists(criteria(), t()) -> boolean().
 exists(Criteria, Selection) -> exists(matching_prefix(Criteria, Selection, 1)).
+-doc """
+Return the current materialized row count without I/O.
+""".
 -spec count(t()) -> non_neg_integer().
 count(Selection) -> size(Selection).
+-doc """
+Return the exact local match count after full criteria and coverage
+validation. Performs no I/O.
+""".
 -spec count(criteria(), t()) -> non_neg_integer().
 count(Criteria, #selection{rows = Rows} = Selection) ->
     Prepared = prepare_or_error(Criteria, Selection),

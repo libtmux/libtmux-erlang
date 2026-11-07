@@ -17,20 +17,47 @@ empty collection and unavailable fields from known absence.
 -export([sessions/1, windows/1, window_links/1, panes/1, rows/2, get/3,
          related/3, metadata/1, coverage/1, require/2, build/2]).
 -export_type([t/0, requirement/0]).
+-doc """
+An immutable captured graph with identity, indexes, coverage and source intervals.
+""".
 -opaque t() :: #{rows := map(), indexes := map(), edges := map(),
                  metadata := map(), coverage := map()}.
+-doc """
+A collection, field or complete relationship needed for faithful local evaluation.
+""".
 -type requirement() :: {collection, tmux_schema:entity()} |
     {field | relation, tmux_schema:entity(), atom()}.
 
+-doc """
+Return captured sessions in numeric ID order. Performs no I/O and raises
+incomplete_snapshot when that collection was not captured.
+""".
 -spec sessions(t()) -> [tmux_model:session()].
 sessions(Snapshot) -> rows(session, Snapshot).
+-doc """
+Return unique captured physical windows in numeric ID order. Performs no I/O.
+Use `window_links/1` for session-relative membership and indexes.
+""".
 -spec windows(t()) -> [tmux_model:window()].
 windows(Snapshot) -> rows(window, Snapshot).
+-doc """
+Return every captured membership, ordered by numeric session ID, index and
+window ID. Multiple links to the same physical window are preserved. Performs
+no I/O; link identity belongs to this snapshot.
+""".
 -spec window_links(t()) -> [tmux_model:window_link()].
 window_links(Snapshot) -> rows(window_link, Snapshot).
+-doc """
+Return unique captured physical panes in numeric ID order without I/O.
+`related/3` orders panes within a window by pane index.
+""".
 -spec panes(t()) -> [tmux_model:pane()].
 panes(Snapshot) -> rows(pane, Snapshot).
 
+-doc """
+Return a captured collection by schema entity. Performs no I/O. An unloaded
+collection raises incomplete_snapshot rather than appearing empty.
+""".
 -spec rows(tmux_schema:entity(), t()) -> [tmux_model:row()].
 rows(Entity, #{rows := Rows} = Snapshot) ->
     case require([{collection, Entity}], Snapshot) of
@@ -38,6 +65,11 @@ rows(Entity, #{rows := Rows} = Snapshot) ->
         {error, Detail} -> error({incomplete_snapshot, Detail})
     end.
 
+-doc """
+Look up a row in this capture by ID, or a session/index/window tuple for a
+window link. Returns none for a known missing identity and a tagged coverage
+error for an unloaded collection. Performs no I/O.
+""".
 -spec get(tmux_schema:entity(), term(), t()) ->
     {ok, tmux_model:row()} | none | {error, map()}.
 get(Entity, Key, #{indexes := Indexes} = Snapshot) ->
@@ -49,6 +81,12 @@ get(Entity, Key, #{indexes := Indexes} = Snapshot) ->
         end
     end.
 
+-doc """
+Traverse a complete captured relationship without I/O. To-many relations
+return lists; to-one relations return a row or known absence. The input row
+must belong to this snapshot. Unloaded relations and mismatched rows return
+tagged errors.
+""".
 -spec related(atom(), tmux_model:row(), t()) ->
     {ok, [tmux_model:row()] | tmux_model:row() | none} | {error, map()}.
 related(Relation, Row, #{indexes := Indexes, edges := Edges} = Snapshot) ->
@@ -71,11 +109,25 @@ related(Relation, Row, #{indexes := Indexes, edges := Edges} = Snapshot) ->
         end}
     end.
 
+-doc """
+Return capture identity, server generation, source calls, capabilities and
+read interval metadata. Does not refresh the graph or imply atomic capture.
+""".
 -spec metadata(t()) -> map().
 metadata(#{metadata := Metadata}) -> Metadata.
+-doc """
+Return per-collection, field and relationship coverage. Loaded values, known
+absence, not_loaded and unavailable capabilities have distinct meanings.
+Performs no I/O.
+""".
 -spec coverage(t()) -> map().
 coverage(#{coverage := Coverage}) -> Coverage.
 
+-doc """
+Check every declared collection/field/relationship requirement before local
+evaluation. Returns an incomplete_snapshot error with missing requirements
+when the capture cannot answer faithfully. Performs no I/O, even on empty data.
+""".
 -spec require([requirement()], t()) -> ok | {error, map()}.
 require(Requirements, #{coverage := Coverage}) when is_list(Requirements) ->
     requirements(Requirements, Coverage, []);

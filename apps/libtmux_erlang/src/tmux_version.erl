@@ -9,9 +9,16 @@ Runtime acceptance does not establish that a version passed the CI matrix.
 -export([parse/1, require/1, at_least/2]).
 -export_type([t/0]).
 
+-doc """
+Parsed numeric daemon version plus patch, tracking and original-output metadata.
+""".
 -type t() :: #{major := non_neg_integer(), minor := non_neg_integer(),
                patch := binary(), tracking := boolean(), raw := binary()}.
 
+-doc """
+Parse bounded tmux -V output into numeric components and patch/tracking
+metadata. This is pure parsing, not a probe or compatibility qualification.
+""".
 -spec parse(binary()) -> {ok, t()} | {error, {invalid_tmux_version, term()}}.
 parse(<<"tmux ", Text/binary>> = Raw) when byte_size(Raw) =< 64 ->
     {Name, Tracking} = case trim_newline(Text) of
@@ -55,6 +62,10 @@ require(Raw) ->
         end
     end.
 
+-doc """
+Compare numeric major/minor components with a required floor. Patch letters
+do not promote an older minor release. Performs no I/O.
+""".
 -spec at_least(t(), {non_neg_integer(), non_neg_integer()}) -> boolean().
 at_least(#{major := Major, minor := Minor}, {RequiredMajor, RequiredMinor}) ->
     {Major, Minor} >= {RequiredMajor, RequiredMinor}.

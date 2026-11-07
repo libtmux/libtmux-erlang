@@ -11,13 +11,13 @@ native_examples(_Config) ->
     end,
     {ok, Modules} = application:get_key(libtmux_erlang, modules),
     lists:foreach(fun(Module) ->
-        DocumentationOnly = case Module of
-            tmux_model -> [{bind, 3}];
-            tmux_filter -> [{predicate, 1}];
-            tmux_select -> [{matching, 2}];
-            _ -> []
-        end,
-        ok = ct_doctest:module(Module, [
-            {skipped_blocks, 0}, {missing_tests, DocumentationOnly}
-        ])
+        %% Prose-only contracts need no artificial example. Every advertised
+        %% Erlang code block must contain a runnable shell transcript.
+        Result = ct_doctest:module(Module, [
+            {skipped_blocks, 0}
+        ]),
+        case Result of
+            ok -> ok;
+            {comment, _MissingExamples} -> ok
+        end
     end, Modules).

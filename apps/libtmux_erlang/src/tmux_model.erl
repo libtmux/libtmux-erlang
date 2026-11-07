@@ -3,7 +3,8 @@
 -moduledoc """
 Validated native domain records. Constructors perform no tmux I/O.
 
-Absent observations remain not_loaded; unavailable capabilities remain
+Missing optional observations remain not_loaded; required identity fields
+must be supplied. Unavailable capabilities remain
 unavailable. Neither state means an empty relation or known absence.
 Rows created here are detached. Only a registered server owner can
 authorize an action after validating its origin and generation.
@@ -15,8 +16,11 @@ authorize an action after validating its origin and generation.
 -export_type([row/0, pane_id/0, window_id/0, session_id/0,
               session/0, window/0, window_link/0, pane/0]).
 
+-doc "A canonical pane ID binary in the percent namespace; nominal checking is by Dialyzer.".
 -nominal pane_id() :: binary().
+-doc "A canonical physical-window ID binary in the at-sign namespace.".
 -nominal window_id() :: binary().
+-doc "A canonical session ID binary in the dollar namespace.".
 -nominal session_id() :: binary().
 
 -record #session{
@@ -70,10 +74,15 @@ authorize an action after validating its origin and generation.
     model_version = 1 :: pos_integer()
 }.
 
+-doc "One schema-defined native domain record, with separate origin and capture metadata.".
 -type row() :: #session{} | #window{} | #window_link{} | #pane{}.
+-doc "A validated session observation. Native records are experimental in OTP 29.".
 -type session() :: #session{}.
+-doc "A validated window observation. Native records are experimental in OTP 29.".
 -type window() :: #window{}.
+-doc "A validated window_link observation. Native records are experimental in OTP 29.".
 -type window_link() :: #window_link{}.
+-doc "A validated pane observation. Native records are experimental in OTP 29.".
 -type pane() :: #pane{}.
 
 -doc """
@@ -93,18 +102,23 @@ new(Entity, Fields) ->
         {ok, build(Entity, Normalized)}
     end.
 
+-doc "Construct a detached session row, validating required fields and scalar bounds without tmux I/O.".
 -spec session(map()) -> {ok, session()} | {error, map()}.
 session(Fields) -> new(session, Fields).
 
+-doc "Construct a detached window row, validating required fields and scalar bounds without tmux I/O.".
 -spec window(map()) -> {ok, window()} | {error, map()}.
 window(Fields) -> new(window, Fields).
 
+-doc "Construct a detached window_link row, validating required fields and scalar bounds without tmux I/O.".
 -spec window_link(map()) -> {ok, window_link()} | {error, map()}.
 window_link(Fields) -> new(window_link, Fields).
 
+-doc "Construct a detached pane row, validating required fields and scalar bounds without tmux I/O.".
 -spec pane(map()) -> {ok, pane()} | {error, map()}.
 pane(Fields) -> new(pane, Fields).
 
+-doc "Validate native row shape, model version and normalized observations. Exported records do not enforce these invariants at construction. Performs no I/O.".
 -spec validate(term()) -> {ok, row()} | {error, map()}.
 validate(Row) ->
     case row_metadata(Row) of
@@ -120,36 +134,42 @@ validate(Row) ->
         _ -> {error, #{code => invalid_row, path => []}}
     end.
 
+-doc "Return the built-in entity kind of a native row without I/O.".
 -spec entity(row()) -> atom().
 entity(#session{}) -> session;
 entity(#window{}) -> window;
 entity(#window_link{}) -> window_link;
 entity(#pane{}) -> pane.
 
+-doc "Read the opaque origin token, or none for a detached row. This does not revalidate endpoint lifetime.".
 -spec origin(row()) -> none | reference().
 origin(#session{origin = Value}) -> Value;
 origin(#window{origin = Value}) -> Value;
 origin(#window_link{origin = Value}) -> Value;
 origin(#pane{origin = Value}) -> Value.
 
+-doc "Read the capture identity, or none when not associated with a snapshot. Performs no I/O.".
 -spec snapshot_id(row()) -> none | reference().
 snapshot_id(#session{snapshot_id = Value}) -> Value;
 snapshot_id(#window{snapshot_id = Value}) -> Value;
 snapshot_id(#window_link{snapshot_id = Value}) -> Value;
 snapshot_id(#pane{snapshot_id = Value}) -> Value.
 
+-doc "Read the native model version. Unknown versions fail validation; record internals are not a persistence format.".
 -spec model_version(row()) -> pos_integer().
 model_version(#session{model_version = Value}) -> Value;
 model_version(#window{model_version = Value}) -> Value;
 model_version(#window_link{model_version = Value}) -> Value;
 model_version(#pane{model_version = Value}) -> Value.
 
+-doc "Return domain field values without origin or capture metadata. This is not the portable filter wire representation. Performs no I/O.".
 -spec to_map(row()) -> map().
 to_map(Row = #session{}) -> #{id => Row#session.id, name => Row#session.name, attached_count => Row#session.attached_count, attached => Row#session.attached, created => Row#session.created};
 to_map(Row = #window{}) -> #{id => Row#window.id, name => Row#window.name, width => Row#window.width, height => Row#window.height, pane_count => Row#window.pane_count, layout => Row#window.layout};
 to_map(Row = #window_link{}) -> #{session_id => Row#window_link.session_id, window_id => Row#window_link.window_id, index => Row#window_link.index, active => Row#window_link.active};
 to_map(Row = #pane{}) -> #{id => Row#pane.id, window_id => Row#pane.window_id, index => Row#pane.index, active => Row#pane.active, current_command => Row#pane.current_command, current_path => Row#pane.current_path, width => Row#pane.width, height => Row#pane.height, pid => Row#pane.pid, title => Row#pane.title, dead => Row#pane.dead, exit_status => Row#pane.exit_status}.
 
+-doc "Read a permitted domain field without I/O. Unknown fields raise unknown_field; unloaded and unavailable values remain distinct.".
 -spec get(atom(), row()) -> term().
 get(id, #session{id = Value}) -> Value;
 get(name, #session{name = Value}) -> Value;
@@ -180,7 +200,7 @@ get(dead, #pane{dead = Value}) -> Value;
 get(exit_status, #pane{exit_status = Value}) -> Value;
 get(Field, Row) -> error({unknown_field, entity(Row), Field}).
 
--doc "Attach observed provenance; action boundaries still validate the owner.".
+-doc false.
 -spec bind(row(), reference(), reference()) -> row().
 bind(Row = #session{}, Origin, Snapshot)
   when is_reference(Origin), is_reference(Snapshot) ->

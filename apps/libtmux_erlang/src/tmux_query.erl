@@ -14,9 +14,11 @@ Numeric candidate fields come from the restricted scalar codec and must agree
 with the capture's scalar observations. Text and relationships remain local.
 
 ```erlang
-1> Q = tmux_query:where(#{width => #{gte => 120}}, tmux_query:panes(unopened)), ok.
+1> Q0 = tmux_query:panes(unopened), ok.
 ok
-2> maps:get(format, maps:get(candidate, tmux_query:explain(Q))).
+2> Q = tmux_query:where(#{width => #{gte => 120}}, Q0), ok.
+ok
+3> maps:get(format, maps:get(candidate, tmux_query:explain(Q))).
 <<"#{e|>=|:#{pane_width},120}">>
 ```
 """.
@@ -27,17 +29,44 @@ ok
                 filter = none :: none | tmux_filter:t(),
                 limit = infinity :: infinity | non_neg_integer(),
                 pushdown = true :: boolean()}).
+-export_type([fetch_options/0]).
+-doc "Capture bounds plus an explicitly requested single inconsistent-capture retry; default retry is zero.".
+-type fetch_options() :: #{deadline_ms => 1..600000, max_rows => 1..65536,
+    max_bytes => 1..67108864, consistency => observed | atomic, retry => 0 | 1}.
+
+-doc """
+An immutable description of future tmux reads. Only fetch executes it.
+""".
 -opaque t() :: #query{}.
 
+-doc """
+Describe a future server-wide physical pane query. Performs no I/O;
+`fetch/1` is the execution boundary.
+""".
 -spec panes(tmux_server:t()) -> t().
 panes(Server) -> #query{server = Server, entity = pane}.
+-doc """
+Describe a future query over unique physical windows. Performs no I/O.
+""".
 -spec windows(tmux_server:t()) -> t().
 windows(Server) -> #query{server = Server, entity = window}.
+-doc """
+Describe a future query over session-relative window memberships.
+Repeated physical windows retain distinct membership identity. Performs no I/O.
+""".
 -spec window_links(tmux_server:t()) -> t().
 window_links(Server) -> #query{server = Server, entity = window_link}.
+-doc """
+Describe a future server-wide session query without executing tmux.
+""".
 -spec sessions(tmux_server:t()) -> t().
 sessions(Server) -> #query{server = Server, entity = session}.
 
+-doc """
+Validate trusted criteria for this entity and conjoin them with prior
+conditions. Returns a new immutable query; malformed criteria raise bad_filter.
+This performs no I/O.
+""".
 -spec where(map() | tmux_filter:t(), t()) -> t().
 where(Criteria, #query{entity = Entity, filter = Previous} = Query) ->
     Filter = tmux_filter:new_or_error(Entity, Criteria),
@@ -54,13 +83,28 @@ where(Criteria, #query{entity = Entity, filter = Previous} = Query) ->
     end,
     Query#query{filter = Combined}.
 
--spec limit(non_neg_integer(), t()) -> t().
+-doc """
+Set a final result limit from 0 through 65536, applied after residual filtering and
+identity handling. It is not a candidate-fetch limit. Performs no I/O; invalid
+counts raise bad_query_limit.
+""".
+-spec limit(0..65536, t()) -> t().
 limit(Count, Query) when is_integer(Count, 0, 65536) -> Query#query{limit = Count};
 limit(Count, _) -> error({bad_query_limit, Count}).
 
+-doc """
+Enable or disable native candidate exclusion, returning a new query.
+Disabling pushdown evaluates the full captured view locally; neither mode
+promises an atomic graph. Performs no I/O.
+""".
 -spec pushdown(boolean(), t()) -> t().
 pushdown(Enabled, Query) when is_boolean(Enabled) -> Query#query{pushdown = Enabled}.
 
+-doc """
+Inspect command templates, necessary candidate conditions, full residual,
+hydration, required fields, ordering and temporal assumptions. Performs no I/O
+and does not contact the endpoint to claim dynamic capabilities.
+""".
 -spec explain(t()) -> map().
 explain(#query{entity = Entity, limit = Limit, pushdown = Enabled} = Query) ->
     Filter = filter(Query),
@@ -80,13 +124,18 @@ explain(#query{entity = Entity, limit = Limit, pushdown = Enabled} = Query) ->
       text_and_relations => later_observations,
       temporal_limit => excluded_rows_cannot_be_recovered}.
 
+-doc """
+Execute with default capture bounds and no retry. Returns an ordered
+selection whose complete graph remains locally readable. See `fetch/2` for
+resource limits, requested retries and operational errors.
+""".
 -spec fetch(t()) -> {ok, tmux_select:t()} | {error, map()}.
 fetch(Query) -> fetch(Query, #{}).
 
 -doc """
 Execute the planned observation, full local predicate and final limit.
 
-Capture options are those of tmux_server:snapshot/2. retry is 0 (default) or
+Capture options are those of `tmux_server:snapshot/2`. retry is 0 (default) or
 1 and retries only inconsistent_capture, within the original capture deadline.
 The retry is a new read-only capture. No mutations are retried. Invalid
 capture requests return tagged errors, including unsupported consistency.
@@ -96,7 +145,7 @@ capture requests return tagged errors, including unsupported consistency.
 {error,#{code => invalid_query_options}}
 ```
 """.
--spec fetch(t(), map()) -> {ok, tmux_select:t()} | {error, map()}.
+-spec fetch(t(), fetch_options()) -> {ok, tmux_select:t()} | {error, map()}.
 fetch(Query, Options) when is_map(Options) ->
     Retry = maps:get(retry, Options, 0),
     Capture = maps:remove(retry, Options),

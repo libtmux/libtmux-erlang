@@ -25,7 +25,7 @@ run() ->
     {ok, _} = application:ensure_all_started(libtmux_erlang),
     try
         {ok, Pane} = tmux_model:pane(#{id => <<"%1">>, active => true,
-                                      width => 120, current_command => <<"vim">>}),
+            width => 120, current_command => <<"vim">>}),
         [<<"%1">>] = pane_ids([Pane]),
         #pane{id = <<"%1">>, active = true, width = 120} = Pane,
         {ok, Pane} = tmux_model:validate(Pane),
@@ -47,7 +47,8 @@ run() ->
 
 -spec run_endpoint(binary(), binary()) -> ok.
 run_endpoint(Socket, Executable) ->
-    {ok, Server} = tmux_server:open(#{socket_path => Socket, executable => Executable}),
+    Endpoint = #{socket_path => Socket, executable => Executable},
+    {ok, Server} = tmux_server:open(Endpoint),
     try
         {ok, Message} = tmux_command:raw(<<"display-message">>,
                                         [<<"-p">>, <<"archive consumer">>]),
@@ -61,28 +62,37 @@ run_endpoint(Socket, Executable) ->
         {error, #{outcome := unknown, cleanup := complete}} =
             tmux_operation:await(Operation, 900),
         {ok, Session} = tmux_session:create(Server,
-            #{name => <<"archive-domain">>, launch => #{argv => [<<"/bin/cat">>]}}),
+            #{name => <<"archive-domain">>,
+              launch => #{argv => [<<"/bin/cat">>]}}),
         try
-            {ok, Window} = tmux_window:create(Session, #{launch => #{argv => [<<"/bin/cat">>]}}),
+            {ok, Window} = tmux_window:create(
+                Session, #{launch => #{argv => [<<"/bin/cat">>]}}),
             {ok, Pane} = tmux_pane:split(Window,
-                #{direction => horizontal, size => {percent, 40}, launch => #{shell => <<>>}}),
+                #{direction => horizontal, size => {percent, 40},
+                  launch => #{shell => <<>>}}),
             [Id] = pane_ids([Pane]),
             {ok, Detached} = tmux_model:pane(#{id => Id}),
             {ok, Bound} = tmux_server:bind(Server, Detached),
-            {ok, <<"\n">>} = tmux_pane:capture(Bound, #{start => 0, 'end' => 0}),
+            {ok, <<"\n">>} = tmux_pane:capture(
+                Bound, #{start => 0, 'end' => 0}),
             {ok, _} = tmux_window:rename(Window, <<"consumer-#{pane_id};">>),
             {ok, Current} = tmux_window:get(Server, tmux_model:get(id, Window)),
             <<"consumer-#{pane_id};">> = tmux_model:get(name, Current),
             {ok, Snapshot} = tmux_server:snapshot(Server),
-            {ok, CapturedWindow} = tmux_snapshot:get(window, tmux_model:get(id, Window), Snapshot),
-            {ok, Children} = tmux_snapshot:related(panes, CapturedWindow, Snapshot),
+            {ok, CapturedWindow} = tmux_snapshot:get(
+                window, tmux_model:get(id, Window), Snapshot),
+            {ok, Children} = tmux_snapshot:related(
+                panes, CapturedWindow, Snapshot),
             true = lists:member(Id, pane_ids(Children)),
-            ok = tmux_snapshot:require([{relation, window, panes}, {field, pane, pid}], Snapshot),
+            ok = tmux_snapshot:require(
+                [{relation, window, panes}, {field, pane, pid}], Snapshot),
             {ok, Filter} = tmux_filter:new(pane, #{id => Id,
                 window => #{is => #{name => <<"consumer-#{pane_id};">>}}}),
-            {ok, Document} = tmux_filter:decode_json(iolist_to_binary(json:encode(tmux_filter:to_wire(Filter)))),
+            {ok, Document} = tmux_filter:decode_json(
+                iolist_to_binary(json:encode(tmux_filter:to_wire(Filter)))),
             {ok, Filter} = tmux_filter:from_wire(pane, Document),
-            {ok, Selected} = tmux_select:one(Filter, tmux_select:panes(Snapshot)),
+            {ok, Selected} = tmux_select:one(
+                Filter, tmux_select:panes(Snapshot)),
             [Id] = pane_ids([Selected]),
             {ok, Prepared} = tmux_filter:prepare(Filter, Snapshot),
             {ok, true} = tmux_filter:matches(Prepared, Selected),
@@ -90,7 +100,8 @@ run_endpoint(Socket, Executable) ->
             #{candidate := #{exact := false}} = tmux_query:explain(Query),
             {ok, Fetched} = tmux_query:fetch(Query),
             [Id] = pane_ids(tmux_select:to_list(Fetched)),
-            #{query := #{candidate_count := 1, pushed_down := true}} = tmux_select:summary(Fetched)
+            #{query := #{candidate_count := 1, pushed_down := true}} =
+                tmux_select:summary(Fetched)
         after
             {ok, _} = tmux_session:kill(Session)
         end,

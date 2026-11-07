@@ -20,11 +20,48 @@ stderr and status; cancellation after dispatch cannot undo remote effects.
 -export([submit/3, start_link/3, init/1, handle_call/3, handle_cast/2,
          handle_info/2, format_status/1]).
 -export_type([t/0]).
+-export_type([open_options/0, command_options/0, capture_options/0, state/0]).
+-doc "An explicit absolute socket endpoint and optional absolute tmux executable path.".
+-type open_options() :: #{socket_path := binary(), executable => binary()}.
+-doc """
+Command options: deadline_ms defaults to 2500, max_stdout to 1 MiB,
+max_stderr to 64 KiB, stdin to an empty binary and identity to observed.
+The deadline includes admission, preflight and execution. stdin is limited to
+256 KiB; stdin plus the rendered argument reservation must also fit 256 KiB.
+Each endpoint admits at most 64 operations and 256 KiB of command payload;
+exhaustion returns busy. same_connection is recognized but unsupported.
+""".
+-type command_options() :: #{deadline_ms => 1..600000, max_stdout => 0..1048576,
+    max_stderr => 0..65536, stdin => binary(), identity => observed | same_connection}.
+-doc "Capture bounds and consistency request. Atomic capture is explicitly unsupported.".
+-type capture_options() :: #{deadline_ms => 1..600000, max_rows => 1..65536,
+    max_bytes => 1..67108864, consistency => observed | atomic}.
+-doc """
+Endpoint resource summary. owner is the supervised endpoint process, not its
+initiating caller. operations and command_bytes count active admission leases;
+active_bytes reserves output capacity. Retired results are bounded separately
+by retained_results and result_bytes. These are accounting limits, not VM heap
+measurements. generation identifies this endpoint handle's lifetime.
+""".
+-type state() :: #{phase := open | closing | closed, generation := reference(),
+    owner := pid(), operations := non_neg_integer(), command_bytes := non_neg_integer(),
+    active_bytes := non_neg_integer(), retained_results := non_neg_integer(),
+    result_bytes := non_neg_integer()}.
+
+-doc """
+A supervised borrowed-endpoint handle bound to an owner generation and admission state.
+""".
 -opaque t() :: {server, pid(), reference(), tmux_admission:t()}.
 %% Reserve two copies of the 256 KiB ingress limit while validating/rendering.
 -define(PAYLOAD_BUDGET, 7864320).
 
--spec open(map()) -> {ok, t()} | {error, map()}.
+-doc """
+Open a borrowed socket endpoint and start its supervised library owner.
+The caller owns that handle. This probes the executable, daemon version and
+observed Linux process incarnation; it never starts a tmux server or attaches
+a control client. Pass an absolute socket_path and optionally an executable.
+""".
+-spec open(open_options()) -> {ok, t()} | {error, map()}.
 open(Options) ->
     maybe
         {ok, Config} ?= endpoint_options(Options),
@@ -45,25 +82,56 @@ open(Options) ->
         end
     end.
 
--spec command(t(), tmux_command:t(), map()) -> {ok, map()} | {error, map()}.
+-doc """
+Execute one validated command and await its result. Performs I/O.
+The result preserves stdout, stderr, exit status and cleanup certainty.
+Use `tmux_operation:start/3` to submit without blocking this caller. A timeout or
+cancellation cannot reverse effects that may already have reached tmux.
+""".
+-spec command(t(), tmux_command:t(), command_options()) ->
+    {ok, tmux_operation:completed()} | {error, tmux_operation:failure()}.
 command(Server, Command, Options) ->
     case tmux_operation:start(Server, Command, Options) of
         {ok, Operation} -> tmux_operation:await(Operation, infinity);
         Error -> Error
     end.
 
+-doc """
+Retire this endpoint's operations and library clients, preserving the borrowed
+tmux server. Returns ok only after owned cleanup completes; incomplete cleanup
+remains an explicit error. Closing an already closed retained handle is
+idempotent. The initiator controls endpoint lifetime.
+""".
 -spec close(t()) -> ok | {error, map()}.
 close(Server) -> server_request(Server, close, 1000).
 
--spec status(t()) -> {ok, map()} | {error, map()}.
+-doc """
+Read the endpoint owner's lifecycle and resource summary. This contacts the
+library owner, not tmux, and does not refresh captured rows.
+""".
+-spec status(t()) -> {ok, state()} | {error, tmux_operation:failure()}.
 status(Server) -> server_request(Server, status, 900).
 
+-doc """
+Return the registered opaque origin for this open endpoint. The token
+provides library provenance and generation checks, not authorization against
+trusted Erlang code. It is not a portable identifier.
+""".
 -spec origin(t()) -> {ok, reference()} | {error, map()}.
 origin(Server) -> server_request(Server, origin, 900).
 
+-doc """
+Return the daemon version observed when the endpoint opened. This reads
+owner state and does not execute a fresh version command or qualify another
+tmux release.
+""".
 -spec version(t()) -> {ok, tmux_version:t()} | {error, map()}.
 version(Server) -> server_request(Server, version, 900).
 
+-doc """
+Capture a complete immutable graph with default capture limits. Performs I/O.
+See `snapshot/2` for bounds, consistency and conflict errors.
+""".
 -spec snapshot(t()) -> {ok, tmux_snapshot:t()} | {error, map()}.
 snapshot(Server) -> snapshot(Server, #{}).
 
@@ -88,7 +156,7 @@ Unsupported consistency is rejected before contacting a server:
 {error,#{code => unsupported_consistency}}
 ```
 """.
--spec snapshot(t(), map()) -> {ok, tmux_snapshot:t()} | {error, map()}.
+-spec snapshot(t(), capture_options()) -> {ok, tmux_snapshot:t()} | {error, map()}.
 snapshot(Server, Options) -> tmux_observe:snapshot(Server, Options).
 
 -doc false.
@@ -157,10 +225,12 @@ server_request({server, Pid, Generation, _}, Kind, Timeout) ->
     end;
 server_request(_, _, _) -> {error, #{code => invalid_server}}.
 
+-doc false.
 -spec start_link(pid(), reference(), map()) -> gen_server:start_ret().
 start_link(Owner, Generation, Config) ->
     gen_server:start_link(?MODULE, {Owner, Generation, Config}, []).
 
+-doc false.
 -spec init({pid(), reference(), map()}) -> {ok, map()}.
 init({Owner, Generation, Config}) ->
     Admission = tmux_admission:new(Generation),
@@ -173,6 +243,7 @@ init({Owner, Generation, Config}) ->
            requests => gen_server:reqids_new(), close_waiters => #{}, close_timer => none,
            sweep => erlang:start_timer(100, self(), sweep), retention_timer => none}}.
 
+-doc false.
 -spec handle_call(term(), gen_server:from(), map()) -> {reply, term(), map()} | {noreply, map()}.
 handle_call(handle, _, #{generation := Generation, admission := Admission} = State) ->
     {reply, {server, self(), Generation, Admission}, State};
@@ -210,6 +281,7 @@ handle_call({Generation, operation, Id, Kind, Tag}, From, #{generation := Genera
     end;
 handle_call(_, _, State) -> {reply, {error, #{code => server_expired}}, State}.
 
+-doc false.
 -spec handle_cast(term(), map()) -> {noreply, map()}.
 handle_cast({Generation, unwait, Id, Tag}, #{generation := Generation} = State) ->
     {noreply, remove_waiter(Id, Tag, State)};
@@ -217,6 +289,7 @@ handle_cast({Generation, unclose, Tag}, #{generation := Generation} = State) ->
     {noreply, remove_close_waiter(Tag, State)};
 handle_cast(_, State) -> {noreply, State}.
 
+-doc false.
 -spec handle_info(term(), map()) -> {noreply, map()} | {stop, normal, map()}.
 handle_info({tmux_admission, Generation, Id, Owner, Payload}, #{generation := Generation} = State) ->
     continue(admit(Id, Owner, Payload, State));
@@ -248,6 +321,7 @@ handle_info(Message, State) ->
         Next -> continue(Next)
     end.
 
+-doc false.
 -spec format_status(map()) -> map().
 format_status(Status) ->
     maps:map(fun

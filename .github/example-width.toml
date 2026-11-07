@@ -1,0 +1,11 @@
+width = 80
+markdown = ["**/*.md"]
+sources = ["examples/**/*.erl", "examples/**/*.py"]
+allow_ceiling = 1
+checker_digest = "f261e9a3ef44101ead5fe1ce03331716372aac828f7421ef8f06c83c987ee956"
+shared_digest = "872d3f4cb1eb2b5cd9c5b7adc9cd140a153e4bbed3cb5bd0b7400a905e6dae4d"
+
+[[allow]]
+path = ".github/WRITING.md"
+line = '    Result = tmux_select:where(#{current_command => #{in => [<<"nvim">>, <<"vim">>]}}, Panes).'
+reason = "The deliberately wide Bad policy example demonstrates the problem."

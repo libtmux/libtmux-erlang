@@ -8,9 +8,9 @@ use some/every/none/count or is/is_not. Validation examines the entire input
 before evaluation. No function here performs tmux I/O.
 
 ```erlang
-1> {ok, P} = tmux_model:pane(#{id => <<"%1">>, current_command => <<"vim">>}), ok.
+1> Fields = #{id => <<"%1">>, current_command => <<"vim">>}, ok.
 ok
-2> S = tmux_select:from_list(pane, [P]), ok.
+2> {ok, P} = tmux_model:pane(Fields), S = tmux_select:from_list(pane, [P]), ok.
 ok
 3> R = #{pattern => <<"^(vim|nvim)$">>, dialect => portable_v1}, ok.
 ok
@@ -31,12 +31,19 @@ depth and byte limits. Resource errors can refer to the canonical wire path.
          entity/1, expression/1, requirements/1, prepare/2, predicate/1, matches/2,
          prepare_rows/3]).
 -export_type([t/0, prepared/0, expr/0]).
+-doc """
+Portable normalized predicate data for one schema entity; contains no executable state.
+""".
 -opaque t() :: {tmux_filter, 1, tmux_schema:entity(), expr()}.
+-doc "Normalized data expressions with stable field IDs, used by internal planners; not the wire grammar.".
 -type expr() :: {all | any, [expr()]} | {negate, expr()} |
     {field, binary(), atom(), term()} |
     {relation, binary(), atom(), expr()} |
     {count, binary(), [{atom(), term()}]}.
--type prepared() :: tmux_filter_eval:t().
+-doc """
+A cached evaluator bound to one captured observation and schema context.
+""".
+-opaque prepared() :: tmux_filter_eval:t().
 -define(MAX_NODES, 1024).
 -define(MAX_DEPTH, 32).
 -define(MAX_MEMBERS, 256).
@@ -59,6 +66,11 @@ new(_Entity, {tmux_filter, _, _, _}) ->
     {error, #{code => wrong_filter_entity, path => []}};
 new(Entity, Criteria) -> construct(Entity, Criteria, local, []).
 
+-doc """
+Construct a normalized portable filter, raising bad_filter on malformed
+trusted criteria. Performs no tmux I/O. External input should use `new/2` or
+`from_wire/2` for tagged validation errors.
+""".
 -spec new_or_error(tmux_schema:entity(), map() | t()) -> t().
 new_or_error(Entity, Criteria) ->
     case new(Entity, Criteria) of
@@ -66,6 +78,11 @@ new_or_error(Entity, Criteria) ->
         {error, Detail} -> error({bad_filter, Detail})
     end.
 
+-doc """
+Validate a versioned filter document using generated wire-name allowlists.
+Rejects unknown fields, operators, wrong entity/version and resource limits.
+No payload key becomes an atom; this does not execute a query.
+""".
 -spec from_wire(tmux_schema:entity(), term()) -> {ok, t()} | {error, map()}.
 from_wire(Entity, Document) ->
     validated(fun() ->
@@ -87,14 +104,27 @@ from_wire(Entity, Document) ->
         end
     end).
 
+-doc """
+Export versioned JSON-compatible predicate data with generated wire names.
+Byte operands use base64 objects and known absence uses JSON null. Functions,
+compiled regexes and native record internals never enter this representation.
+""".
 -spec to_wire(t()) -> map().
 to_wire({tmux_filter, 1, Entity, Tree}) ->
     #{<<"version">> => 1, <<"entity">> => tmux_schema_data:wire_entity(Entity),
       <<"where">> => wire_node(Entity, Tree)}.
 
+-doc """
+Decode bounded external JSON with duplicate-key, trailing-input and depth
+checks. Returns tagged errors with input paths. Parsing does not execute tmux
+or choose application modules.
+""".
 -spec decode_json(binary()) -> {ok, json:decode_value()} | {error, map()}.
 decode_json(Binary) -> tmux_json:decode(Binary).
 
+-doc """
+Return the schema entity this portable filter accepts, without I/O.
+""".
 -spec entity(t()) -> tmux_schema:entity().
 entity({tmux_filter, 1, Entity, _}) -> Entity.
 
@@ -103,6 +133,10 @@ entity({tmux_filter, 1, Entity, _}) -> Entity.
 -spec expression(t()) -> expr().
 expression({tmux_filter, 1, _, Tree}) -> Tree.
 
+-doc """
+Derive every field and complete relationship needed for faithful evaluation.
+The complete requirement set is checked before short-circuiting any row.
+""".
 -spec requirements(t()) -> [tmux_snapshot:requirement()].
 requirements({tmux_filter, 1, Entity, Tree}) ->
     lists:usort([{collection, Entity} | needed(Entity, Tree)]).
@@ -144,7 +178,7 @@ prepare_rows({tmux_filter, 1, Entity, Tree} = Filter, Rows, Coverage) ->
 Return a Boolean function bound to the prepared observation context.
 
 Rows outside that context raise {prepared_context_mismatch, Detail}. Regex
-evaluation errors raise {filter_evaluation_failed, Detail}. Use matches/2 for
+evaluation errors raise {filter_evaluation_failed, Detail}. Use `matches/2` for
 tagged errors. This does not run callbacks.
 """.
 -spec predicate(prepared()) -> fun((tmux_model:row()) -> boolean()).
@@ -158,6 +192,11 @@ predicate(Prepared) ->
         end
     end.
 
+-doc """
+Evaluate an unmodified captured row against a prepared filter. Returns a
+Boolean result or tagged context/regex resource error. It performs no tmux
+I/O and never converts evaluation failure into a nonmatch.
+""".
 -spec matches(prepared(), tmux_model:row()) -> {ok, boolean()} | {error, map()}.
 matches(Prepared, Row) -> tmux_filter_eval:matches(Prepared, Row).
 

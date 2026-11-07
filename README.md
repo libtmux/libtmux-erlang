@@ -1,54 +1,161 @@
 # libtmux for Erlang
 
-The Erlang port is under development. The current implementation provides
-validated native records, generated field schemas, tmux version checks,
-command renderers, a bounded subprocess adapter and borrowed endpoint owners.
-Operations support bounded admission, cancellation, ownership transfer and
-result retention. Session/window creation and rename, pane splits, capture,
-literal input and key input use registered stable IDs. Records can be read or
-explicitly rebound; detached and stale rows cannot act through these APIs.
-Explicit snapshots capture sessions, unique physical windows and panes, and
-every window membership. Ordinary lists, relationship navigation and coverage
-checks read those captured values without I/O. Captures record their read
-intervals and reject detected conflicts; they are not atomic.
-Local selections preserve row order and coverage, with portable map filters,
-Boolean callbacks, relationship quantifiers and checked cardinality. Native
-JSON decoding enforces document bounds and rejects duplicate keys. Prepared
-filters remain bound to their captured context. Restricted ASCII regex has
-shared PCRE2, JavaScript and Rust matching fixtures. Source queries plan
-conservative native filters, fetch complete graph context and apply the full
-local predicate before limits.
-Integration tests use owned tmux servers. Remaining command families,
-persistent control, MCP and the workspace CLI remain implementation
-work.
+Create tmux sessions, windows and panes from Erlang. Capture their object graph,
+filter it as immutable data, and execute source queries and owned operations
+explicitly.
 
-Development targets Erlang/OTP 29.1.2. The planned Linux compatibility floor
-is plain tmux 3.3. Native records are experimental in OTP 29; another OTP line
-requires consumer and model-upgrade qualification.
+## Install
 
-Build the three OTP applications:
+Use Erlang/OTP **29.1.2**, Rebar3 **3.28.0**, Linux, tmux **3.3 or newer**, and
+`make` with a C11 compiler. Native records are experimental in OTP 29. The core
+uses OTP libraries and a compiled external helper, with no NIF or third-party
+runtime packages.
+
+This checkout is unreleased. Add its core application to your `rebar.config`:
+
+<!-- erlang-term -->
+
+```erlang
+{deps, [
+    {libtmux_erlang, {git_subdir,
+        "https://github.com/libtmux/libtmux-erlang.git",
+        {branch, "master"}, "apps/libtmux_erlang"}}
+]}.
+```
+
+Commit `rebar.lock` to keep the resolved commit. The
+[installation guide](docs/installation.md) covers application startup and
+building a consumer. No Hex release is advertised.
+
+## Create, capture and query
+
+From this checkout, compile with the pinned tools:
 
 ```console
 $ mise exec -- rebar3 compile
 ```
 
-Run the local checks:
+Run the complete program below on a private tmux server:
+
+```console
+$ mise exec -- escript tools/run_examples.escript readme
+```
+
+The runner needs Python 3.12+ for its readiness watcher. It allocates a unique
+socket, verifies the example's assertions, and retires its owned server and
+clients. It leaves your existing tmux sessions alone. The Erlang program uses
+only public core APIs; the archive check also runs it outside this checkout.
+Save it as `readme_demo.erl` when reusing it in an application.
+
+<!-- example: examples/readme_demo.erl -->
+
+```erlang
+-module(readme_demo).
+-moduledoc "Create a workspace, query its graph and preserve captured values.".
+-export([run/2]).
+-import_record(tmux_model, [pane]).
+
+-spec run(binary(), binary()) -> map().
+run(Socket, Executable) ->
+    Endpoint = #{socket_path => Socket, executable => Executable},
+    {ok, Server} = tmux_server:open(Endpoint),
+    try
+        {ok, Session} = tmux_session:create(Server, #{name => <<"workspace">>,
+            window_name => <<"editor">>, width => 120, height => 30,
+            launch => #{argv => [<<"/bin/cat">>]}}),
+        try
+            {ok, Worker} = tmux_window:create(Session,
+                #{name => <<"workers">>,
+                  launch => #{argv => [<<"/bin/cat">>]}}),
+            {ok, _} = tmux_pane:split(Worker, #{direction => horizontal,
+                launch => #{argv => [<<"/bin/cat">>]}}),
+            {ok, Snapshot} = tmux_server:snapshot(Server),
+            Windows = tmux_select:windows(Snapshot),
+            Workers = #{name => <<"workers">>, panes => #{count => 2,
+                every => #{current_command => <<"cat">>}}},
+            {ok, Captured} = tmux_select:one(Workers, Windows),
+            {ok, Children} = tmux_snapshot:related(panes, Captured, Snapshot),
+            Ids = [Id || #pane{id = Id} <:- Children],
+            2 = length(Ids),
+            Criteria = #{width => #{gte => 20},
+                window => #{is => #{name => <<"workers">>}}},
+            Query = tmux_query:where(Criteria, tmux_query:panes(Server)),
+            {ok, Fetched} = tmux_query:fetch(Query),
+            2 = tmux_select:size(Fetched),
+            {ok, _} = tmux_window:rename(Worker, <<"finished">>),
+            <<"workers">> = tmux_model:get(name, Captured),
+            {ok, Fresh} = tmux_query:fetch(tmux_query:where(
+                #{name => <<"finished">>}, tmux_query:windows(Server))),
+            {ok, Renamed} = tmux_select:one(Fresh),
+            <<"finished">> = tmux_model:get(name, Renamed),
+            1 = length(tmux_snapshot:sessions(Snapshot)),
+            2 = length(tmux_snapshot:windows(Snapshot)),
+            3 = length(tmux_snapshot:panes(Snapshot)),
+            #{sessions => 1, windows => 2, panes => 3, matched_panes => 2,
+              captured_name => <<"workers">>, immutable => true}
+        after
+            {ok, _} = tmux_session:kill(Session)
+        end
+    after
+        ok = tmux_server:close(Server)
+    end.
+```
+
+The result includes this checked output. Captured rows keep their original
+values after a rename; actions and `fetch` perform explicit I/O.
+
+<!-- example-output: readme_demo -->
+
+```json
+{
+  "sessions": 1,
+  "windows": 2,
+  "panes": 3,
+  "matched_panes": 2,
+  "captured_name": "workers",
+  "immutable": true
+}
+```
+
+## Follow the graph
+
+A window can have several links in one session and belong to more than one
+session. Physical windows and panes remain unique; window links retain each
+session/index membership.
+
+- [Linked windows and relationship queries](docs/graph.md): build two sessions,
+  link a shared window twice, and verify physical and membership counts.
+- [Run a job and capture its result](docs/jobs.md): wait for a pane's completion
+  event, check its exit status, capture bytes, and cancel a separate operation.
+- [Local filters and source queries](docs/querying.md): Boolean criteria,
+  quantifiers, portable JSON, cardinality, coverage and execution plans.
+- [Fields and operators](docs/fields.md): generated from the runtime schema.
+- [API browser and source docs](docs/api.md): build searchable native reference
+  pages with specs, types and links to the exact source revision.
+
+## Decide whether it fits
+
+The current path uses bounded one-shot tmux clients. Operations support
+non-blocking submission, explicit waits, cancellation and ownership transfer.
+An await timeout abandons that wait; it does not cancel the operation.
+Cancellation after dispatch can leave the tmux outcome unknown.
+
+Persistent control mode, output streams, the MCP server and workspace CLI are
+not implemented yet. The [support and gaps](docs/compatibility.md) page lists
+what is exercised, what remains open, and the required Linux/tmux matrix.
+There is no control-versus-streaming performance claim.
+
+## Verify and contribute
 
 ```console
 $ time python3 tools/check.py mid
 ```
 
-Check native record imports and executable examples from an unpacked OTP
-archive outside the source checkout:
-
 ```console
 $ time python3 tools/check.py outer
 ```
 
-The archive check verifies model imports, the installed helper adapter and
-the public endpoint, operation, domain, snapshot and filter calls in
-[the consumer example](examples/native_consumer.erl). It runs that example
-against a private tmux fixture and verifies cleanup.
-Hex packaging and the complete compatibility matrix remain open.
-See [contributor setup](.github/CONTRIBUTING.md)
-for tool versions, generated sources and check budgets.
+The outer check owns its tmux fixtures and tests installed consumers. See
+[contributor setup](.github/CONTRIBUTING.md) for prerequisites and test budgets,
+[CI](https://github.com/libtmux/libtmux-erlang/actions/workflows/ci.yml) for
+individual release/architecture results, and the [MIT license](LICENSE).
