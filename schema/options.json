@@ -1,0 +1,5499 @@
+{
+  "version": 1,
+  "sources": {
+    "3.3": {
+      "commit": "87fe00e8b44901240fc22d7120c1b31e4331f6f5",
+      "file": "options-table.c",
+      "sha256": "dbf0432e6620735554e798a0aef55c5dd2a1021518261fef4b3f93e60989d2b4",
+      "entries": 181
+    },
+    "3.3a": {
+      "commit": "0b355ae8114511e1ff6359272b164f1cdf718e80",
+      "file": "options-table.c",
+      "sha256": "dbf0432e6620735554e798a0aef55c5dd2a1021518261fef4b3f93e60989d2b4",
+      "entries": 181
+    },
+    "3.4": {
+      "commit": "9ae69c3795ab5ef6b4d760f6398cd9281151f632",
+      "file": "options-table.c",
+      "sha256": "b50f5da4d81dfd26089d35510b96f8f1cf5457d05835d8494feeea0c5cf4e1ea",
+      "entries": 186
+    },
+    "3.5a": {
+      "commit": "549c35b06165f6ae023115eb76f83f2cbf945395",
+      "file": "options-table.c",
+      "sha256": "b3d678c0f3a52c6cd742fb16b8e57c4e808223e814d88422f7344b7ef5e4bb92",
+      "entries": 190
+    },
+    "3.6b": {
+      "commit": "0623d1e968423ad0c192e0d8debf1258671063d5",
+      "file": "options-table.c",
+      "sha256": "bede62bb7230e59e81447287179875c8c0a7ff6a1eb6be71f4a35de999ef66b2",
+      "entries": 210
+    },
+    "3.7c": {
+      "commit": "e476c1230b958df0cb12977517d24b3dc931375b",
+      "file": "options-table.c",
+      "sha256": "c1245a284d540f4c5160617c2f762718b9bc264236c5cf1524b34f51621b56c2",
+      "entries": 221
+    },
+    "3.8": {
+      "commit": "7f2a35ad3321f9ba57a1062ca73b1f3ff26aca53",
+      "file": "options-table.c",
+      "sha256": "cbf3b034785b30aeee3d67032f99e9d9b173a321e11b19be1a11c9e9914fc866",
+      "entries": 272
+    }
+  },
+  "entries": {
+    "activity-action": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a",
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "session"
+          ],
+          "type": "choice",
+          "array": false,
+          "hook": false
+        }
+      }
+    ],
+    "after-bind-key": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a",
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "session"
+          ],
+          "type": "command",
+          "array": true,
+          "hook": true
+        }
+      }
+    ],
+    "after-capture-pane": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a",
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "session"
+          ],
+          "type": "command",
+          "array": true,
+          "hook": true
+        }
+      }
+    ],
+    "after-copy-mode": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a",
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "session"
+          ],
+          "type": "command",
+          "array": true,
+          "hook": true
+        }
+      }
+    ],
+    "after-display-message": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a",
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "session"
+          ],
+          "type": "command",
+          "array": true,
+          "hook": true
+        }
+      }
+    ],
+    "after-display-panes": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a",
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "session"
+          ],
+          "type": "command",
+          "array": true,
+          "hook": true
+        }
+      }
+    ],
+    "after-kill-pane": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a",
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "session"
+          ],
+          "type": "command",
+          "array": true,
+          "hook": true
+        }
+      }
+    ],
+    "after-list-buffers": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a",
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "session"
+          ],
+          "type": "command",
+          "array": true,
+          "hook": true
+        }
+      }
+    ],
+    "after-list-clients": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a",
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "session"
+          ],
+          "type": "command",
+          "array": true,
+          "hook": true
+        }
+      }
+    ],
+    "after-list-keys": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a",
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "session"
+          ],
+          "type": "command",
+          "array": true,
+          "hook": true
+        }
+      }
+    ],
+    "after-list-panes": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a",
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "session"
+          ],
+          "type": "command",
+          "array": true,
+          "hook": true
+        }
+      }
+    ],
+    "after-list-sessions": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a",
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "session"
+          ],
+          "type": "command",
+          "array": true,
+          "hook": true
+        }
+      }
+    ],
+    "after-list-windows": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a",
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "session"
+          ],
+          "type": "command",
+          "array": true,
+          "hook": true
+        }
+      }
+    ],
+    "after-load-buffer": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a",
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "session"
+          ],
+          "type": "command",
+          "array": true,
+          "hook": true
+        }
+      }
+    ],
+    "after-lock-server": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a",
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "session"
+          ],
+          "type": "command",
+          "array": true,
+          "hook": true
+        }
+      }
+    ],
+    "after-new-session": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a",
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "session"
+          ],
+          "type": "command",
+          "array": true,
+          "hook": true
+        }
+      }
+    ],
+    "after-new-window": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a",
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "session"
+          ],
+          "type": "command",
+          "array": true,
+          "hook": true
+        }
+      }
+    ],
+    "after-paste-buffer": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a",
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "session"
+          ],
+          "type": "command",
+          "array": true,
+          "hook": true
+        }
+      }
+    ],
+    "after-pipe-pane": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a",
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "session"
+          ],
+          "type": "command",
+          "array": true,
+          "hook": true
+        }
+      }
+    ],
+    "after-queue": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a",
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c"
+        ],
+        "metadata": {
+          "scopes": [
+            "session"
+          ],
+          "type": "command",
+          "array": true,
+          "hook": true
+        }
+      }
+    ],
+    "after-refresh-client": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a",
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "session"
+          ],
+          "type": "command",
+          "array": true,
+          "hook": true
+        }
+      }
+    ],
+    "after-rename-session": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a",
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "session"
+          ],
+          "type": "command",
+          "array": true,
+          "hook": true
+        }
+      }
+    ],
+    "after-rename-window": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a",
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "session"
+          ],
+          "type": "command",
+          "array": true,
+          "hook": true
+        }
+      }
+    ],
+    "after-resize-pane": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a",
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "session"
+          ],
+          "type": "command",
+          "array": true,
+          "hook": true
+        }
+      }
+    ],
+    "after-resize-window": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a",
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "session"
+          ],
+          "type": "command",
+          "array": true,
+          "hook": true
+        }
+      }
+    ],
+    "after-save-buffer": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a",
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "session"
+          ],
+          "type": "command",
+          "array": true,
+          "hook": true
+        }
+      }
+    ],
+    "after-select-layout": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a",
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "session"
+          ],
+          "type": "command",
+          "array": true,
+          "hook": true
+        }
+      }
+    ],
+    "after-select-pane": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a",
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "session"
+          ],
+          "type": "command",
+          "array": true,
+          "hook": true
+        }
+      }
+    ],
+    "after-select-window": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a",
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "session"
+          ],
+          "type": "command",
+          "array": true,
+          "hook": true
+        }
+      }
+    ],
+    "after-send-keys": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a",
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "session"
+          ],
+          "type": "command",
+          "array": true,
+          "hook": true
+        }
+      }
+    ],
+    "after-set-buffer": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a",
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "session"
+          ],
+          "type": "command",
+          "array": true,
+          "hook": true
+        }
+      }
+    ],
+    "after-set-environment": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a",
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "session"
+          ],
+          "type": "command",
+          "array": true,
+          "hook": true
+        }
+      }
+    ],
+    "after-set-hook": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a",
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "session"
+          ],
+          "type": "command",
+          "array": true,
+          "hook": true
+        }
+      }
+    ],
+    "after-set-option": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a",
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "session"
+          ],
+          "type": "command",
+          "array": true,
+          "hook": true
+        }
+      }
+    ],
+    "after-show-environment": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a",
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "session"
+          ],
+          "type": "command",
+          "array": true,
+          "hook": true
+        }
+      }
+    ],
+    "after-show-messages": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a",
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "session"
+          ],
+          "type": "command",
+          "array": true,
+          "hook": true
+        }
+      }
+    ],
+    "after-show-options": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a",
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "session"
+          ],
+          "type": "command",
+          "array": true,
+          "hook": true
+        }
+      }
+    ],
+    "after-split-window": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a",
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "session"
+          ],
+          "type": "command",
+          "array": true,
+          "hook": true
+        }
+      }
+    ],
+    "after-swap-window": [
+      {
+        "versions": [
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "session"
+          ],
+          "type": "command",
+          "array": true,
+          "hook": true
+        }
+      }
+    ],
+    "after-unbind-key": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a",
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "session"
+          ],
+          "type": "command",
+          "array": true,
+          "hook": true
+        }
+      }
+    ],
+    "aggressive-resize": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a",
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "window"
+          ],
+          "type": "flag",
+          "array": false,
+          "hook": false
+        }
+      }
+    ],
+    "alert-activity": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a",
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "session"
+          ],
+          "type": "command",
+          "array": true,
+          "hook": true
+        }
+      }
+    ],
+    "alert-bell": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a",
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "session"
+          ],
+          "type": "command",
+          "array": true,
+          "hook": true
+        }
+      }
+    ],
+    "alert-silence": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a",
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "session"
+          ],
+          "type": "command",
+          "array": true,
+          "hook": true
+        }
+      }
+    ],
+    "allow-passthrough": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a"
+        ],
+        "metadata": {
+          "scopes": [
+            "window",
+            "pane"
+          ],
+          "type": "flag",
+          "array": false,
+          "hook": false
+        }
+      },
+      {
+        "versions": [
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "window",
+            "pane"
+          ],
+          "type": "choice",
+          "array": false,
+          "hook": false
+        }
+      }
+    ],
+    "allow-rename": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a",
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "window",
+            "pane"
+          ],
+          "type": "flag",
+          "array": false,
+          "hook": false
+        }
+      }
+    ],
+    "allow-set-title": [
+      {
+        "versions": [
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "window",
+            "pane"
+          ],
+          "type": "flag",
+          "array": false,
+          "hook": false
+        }
+      }
+    ],
+    "alternate-screen": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a",
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "window",
+            "pane"
+          ],
+          "type": "flag",
+          "array": false,
+          "hook": false
+        }
+      }
+    ],
+    "assume-paste-time": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a",
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "session"
+          ],
+          "type": "number",
+          "array": false,
+          "hook": false
+        }
+      }
+    ],
+    "automatic-rename": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a",
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "window"
+          ],
+          "type": "flag",
+          "array": false,
+          "hook": false
+        }
+      }
+    ],
+    "automatic-rename-format": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a",
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "window"
+          ],
+          "type": "string",
+          "array": false,
+          "hook": false
+        }
+      }
+    ],
+    "backspace": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a",
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "server"
+          ],
+          "type": "key",
+          "array": false,
+          "hook": false
+        }
+      }
+    ],
+    "base-index": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a",
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "session"
+          ],
+          "type": "number",
+          "array": false,
+          "hook": false
+        }
+      }
+    ],
+    "bell-action": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a",
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "session"
+          ],
+          "type": "choice",
+          "array": false,
+          "hook": false
+        }
+      }
+    ],
+    "buffer-limit": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a",
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "server"
+          ],
+          "type": "number",
+          "array": false,
+          "hook": false
+        }
+      }
+    ],
+    "clear-on-attach": [
+      {
+        "versions": [
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "server"
+          ],
+          "type": "flag",
+          "array": false,
+          "hook": false
+        }
+      }
+    ],
+    "client-active": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a",
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "session"
+          ],
+          "type": "command",
+          "array": true,
+          "hook": true
+        }
+      }
+    ],
+    "client-attached": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a",
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "session"
+          ],
+          "type": "command",
+          "array": true,
+          "hook": true
+        }
+      }
+    ],
+    "client-closed": [
+      {
+        "versions": [
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "session"
+          ],
+          "type": "command",
+          "array": true,
+          "hook": true
+        }
+      }
+    ],
+    "client-created": [
+      {
+        "versions": [
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "session"
+          ],
+          "type": "command",
+          "array": true,
+          "hook": true
+        }
+      }
+    ],
+    "client-dark-theme": [
+      {
+        "versions": [
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "session"
+          ],
+          "type": "command",
+          "array": true,
+          "hook": true
+        }
+      }
+    ],
+    "client-detached": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a",
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "session"
+          ],
+          "type": "command",
+          "array": true,
+          "hook": true
+        }
+      }
+    ],
+    "client-focus-in": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a",
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "session"
+          ],
+          "type": "command",
+          "array": true,
+          "hook": true
+        }
+      }
+    ],
+    "client-focus-out": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a",
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "session"
+          ],
+          "type": "command",
+          "array": true,
+          "hook": true
+        }
+      }
+    ],
+    "client-light-theme": [
+      {
+        "versions": [
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "session"
+          ],
+          "type": "command",
+          "array": true,
+          "hook": true
+        }
+      }
+    ],
+    "client-resized": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a",
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "session"
+          ],
+          "type": "command",
+          "array": true,
+          "hook": true
+        }
+      }
+    ],
+    "client-session-changed": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a",
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "session"
+          ],
+          "type": "command",
+          "array": true,
+          "hook": true
+        }
+      }
+    ],
+    "clock-mode-colour": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a",
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c"
+        ],
+        "metadata": {
+          "scopes": [
+            "window"
+          ],
+          "type": "colour",
+          "array": false,
+          "hook": false
+        }
+      },
+      {
+        "versions": [
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "window"
+          ],
+          "type": "string",
+          "array": false,
+          "hook": false
+        }
+      }
+    ],
+    "clock-mode-style": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a",
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "window"
+          ],
+          "type": "choice",
+          "array": false,
+          "hook": false
+        }
+      }
+    ],
+    "codepoint-widths": [
+      {
+        "versions": [
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "server"
+          ],
+          "type": "string",
+          "array": true,
+          "hook": false
+        }
+      }
+    ],
+    "command-alias": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a",
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "server"
+          ],
+          "type": "string",
+          "array": true,
+          "hook": false
+        }
+      }
+    ],
+    "command-error": [
+      {
+        "versions": [
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "session"
+          ],
+          "type": "command",
+          "array": true,
+          "hook": true
+        }
+      }
+    ],
+    "copy-command": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a",
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "server"
+          ],
+          "type": "string",
+          "array": false,
+          "hook": false
+        }
+      }
+    ],
+    "copy-mode-current-line-number-style": [
+      {
+        "versions": [
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "window"
+          ],
+          "type": "string",
+          "array": false,
+          "hook": false
+        }
+      }
+    ],
+    "copy-mode-current-line-style": [
+      {
+        "versions": [
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "window"
+          ],
+          "type": "string",
+          "array": false,
+          "hook": false
+        }
+      }
+    ],
+    "copy-mode-current-match-style": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a",
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "window"
+          ],
+          "type": "string",
+          "array": false,
+          "hook": false
+        }
+      }
+    ],
+    "copy-mode-line-number-style": [
+      {
+        "versions": [
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "window"
+          ],
+          "type": "string",
+          "array": false,
+          "hook": false
+        }
+      }
+    ],
+    "copy-mode-line-numbers": [
+      {
+        "versions": [
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "window"
+          ],
+          "type": "choice",
+          "array": false,
+          "hook": false
+        }
+      }
+    ],
+    "copy-mode-mark-style": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a",
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "window"
+          ],
+          "type": "string",
+          "array": false,
+          "hook": false
+        }
+      }
+    ],
+    "copy-mode-match-style": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a",
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "window"
+          ],
+          "type": "string",
+          "array": false,
+          "hook": false
+        }
+      }
+    ],
+    "copy-mode-position-format": [
+      {
+        "versions": [
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "window",
+            "pane"
+          ],
+          "type": "string",
+          "array": false,
+          "hook": false
+        }
+      }
+    ],
+    "copy-mode-position-style": [
+      {
+        "versions": [
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "window"
+          ],
+          "type": "string",
+          "array": false,
+          "hook": false
+        }
+      }
+    ],
+    "copy-mode-selection-style": [
+      {
+        "versions": [
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "window"
+          ],
+          "type": "string",
+          "array": false,
+          "hook": false
+        }
+      }
+    ],
+    "cursor-colour": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a",
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c"
+        ],
+        "metadata": {
+          "scopes": [
+            "window",
+            "pane"
+          ],
+          "type": "colour",
+          "array": false,
+          "hook": false
+        }
+      },
+      {
+        "versions": [
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "window",
+            "pane"
+          ],
+          "type": "string",
+          "array": false,
+          "hook": false
+        }
+      }
+    ],
+    "cursor-style": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a",
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "window",
+            "pane"
+          ],
+          "type": "choice",
+          "array": false,
+          "hook": false
+        }
+      }
+    ],
+    "dark-theme-black": [
+      {
+        "versions": [
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "server"
+          ],
+          "type": "string",
+          "array": false,
+          "hook": false
+        }
+      }
+    ],
+    "dark-theme-blue": [
+      {
+        "versions": [
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "server"
+          ],
+          "type": "string",
+          "array": false,
+          "hook": false
+        }
+      }
+    ],
+    "dark-theme-cyan": [
+      {
+        "versions": [
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "server"
+          ],
+          "type": "string",
+          "array": false,
+          "hook": false
+        }
+      }
+    ],
+    "dark-theme-dark-grey": [
+      {
+        "versions": [
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "server"
+          ],
+          "type": "string",
+          "array": false,
+          "hook": false
+        }
+      }
+    ],
+    "dark-theme-green": [
+      {
+        "versions": [
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "server"
+          ],
+          "type": "string",
+          "array": false,
+          "hook": false
+        }
+      }
+    ],
+    "dark-theme-light-grey": [
+      {
+        "versions": [
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "server"
+          ],
+          "type": "string",
+          "array": false,
+          "hook": false
+        }
+      }
+    ],
+    "dark-theme-magenta": [
+      {
+        "versions": [
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "server"
+          ],
+          "type": "string",
+          "array": false,
+          "hook": false
+        }
+      }
+    ],
+    "dark-theme-red": [
+      {
+        "versions": [
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "server"
+          ],
+          "type": "string",
+          "array": false,
+          "hook": false
+        }
+      }
+    ],
+    "dark-theme-white": [
+      {
+        "versions": [
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "server"
+          ],
+          "type": "string",
+          "array": false,
+          "hook": false
+        }
+      }
+    ],
+    "dark-theme-yellow": [
+      {
+        "versions": [
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "server"
+          ],
+          "type": "string",
+          "array": false,
+          "hook": false
+        }
+      }
+    ],
+    "default-client-command": [
+      {
+        "versions": [
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "server"
+          ],
+          "type": "command",
+          "array": false,
+          "hook": false
+        }
+      }
+    ],
+    "default-command": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a",
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "session"
+          ],
+          "type": "string",
+          "array": false,
+          "hook": false
+        }
+      }
+    ],
+    "default-shell": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a",
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "session"
+          ],
+          "type": "string",
+          "array": false,
+          "hook": false
+        }
+      }
+    ],
+    "default-size": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a",
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "session"
+          ],
+          "type": "string",
+          "array": false,
+          "hook": false
+        }
+      }
+    ],
+    "default-terminal": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a",
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "server"
+          ],
+          "type": "string",
+          "array": false,
+          "hook": false
+        }
+      }
+    ],
+    "destroy-unattached": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a"
+        ],
+        "metadata": {
+          "scopes": [
+            "session"
+          ],
+          "type": "flag",
+          "array": false,
+          "hook": false
+        }
+      },
+      {
+        "versions": [
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "session"
+          ],
+          "type": "choice",
+          "array": false,
+          "hook": false
+        }
+      }
+    ],
+    "detach-on-destroy": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a",
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "session"
+          ],
+          "type": "choice",
+          "array": false,
+          "hook": false
+        }
+      }
+    ],
+    "display-panes-active-colour": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a",
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c"
+        ],
+        "metadata": {
+          "scopes": [
+            "session"
+          ],
+          "type": "colour",
+          "array": false,
+          "hook": false
+        }
+      },
+      {
+        "versions": [
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "window"
+          ],
+          "type": "string",
+          "array": false,
+          "hook": false
+        }
+      }
+    ],
+    "display-panes-border-style": [
+      {
+        "versions": [
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "window"
+          ],
+          "type": "string",
+          "array": false,
+          "hook": false
+        }
+      }
+    ],
+    "display-panes-colour": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a",
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c"
+        ],
+        "metadata": {
+          "scopes": [
+            "session"
+          ],
+          "type": "colour",
+          "array": false,
+          "hook": false
+        }
+      },
+      {
+        "versions": [
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "window"
+          ],
+          "type": "string",
+          "array": false,
+          "hook": false
+        }
+      }
+    ],
+    "display-panes-format": [
+      {
+        "versions": [
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "window"
+          ],
+          "type": "string",
+          "array": false,
+          "hook": false
+        }
+      }
+    ],
+    "display-panes-time": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a",
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c"
+        ],
+        "metadata": {
+          "scopes": [
+            "session"
+          ],
+          "type": "number",
+          "array": false,
+          "hook": false
+        }
+      },
+      {
+        "versions": [
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "window"
+          ],
+          "type": "number",
+          "array": false,
+          "hook": false
+        }
+      }
+    ],
+    "display-time": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a",
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "session"
+          ],
+          "type": "number",
+          "array": false,
+          "hook": false
+        }
+      }
+    ],
+    "editor": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a",
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "server"
+          ],
+          "type": "string",
+          "array": false,
+          "hook": false
+        }
+      }
+    ],
+    "escape-time": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a",
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "server"
+          ],
+          "type": "number",
+          "array": false,
+          "hook": false
+        }
+      }
+    ],
+    "exit-empty": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a",
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "server"
+          ],
+          "type": "flag",
+          "array": false,
+          "hook": false
+        }
+      }
+    ],
+    "exit-unattached": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a",
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "server"
+          ],
+          "type": "flag",
+          "array": false,
+          "hook": false
+        }
+      }
+    ],
+    "extended-keys": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a",
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "server"
+          ],
+          "type": "choice",
+          "array": false,
+          "hook": false
+        }
+      }
+    ],
+    "extended-keys-format": [
+      {
+        "versions": [
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "server"
+          ],
+          "type": "choice",
+          "array": false,
+          "hook": false
+        }
+      }
+    ],
+    "fill-character": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a",
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "window"
+          ],
+          "type": "string",
+          "array": false,
+          "hook": false
+        }
+      }
+    ],
+    "focus-events": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a",
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "server"
+          ],
+          "type": "flag",
+          "array": false,
+          "hook": false
+        }
+      }
+    ],
+    "focus-follows-mouse": [
+      {
+        "versions": [
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "session"
+          ],
+          "type": "flag",
+          "array": false,
+          "hook": false
+        }
+      }
+    ],
+    "get-clipboard": [
+      {
+        "versions": [
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "server"
+          ],
+          "type": "choice",
+          "array": false,
+          "hook": false
+        }
+      }
+    ],
+    "history-file": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a",
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "server"
+          ],
+          "type": "string",
+          "array": false,
+          "hook": false
+        }
+      }
+    ],
+    "history-limit": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a",
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "session"
+          ],
+          "type": "number",
+          "array": false,
+          "hook": false
+        }
+      }
+    ],
+    "initial-repeat-time": [
+      {
+        "versions": [
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "session"
+          ],
+          "type": "number",
+          "array": false,
+          "hook": false
+        }
+      }
+    ],
+    "input-buffer-size": [
+      {
+        "versions": [
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "server"
+          ],
+          "type": "number",
+          "array": false,
+          "hook": false
+        }
+      }
+    ],
+    "key-table": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a",
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "session"
+          ],
+          "type": "string",
+          "array": false,
+          "hook": false
+        }
+      }
+    ],
+    "light-theme-black": [
+      {
+        "versions": [
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "server"
+          ],
+          "type": "string",
+          "array": false,
+          "hook": false
+        }
+      }
+    ],
+    "light-theme-blue": [
+      {
+        "versions": [
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "server"
+          ],
+          "type": "string",
+          "array": false,
+          "hook": false
+        }
+      }
+    ],
+    "light-theme-cyan": [
+      {
+        "versions": [
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "server"
+          ],
+          "type": "string",
+          "array": false,
+          "hook": false
+        }
+      }
+    ],
+    "light-theme-dark-grey": [
+      {
+        "versions": [
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "server"
+          ],
+          "type": "string",
+          "array": false,
+          "hook": false
+        }
+      }
+    ],
+    "light-theme-green": [
+      {
+        "versions": [
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "server"
+          ],
+          "type": "string",
+          "array": false,
+          "hook": false
+        }
+      }
+    ],
+    "light-theme-light-grey": [
+      {
+        "versions": [
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "server"
+          ],
+          "type": "string",
+          "array": false,
+          "hook": false
+        }
+      }
+    ],
+    "light-theme-magenta": [
+      {
+        "versions": [
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "server"
+          ],
+          "type": "string",
+          "array": false,
+          "hook": false
+        }
+      }
+    ],
+    "light-theme-red": [
+      {
+        "versions": [
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "server"
+          ],
+          "type": "string",
+          "array": false,
+          "hook": false
+        }
+      }
+    ],
+    "light-theme-white": [
+      {
+        "versions": [
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "server"
+          ],
+          "type": "string",
+          "array": false,
+          "hook": false
+        }
+      }
+    ],
+    "light-theme-yellow": [
+      {
+        "versions": [
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "server"
+          ],
+          "type": "string",
+          "array": false,
+          "hook": false
+        }
+      }
+    ],
+    "lock-after-time": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a",
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "session"
+          ],
+          "type": "number",
+          "array": false,
+          "hook": false
+        }
+      }
+    ],
+    "lock-command": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a",
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "session"
+          ],
+          "type": "string",
+          "array": false,
+          "hook": false
+        }
+      }
+    ],
+    "main-pane-height": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a",
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "window"
+          ],
+          "type": "string",
+          "array": false,
+          "hook": false
+        }
+      }
+    ],
+    "main-pane-width": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a",
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "window"
+          ],
+          "type": "string",
+          "array": false,
+          "hook": false
+        }
+      }
+    ],
+    "marked-pane-changed": [
+      {
+        "versions": [
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "session"
+          ],
+          "type": "command",
+          "array": true,
+          "hook": true
+        }
+      }
+    ],
+    "menu-border-lines": [
+      {
+        "versions": [
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "window"
+          ],
+          "type": "choice",
+          "array": false,
+          "hook": false
+        }
+      }
+    ],
+    "menu-border-style": [
+      {
+        "versions": [
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "window"
+          ],
+          "type": "string",
+          "array": false,
+          "hook": false
+        }
+      }
+    ],
+    "menu-selected-style": [
+      {
+        "versions": [
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "window"
+          ],
+          "type": "string",
+          "array": false,
+          "hook": false
+        }
+      }
+    ],
+    "menu-style": [
+      {
+        "versions": [
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "window"
+          ],
+          "type": "string",
+          "array": false,
+          "hook": false
+        }
+      }
+    ],
+    "message-command-style": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a",
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "session"
+          ],
+          "type": "string",
+          "array": false,
+          "hook": false
+        }
+      }
+    ],
+    "message-format": [
+      {
+        "versions": [
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "session"
+          ],
+          "type": "string",
+          "array": false,
+          "hook": false
+        }
+      }
+    ],
+    "message-limit": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a",
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "server"
+          ],
+          "type": "number",
+          "array": false,
+          "hook": false
+        }
+      }
+    ],
+    "message-line": [
+      {
+        "versions": [
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "session"
+          ],
+          "type": "choice",
+          "array": false,
+          "hook": false
+        }
+      }
+    ],
+    "message-style": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a",
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "session"
+          ],
+          "type": "string",
+          "array": false,
+          "hook": false
+        }
+      }
+    ],
+    "mode-keys": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a",
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "window"
+          ],
+          "type": "choice",
+          "array": false,
+          "hook": false
+        }
+      }
+    ],
+    "mode-style": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a",
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "window"
+          ],
+          "type": "string",
+          "array": false,
+          "hook": false
+        }
+      }
+    ],
+    "monitor-activity": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a",
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "window"
+          ],
+          "type": "flag",
+          "array": false,
+          "hook": false
+        }
+      }
+    ],
+    "monitor-bell": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a",
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "window"
+          ],
+          "type": "flag",
+          "array": false,
+          "hook": false
+        }
+      }
+    ],
+    "monitor-silence": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a",
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "window"
+          ],
+          "type": "number",
+          "array": false,
+          "hook": false
+        }
+      }
+    ],
+    "mouse": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a",
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "session"
+          ],
+          "type": "flag",
+          "array": false,
+          "hook": false
+        }
+      }
+    ],
+    "other-pane-height": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a",
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "window"
+          ],
+          "type": "string",
+          "array": false,
+          "hook": false
+        }
+      }
+    ],
+    "other-pane-width": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a",
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "window"
+          ],
+          "type": "string",
+          "array": false,
+          "hook": false
+        }
+      }
+    ],
+    "pane-active-border-style": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a",
+          "3.4",
+          "3.5a",
+          "3.6b"
+        ],
+        "metadata": {
+          "scopes": [
+            "window"
+          ],
+          "type": "string",
+          "array": false,
+          "hook": false
+        }
+      },
+      {
+        "versions": [
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "window",
+            "pane"
+          ],
+          "type": "string",
+          "array": false,
+          "hook": false
+        }
+      }
+    ],
+    "pane-activity": [
+      {
+        "versions": [
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "window",
+            "pane"
+          ],
+          "type": "command",
+          "array": true,
+          "hook": true
+        }
+      }
+    ],
+    "pane-base-index": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a",
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "window"
+          ],
+          "type": "number",
+          "array": false,
+          "hook": false
+        }
+      }
+    ],
+    "pane-bell": [
+      {
+        "versions": [
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "window",
+            "pane"
+          ],
+          "type": "command",
+          "array": true,
+          "hook": true
+        }
+      }
+    ],
+    "pane-border-format": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a",
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "window",
+            "pane"
+          ],
+          "type": "string",
+          "array": false,
+          "hook": false
+        }
+      }
+    ],
+    "pane-border-indicators": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a",
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "window"
+          ],
+          "type": "choice",
+          "array": false,
+          "hook": false
+        }
+      }
+    ],
+    "pane-border-lines": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a",
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c"
+        ],
+        "metadata": {
+          "scopes": [
+            "window"
+          ],
+          "type": "choice",
+          "array": false,
+          "hook": false
+        }
+      },
+      {
+        "versions": [
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "window",
+            "pane"
+          ],
+          "type": "choice",
+          "array": false,
+          "hook": false
+        }
+      }
+    ],
+    "pane-border-status": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a",
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c"
+        ],
+        "metadata": {
+          "scopes": [
+            "window"
+          ],
+          "type": "choice",
+          "array": false,
+          "hook": false
+        }
+      },
+      {
+        "versions": [
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "window",
+            "pane"
+          ],
+          "type": "choice",
+          "array": false,
+          "hook": false
+        }
+      }
+    ],
+    "pane-border-style": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a",
+          "3.4",
+          "3.5a",
+          "3.6b"
+        ],
+        "metadata": {
+          "scopes": [
+            "window"
+          ],
+          "type": "string",
+          "array": false,
+          "hook": false
+        }
+      },
+      {
+        "versions": [
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "window",
+            "pane"
+          ],
+          "type": "string",
+          "array": false,
+          "hook": false
+        }
+      }
+    ],
+    "pane-colours": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a",
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "window",
+            "pane"
+          ],
+          "type": "colour",
+          "array": true,
+          "hook": false
+        }
+      }
+    ],
+    "pane-command-finished": [
+      {
+        "versions": [
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "window",
+            "pane"
+          ],
+          "type": "command",
+          "array": true,
+          "hook": true
+        }
+      }
+    ],
+    "pane-command-started": [
+      {
+        "versions": [
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "window",
+            "pane"
+          ],
+          "type": "command",
+          "array": true,
+          "hook": true
+        }
+      }
+    ],
+    "pane-created": [
+      {
+        "versions": [
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "window",
+            "pane"
+          ],
+          "type": "command",
+          "array": true,
+          "hook": true
+        }
+      }
+    ],
+    "pane-died": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a",
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "window",
+            "pane"
+          ],
+          "type": "command",
+          "array": true,
+          "hook": true
+        }
+      }
+    ],
+    "pane-exited": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a",
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "window",
+            "pane"
+          ],
+          "type": "command",
+          "array": true,
+          "hook": true
+        }
+      }
+    ],
+    "pane-focus-in": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a",
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "window",
+            "pane"
+          ],
+          "type": "command",
+          "array": true,
+          "hook": true
+        }
+      }
+    ],
+    "pane-focus-out": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a",
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "window",
+            "pane"
+          ],
+          "type": "command",
+          "array": true,
+          "hook": true
+        }
+      }
+    ],
+    "pane-mode-changed": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a",
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "window",
+            "pane"
+          ],
+          "type": "command",
+          "array": true,
+          "hook": true
+        }
+      }
+    ],
+    "pane-mode-entered": [
+      {
+        "versions": [
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "window",
+            "pane"
+          ],
+          "type": "command",
+          "array": true,
+          "hook": true
+        }
+      }
+    ],
+    "pane-mode-exited": [
+      {
+        "versions": [
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "window",
+            "pane"
+          ],
+          "type": "command",
+          "array": true,
+          "hook": true
+        }
+      }
+    ],
+    "pane-moved": [
+      {
+        "versions": [
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "window",
+            "pane"
+          ],
+          "type": "command",
+          "array": true,
+          "hook": true
+        }
+      }
+    ],
+    "pane-prompt-closed": [
+      {
+        "versions": [
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "window",
+            "pane"
+          ],
+          "type": "command",
+          "array": true,
+          "hook": true
+        }
+      }
+    ],
+    "pane-prompt-opened": [
+      {
+        "versions": [
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "window",
+            "pane"
+          ],
+          "type": "command",
+          "array": true,
+          "hook": true
+        }
+      }
+    ],
+    "pane-resized": [
+      {
+        "versions": [
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "window",
+            "pane"
+          ],
+          "type": "command",
+          "array": true,
+          "hook": true
+        }
+      }
+    ],
+    "pane-scrollbars": [
+      {
+        "versions": [
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "window"
+          ],
+          "type": "choice",
+          "array": false,
+          "hook": false
+        }
+      }
+    ],
+    "pane-scrollbars-position": [
+      {
+        "versions": [
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "window"
+          ],
+          "type": "choice",
+          "array": false,
+          "hook": false
+        }
+      }
+    ],
+    "pane-scrollbars-style": [
+      {
+        "versions": [
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "window",
+            "pane"
+          ],
+          "type": "string",
+          "array": false,
+          "hook": false
+        }
+      }
+    ],
+    "pane-scrollbars-timeout": [
+      {
+        "versions": [
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "window"
+          ],
+          "type": "number",
+          "array": false,
+          "hook": false
+        }
+      }
+    ],
+    "pane-set-clipboard": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a",
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "window",
+            "pane"
+          ],
+          "type": "command",
+          "array": true,
+          "hook": true
+        }
+      }
+    ],
+    "pane-shell-prompt": [
+      {
+        "versions": [
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "window",
+            "pane"
+          ],
+          "type": "command",
+          "array": true,
+          "hook": true
+        }
+      }
+    ],
+    "pane-status-current-style": [
+      {
+        "versions": [
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "window"
+          ],
+          "type": "string",
+          "array": false,
+          "hook": false
+        }
+      }
+    ],
+    "pane-status-style": [
+      {
+        "versions": [
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "window"
+          ],
+          "type": "string",
+          "array": false,
+          "hook": false
+        }
+      }
+    ],
+    "pane-title-changed": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a",
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "window",
+            "pane"
+          ],
+          "type": "command",
+          "array": true,
+          "hook": true
+        }
+      }
+    ],
+    "popup-border-lines": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a",
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "window"
+          ],
+          "type": "choice",
+          "array": false,
+          "hook": false
+        }
+      }
+    ],
+    "popup-border-style": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a",
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "window"
+          ],
+          "type": "string",
+          "array": false,
+          "hook": false
+        }
+      }
+    ],
+    "popup-style": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a",
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "window"
+          ],
+          "type": "string",
+          "array": false,
+          "hook": false
+        }
+      }
+    ],
+    "prefix": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a",
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "session"
+          ],
+          "type": "key",
+          "array": false,
+          "hook": false
+        }
+      }
+    ],
+    "prefix-timeout": [
+      {
+        "versions": [
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "server"
+          ],
+          "type": "number",
+          "array": false,
+          "hook": false
+        }
+      }
+    ],
+    "prefix2": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a",
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "session"
+          ],
+          "type": "key",
+          "array": false,
+          "hook": false
+        }
+      }
+    ],
+    "prompt-command-cursor-colour": [
+      {
+        "versions": [
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "session"
+          ],
+          "type": "string",
+          "array": false,
+          "hook": false
+        }
+      }
+    ],
+    "prompt-command-cursor-style": [
+      {
+        "versions": [
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "session"
+          ],
+          "type": "choice",
+          "array": false,
+          "hook": false
+        }
+      }
+    ],
+    "prompt-cursor-colour": [
+      {
+        "versions": [
+          "3.6b",
+          "3.7c"
+        ],
+        "metadata": {
+          "scopes": [
+            "session"
+          ],
+          "type": "colour",
+          "array": false,
+          "hook": false
+        }
+      },
+      {
+        "versions": [
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "session"
+          ],
+          "type": "string",
+          "array": false,
+          "hook": false
+        }
+      }
+    ],
+    "prompt-cursor-style": [
+      {
+        "versions": [
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "session"
+          ],
+          "type": "choice",
+          "array": false,
+          "hook": false
+        }
+      }
+    ],
+    "prompt-history-limit": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a",
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "server"
+          ],
+          "type": "number",
+          "array": false,
+          "hook": false
+        }
+      }
+    ],
+    "remain-on-exit": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a",
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "window",
+            "pane"
+          ],
+          "type": "choice",
+          "array": false,
+          "hook": false
+        }
+      }
+    ],
+    "remain-on-exit-format": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a",
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "window",
+            "pane"
+          ],
+          "type": "string",
+          "array": false,
+          "hook": false
+        }
+      }
+    ],
+    "renumber-windows": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a",
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "session"
+          ],
+          "type": "flag",
+          "array": false,
+          "hook": false
+        }
+      }
+    ],
+    "repeat-time": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a",
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "session"
+          ],
+          "type": "number",
+          "array": false,
+          "hook": false
+        }
+      }
+    ],
+    "scroll-on-clear": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a",
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "window",
+            "pane"
+          ],
+          "type": "flag",
+          "array": false,
+          "hook": false
+        }
+      }
+    ],
+    "session-added-to-group": [
+      {
+        "versions": [
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "session"
+          ],
+          "type": "command",
+          "array": true,
+          "hook": true
+        }
+      }
+    ],
+    "session-closed": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a",
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "session"
+          ],
+          "type": "command",
+          "array": true,
+          "hook": true
+        }
+      }
+    ],
+    "session-created": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a",
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "session"
+          ],
+          "type": "command",
+          "array": true,
+          "hook": true
+        }
+      }
+    ],
+    "session-removed-from-group": [
+      {
+        "versions": [
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "session"
+          ],
+          "type": "command",
+          "array": true,
+          "hook": true
+        }
+      }
+    ],
+    "session-renamed": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a",
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "session"
+          ],
+          "type": "command",
+          "array": true,
+          "hook": true
+        }
+      }
+    ],
+    "session-status-current-style": [
+      {
+        "versions": [
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "window"
+          ],
+          "type": "string",
+          "array": false,
+          "hook": false
+        }
+      }
+    ],
+    "session-status-style": [
+      {
+        "versions": [
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "window"
+          ],
+          "type": "string",
+          "array": false,
+          "hook": false
+        }
+      }
+    ],
+    "session-window-changed": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a",
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "session"
+          ],
+          "type": "command",
+          "array": true,
+          "hook": true
+        }
+      }
+    ],
+    "set-clipboard": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a",
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "server"
+          ],
+          "type": "choice",
+          "array": false,
+          "hook": false
+        }
+      }
+    ],
+    "set-titles": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a",
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "session"
+          ],
+          "type": "flag",
+          "array": false,
+          "hook": false
+        }
+      }
+    ],
+    "set-titles-string": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a",
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "session"
+          ],
+          "type": "string",
+          "array": false,
+          "hook": false
+        }
+      }
+    ],
+    "silence-action": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a",
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "session"
+          ],
+          "type": "choice",
+          "array": false,
+          "hook": false
+        }
+      }
+    ],
+    "status": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a",
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "session"
+          ],
+          "type": "choice",
+          "array": false,
+          "hook": false
+        }
+      }
+    ],
+    "status-bg": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a",
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "session"
+          ],
+          "type": "colour",
+          "array": false,
+          "hook": false
+        }
+      }
+    ],
+    "status-fg": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a",
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "session"
+          ],
+          "type": "colour",
+          "array": false,
+          "hook": false
+        }
+      }
+    ],
+    "status-format": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a",
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "session"
+          ],
+          "type": "string",
+          "array": true,
+          "hook": false
+        }
+      }
+    ],
+    "status-interval": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a",
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "session"
+          ],
+          "type": "number",
+          "array": false,
+          "hook": false
+        }
+      }
+    ],
+    "status-justify": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a",
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "session"
+          ],
+          "type": "choice",
+          "array": false,
+          "hook": false
+        }
+      }
+    ],
+    "status-keys": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a",
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "session"
+          ],
+          "type": "choice",
+          "array": false,
+          "hook": false
+        }
+      }
+    ],
+    "status-left": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a",
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "session"
+          ],
+          "type": "string",
+          "array": false,
+          "hook": false
+        }
+      }
+    ],
+    "status-left-length": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a",
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "session"
+          ],
+          "type": "number",
+          "array": false,
+          "hook": false
+        }
+      }
+    ],
+    "status-left-style": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a",
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "session"
+          ],
+          "type": "string",
+          "array": false,
+          "hook": false
+        }
+      }
+    ],
+    "status-position": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a",
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "session"
+          ],
+          "type": "choice",
+          "array": false,
+          "hook": false
+        }
+      }
+    ],
+    "status-right": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a",
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "session"
+          ],
+          "type": "string",
+          "array": false,
+          "hook": false
+        }
+      }
+    ],
+    "status-right-length": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a",
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "session"
+          ],
+          "type": "number",
+          "array": false,
+          "hook": false
+        }
+      }
+    ],
+    "status-right-style": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a",
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "session"
+          ],
+          "type": "string",
+          "array": false,
+          "hook": false
+        }
+      }
+    ],
+    "status-style": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a",
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "session"
+          ],
+          "type": "string",
+          "array": false,
+          "hook": false
+        }
+      }
+    ],
+    "switch-mode-match-style": [
+      {
+        "versions": [
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "window",
+            "pane"
+          ],
+          "type": "string",
+          "array": false,
+          "hook": false
+        }
+      }
+    ],
+    "synchronize-panes": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a",
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "window",
+            "pane"
+          ],
+          "type": "flag",
+          "array": false,
+          "hook": false
+        }
+      }
+    ],
+    "terminal-features": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a",
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "server"
+          ],
+          "type": "string",
+          "array": true,
+          "hook": false
+        }
+      }
+    ],
+    "terminal-overrides": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a",
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "server"
+          ],
+          "type": "string",
+          "array": true,
+          "hook": false
+        }
+      }
+    ],
+    "theme": [
+      {
+        "versions": [
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "server"
+          ],
+          "type": "choice",
+          "array": false,
+          "hook": false
+        }
+      }
+    ],
+    "tiled-layout-max-columns": [
+      {
+        "versions": [
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "window"
+          ],
+          "type": "number",
+          "array": false,
+          "hook": false
+        }
+      }
+    ],
+    "tree-mode-border-style": [
+      {
+        "versions": [
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "window"
+          ],
+          "type": "string",
+          "array": false,
+          "hook": false
+        }
+      }
+    ],
+    "tree-mode-preview-format": [
+      {
+        "versions": [
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "window",
+            "pane"
+          ],
+          "type": "string",
+          "array": false,
+          "hook": false
+        }
+      }
+    ],
+    "tree-mode-preview-style": [
+      {
+        "versions": [
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "window"
+          ],
+          "type": "string",
+          "array": false,
+          "hook": false
+        }
+      }
+    ],
+    "tree-mode-selection-style": [
+      {
+        "versions": [
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "window"
+          ],
+          "type": "string",
+          "array": false,
+          "hook": false
+        }
+      }
+    ],
+    "update-environment": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a",
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "session"
+          ],
+          "type": "string",
+          "array": true,
+          "hook": false
+        }
+      }
+    ],
+    "user-keys": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a",
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "server"
+          ],
+          "type": "string",
+          "array": true,
+          "hook": false
+        }
+      }
+    ],
+    "variation-selector-always-wide": [
+      {
+        "versions": [
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "server"
+          ],
+          "type": "flag",
+          "array": false,
+          "hook": false
+        }
+      }
+    ],
+    "visual-activity": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a",
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "session"
+          ],
+          "type": "choice",
+          "array": false,
+          "hook": false
+        }
+      }
+    ],
+    "visual-bell": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a",
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "session"
+          ],
+          "type": "choice",
+          "array": false,
+          "hook": false
+        }
+      }
+    ],
+    "visual-silence": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a",
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "session"
+          ],
+          "type": "choice",
+          "array": false,
+          "hook": false
+        }
+      }
+    ],
+    "window-active-style": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a",
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "window",
+            "pane"
+          ],
+          "type": "string",
+          "array": false,
+          "hook": false
+        }
+      }
+    ],
+    "window-closed": [
+      {
+        "versions": [
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "window"
+          ],
+          "type": "command",
+          "array": true,
+          "hook": true
+        }
+      }
+    ],
+    "window-created": [
+      {
+        "versions": [
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "window"
+          ],
+          "type": "command",
+          "array": true,
+          "hook": true
+        }
+      }
+    ],
+    "window-layout-changed": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a",
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "window"
+          ],
+          "type": "command",
+          "array": true,
+          "hook": true
+        }
+      }
+    ],
+    "window-linked": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a",
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "session"
+          ],
+          "type": "command",
+          "array": true,
+          "hook": true
+        }
+      }
+    ],
+    "window-pane-changed": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a",
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "window"
+          ],
+          "type": "command",
+          "array": true,
+          "hook": true
+        }
+      }
+    ],
+    "window-pane-current-status-format": [
+      {
+        "versions": [
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "window"
+          ],
+          "type": "string",
+          "array": false,
+          "hook": false
+        }
+      }
+    ],
+    "window-pane-status-format": [
+      {
+        "versions": [
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "window"
+          ],
+          "type": "string",
+          "array": false,
+          "hook": false
+        }
+      }
+    ],
+    "window-renamed": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a",
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "window"
+          ],
+          "type": "command",
+          "array": true,
+          "hook": true
+        }
+      }
+    ],
+    "window-resized": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a",
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "window"
+          ],
+          "type": "command",
+          "array": true,
+          "hook": true
+        }
+      }
+    ],
+    "window-size": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a",
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "window"
+          ],
+          "type": "choice",
+          "array": false,
+          "hook": false
+        }
+      }
+    ],
+    "window-status-activity-style": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a",
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "window"
+          ],
+          "type": "string",
+          "array": false,
+          "hook": false
+        }
+      }
+    ],
+    "window-status-bell-style": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a",
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "window"
+          ],
+          "type": "string",
+          "array": false,
+          "hook": false
+        }
+      }
+    ],
+    "window-status-current-format": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a",
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "window"
+          ],
+          "type": "string",
+          "array": false,
+          "hook": false
+        }
+      }
+    ],
+    "window-status-current-style": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a",
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "window"
+          ],
+          "type": "string",
+          "array": false,
+          "hook": false
+        }
+      }
+    ],
+    "window-status-format": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a",
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "window"
+          ],
+          "type": "string",
+          "array": false,
+          "hook": false
+        }
+      }
+    ],
+    "window-status-last-style": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a",
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "window"
+          ],
+          "type": "string",
+          "array": false,
+          "hook": false
+        }
+      }
+    ],
+    "window-status-separator": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a",
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "window"
+          ],
+          "type": "string",
+          "array": false,
+          "hook": false
+        }
+      }
+    ],
+    "window-status-style": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a",
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "window"
+          ],
+          "type": "string",
+          "array": false,
+          "hook": false
+        }
+      }
+    ],
+    "window-style": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a",
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "window",
+            "pane"
+          ],
+          "type": "string",
+          "array": false,
+          "hook": false
+        }
+      }
+    ],
+    "window-unlinked": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a",
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "session"
+          ],
+          "type": "command",
+          "array": true,
+          "hook": true
+        }
+      }
+    ],
+    "window-unzoomed": [
+      {
+        "versions": [
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "window"
+          ],
+          "type": "command",
+          "array": true,
+          "hook": true
+        }
+      }
+    ],
+    "window-zoomed": [
+      {
+        "versions": [
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "window"
+          ],
+          "type": "command",
+          "array": true,
+          "hook": true
+        }
+      }
+    ],
+    "word-separators": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a",
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "session"
+          ],
+          "type": "string",
+          "array": false,
+          "hook": false
+        }
+      }
+    ],
+    "wrap-search": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a",
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "window"
+          ],
+          "type": "flag",
+          "array": false,
+          "hook": false
+        }
+      }
+    ],
+    "xterm-keys": [
+      {
+        "versions": [
+          "3.3",
+          "3.3a",
+          "3.4",
+          "3.5a",
+          "3.6b",
+          "3.7c",
+          "3.8"
+        ],
+        "metadata": {
+          "scopes": [
+            "window"
+          ],
+          "type": "flag",
+          "array": false,
+          "hook": false
+        }
+      }
+    ]
+  }
+}

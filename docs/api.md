@@ -37,6 +37,7 @@ source-extraction path rejects native-record attributes.
 | Open, inspect and close an endpoint | `m:tmux_server` |
 | Create and act on terminal objects | `m:tmux_session`, `m:tmux_window`, `m:tmux_pane` |
 | Act on session-relative window memberships | `m:tmux_window_link` |
+| Read local or inherited options and change explicit tables | `m:tmux_option` |
 | Read a captured graph | `m:tmux_snapshot`, `m:tmux_model` |
 | Filter captured data | `m:tmux_select`, `m:tmux_filter`, `m:tmux_matcher` |
 | Plan source retrieval | `m:tmux_query` |

@@ -145,6 +145,8 @@ session/index membership.
 - [Local filters and source queries](docs/querying.md): Boolean criteria,
   quantifiers, portable JSON, cardinality, coverage and execution plans.
 - [Fields and operators](docs/fields.md): generated from the runtime schema.
+- [Scoped options](docs/options.md): local ownership markers, explicit
+  inheritance and sparse arrays, with a source-pinned option catalogue.
 - [API browser and source docs](docs/api.md): build searchable native reference
   pages with specs, types and links to the exact source revision.
 

@@ -67,6 +67,15 @@ run_endpoint(Socket, Executable) ->
         try
             {ok, Window} = tmux_window:create(
                 Session, #{launch => #{argv => [<<"/bin/cat">>]}}),
+            {ok, _} = tmux_option:set(Session, <<"@workspace">>, <<"archive">>),
+            {ok, <<"archive">>} = tmux_option:get(
+                Session, <<"@workspace">>, #{}),
+            {ok, _} = tmux_option:set(
+                Session, {<<"update-environment">>, 0}, <<>>),
+            {ok, #{0 := <<>>}} = tmux_option:get(
+                Session, <<"update-environment">>, #{}),
+            {ok, _} = tmux_option:unset(Session, <<"update-environment">>),
+            none = tmux_option:get(Session, <<"update-environment">>, #{}),
             {ok, _} = tmux_window:respawn(Window, #{force => true}),
             {ok, Pane} = tmux_pane:split(Window,
                 #{direction => horizontal, size => {percent, 40},

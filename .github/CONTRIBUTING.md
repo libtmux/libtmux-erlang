@@ -105,6 +105,18 @@ $ mise exec -- escript tools/generate_schema.escript
 The generator uses OTP JSON. Generated files are checked in so package
 consumers do not need the generator. Do not hand-edit generated Erlang.
 
+The option catalogue uses the same pinned tmux source commits as CI. After
+changing those pins, refresh it from a local tmux Git clone:
+
+```console
+$ python3 tools/generate_options.py \
+    --refresh-from /path/to/tmux
+```
+
+This maintainer operation needs a C preprocessor to expand hook macros. The
+mid loop only checks the committed JSON against generated Erlang/reference
+files; consumers need neither the tmux checkout nor this generator.
+
 The core application builds its Linux helper with make and a C11 compiler.
 The pinned source and its license live under apps/libtmux_erlang/c_src/.
 The helper checks use events and PID descriptors to verify owned retirement;

@@ -60,6 +60,9 @@ classify({error, #{code := command_error, stderr := Stderr} = Detail}) ->
         <<"can't find session: ", _/binary>> -> true;
         <<"can't find window: ", _/binary>> -> true;
         <<"can't find pane: ", _/binary>> -> true;
+        <<"no such session: ", _/binary>> -> true;
+        <<"no such window: ", _/binary>> -> true;
+        <<"no such pane: ", _/binary>> -> true;
         <<"no current target\n">> -> true;
         _ -> false
     end,

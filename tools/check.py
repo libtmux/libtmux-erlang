@@ -27,6 +27,7 @@ def main() -> None:
         "inner": [["rebar3", "eunit", "--module", args.module]],
         "mid": [
             ["escript", "tools/generate_schema.escript", "--check"],
+            ["python3", "tools/generate_options.py", "--check"],
             ["python3", "tools/regex-conformance/generate_fixture.py", "--check"],
             ["rebar3", "eunit"],
             ["escript", "tools/generate_reference.escript", "--test", "--check"],

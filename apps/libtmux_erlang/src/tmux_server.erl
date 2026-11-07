@@ -13,6 +13,8 @@ clients and preserves the borrowed server. A cleanup failure remains explicit
 and keeps the supervised owner alive. Successful close is idempotent during
 the 60-second handle retention period. Command results preserve stdout,
 stderr and status; cancellation after dispatch cannot undo remote effects.
+Clients explicitly select tmux's UTF-8 mode, preserving command output bytes
+without locale-dependent sanitization, including the identity probe's tab.
 """.
 -behaviour(gen_server).
 -export([open/1, command/3, close/1, status/1, origin/1, version/1, from_origin/1, bind/2,
@@ -382,7 +384,7 @@ submission(Command, Options, Started) when is_map(Options), is_integer(Started) 
     end;
 submission(_, _, _) -> {error, #{code => invalid_operation_options}}.
 
-endpoint_args(Config, Args) -> [<<"-N">>, <<"-S">>, maps:get(socket_path, Config) | Args].
+endpoint_args(Config, Args) -> [<<"-u">>, <<"-N">>, <<"-S">>, maps:get(socket_path, Config) | Args].
 probe_args() -> [<<"display-message">>, <<"-p">>, <<"#{pid}\t#{version}">>].
 
 require_version(Raw) ->

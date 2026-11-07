@@ -7,6 +7,8 @@ Native Erlang/OTP 29 library for explicit tmux operations and captured graph que
 - [Fields](docs/fields.md): canonical field and operator reference.
 - [Source querying](docs/querying.md): portable criteria, coverage and execution contracts.
 - [Operation ownership](docs/jobs.md): waits, completion, cancellation and cleanup.
+- [Scoped options](docs/options.md): local ownership, explicit inheritance and sparse arrays.
+- [Option catalogue](docs/options-reference.md): canonical names and version-specific scopes.
 - [API browser](docs/api.md): build the native reference locally.
 - [Project policy](docs/project-policy.md): core/workspace boundaries and OTP runtime dependencies.
 - [Current gaps](docs/compatibility.md): control/streams/workspace and delivery status.

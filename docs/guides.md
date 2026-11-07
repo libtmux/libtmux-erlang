@@ -10,6 +10,8 @@ source, checks immutability and cleans up.
 - [Installation](installation.md): native Rebar3 dependency and runtime setup.
 - [Shared-window graph](graph.md): physical entities, memberships and quantifiers.
 - [Jobs and operations](jobs.md): real completion events, output capture and cancellation.
+- [Scoped options](options.md): workspace ownership, inheritance and sparse arrays.
+- [Option catalogue](options-reference.md): versioned canonical names, scopes and parser types.
 - [Querying](querying.md): local values, portable criteria and explicit source plans.
 - [Fields](fields.md): generated entity/relationship/operator reference.
 - [API browser](api.md): native source docs, types, specs and source links.
