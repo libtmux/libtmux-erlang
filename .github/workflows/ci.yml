@@ -1,0 +1,133 @@
+name: Erlang checks
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: erlang-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  ERL_FLAGS: '+S 4:4'
+
+jobs:
+  native:
+    name: OTP 29 / tmux ${{ matrix.tmux }} / ${{ matrix.runner }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [ubuntu-24.04]
+        tmux: ['3.3', '3.3a', '3.4', '3.5a', '3.6b', '3.7c', '3.8']
+        include:
+          - runner: ubuntu-24.04-arm
+            tmux: '3.3'
+          - runner: ubuntu-24.04-arm
+            tmux: '3.8'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Read exact tool versions
+        id: tools
+        shell: bash
+        run: |
+          otp=$(awk '$1 == "erlang" {print $2}' .tool-versions)
+          rebar=$(awk '$1 == "rebar" {print $2}' .tool-versions)
+          test -n "$otp" && test -n "$rebar"
+          printf 'otp=%s\nrebar=%s\n' "$otp" "$rebar" >> "$GITHUB_OUTPUT"
+      - uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1.24.1
+        with:
+          otp-version: ${{ steps.tools.outputs.otp }}
+          rebar3-version: ${{ steps.tools.outputs.rebar }}
+          version-type: strict
+      - name: Install native dependencies
+        run: |
+          sudo timeout --kill-after=10 180 apt-get -o Acquire::Retries=3 update
+          sudo timeout --kill-after=10 180 apt-get -o Acquire::Retries=3 install --yes --no-install-recommends \
+            build-essential bison libevent-dev libncurses-dev pkg-config
+      - name: Plan exact tmux build
+        id: tmux
+        env:
+          TMUX_VERSION: ${{ matrix.tmux }}
+        run: python3 tools/ci/build_tmux.py plan "$TMUX_VERSION"
+      - uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        id: tmux-cache
+        with:
+          path: ${{ steps.tmux.outputs.prefix }}
+          key: ${{ steps.tmux.outputs.key }}
+      - name: Validate or build tmux
+        env:
+          TMUX_VERSION: ${{ matrix.tmux }}
+          CACHE_HIT: ${{ steps.tmux-cache.outputs.cache-hit }}
+        run: python3 tools/ci/build_tmux.py prepare "$TMUX_VERSION"
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: _build/default/*_plt
+          key: plt-${{ runner.os }}-${{ runner.arch }}-${{ steps.tools.outputs.otp }}-${{ steps.tools.outputs.rebar }}-${{ hashFiles('rebar.config', 'rebar.lock', 'apps/*/src/*.app.src') }}
+      - name: Verify selected toolchain
+        run: |
+          erl -noshell -noinput -eval 'io:format("OTP ~s / ERTS ~s~n", [erlang:system_info(otp_release), erlang:system_info(version)]), halt().'
+          rebar3 version
+          "$LIBTMUX_TEST_TMUX" -V
+          sha256sum "$LIBTMUX_TEST_TMUX"
+      - name: Unit, generated-source and whitespace checks
+        run: python3 tools/check.py mid
+      - name: Compile, helper, Dialyzer, owned integration and archive consumer
+        run: python3 tools/check.py outer
+      - name: Save tmux only after owned runtime qualification
+        if: steps.tmux-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ steps.tmux.outputs.prefix }}
+          key: ${{ steps.tmux.outputs.key }}
+      - name: Preserve check receipts and integration logs
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: checks-${{ matrix.runner }}-tmux-${{ matrix.tmux }}
+          path: |
+            _build/checks
+            _build/test/logs
+            _build/package-check/receipt.json
+          if-no-files-found: warn
+          retention-days: 14
+
+  properties:
+    name: Generated filter properties
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Read exact tool versions
+        id: tools
+        run: |
+          printf 'otp=%s\nrebar=%s\n' "$(awk '$1 == "erlang" {print $2}' .tool-versions)" "$(awk '$1 == "rebar" {print $2}' .tool-versions)" >> "$GITHUB_OUTPUT"
+      - uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1.24.1
+        with:
+          otp-version: ${{ steps.tools.outputs.otp }}
+          rebar3-version: ${{ steps.tools.outputs.rebar }}
+          version-type: strict
+      - name: Prepare isolated test dependencies
+        run: rebar3 as property,test get-deps
+      - name: Run PropEr properties
+        run: |
+          mkdir -p _build/checks
+          time rebar3 as property proper --dir property --numtests 300 2>&1 | tee _build/checks/properties.log
+      - name: Preserve property counterexamples and log
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: generated-properties
+          path: _build/checks/properties.log
+          if-no-files-found: warn
+          retention-days: 14

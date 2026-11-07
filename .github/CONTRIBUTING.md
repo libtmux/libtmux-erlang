@@ -73,6 +73,10 @@ record the selected flags. This does not configure the installed application.
 result and validation cases. EUnit consumes them and checks composed wire
 round trips. Other-port conformance remains a separate qualification gate.
 
+[CI source builds](../tools/ci/README.md) explains the pinned tmux matrix,
+cache validation and separate PropEr profile. CI uses setup-beam's installed
+tools directly; the local runner uses mise.
+
 Edit schema/entities.json, then regenerate the native records and registry:
 
 ```console

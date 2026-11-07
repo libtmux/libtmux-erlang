@@ -4,11 +4,11 @@
     "tony": "tony/libtmux-erlang"
   },
   "visibility": {
-    "origin": "private",
+    "origin": "public",
     "tony": "private"
   },
   "default_branch": "master",
-  "description": "Erlang library for tmux. Repository scaffold; implementation has not started.",
+  "description": "Native Erlang library for tmux automation.",
   "topics": [
     "beam",
     "erlang",
