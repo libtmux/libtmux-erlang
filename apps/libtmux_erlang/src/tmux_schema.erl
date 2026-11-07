@@ -7,7 +7,8 @@ payload-created atoms. Text is validated UTF-8; byte fields preserve arbitrary
 binaries. Integer normalization uses the shared exact JSON integer range.
 """.
 -export([fields/1, relations/1, field/2, normalize/2, value/2, operators/1]).
--export_type([entity/0, error_detail/0]).
+-export_type([entity/0, error_detail/0, value_type/0, field_metadata/0,
+              relation_metadata/0, operator/0]).
 
 -doc """
 The built-in tmux graph entities; window_link represents a session membership.
@@ -17,6 +18,29 @@ The built-in tmux graph entities; window_link represents a session membership.
 Structured boundary validation errors with a code and input path.
 """.
 -type error_detail() :: #{code := atom(), path := [term()], atom() => term()}.
+-doc "Scalar categories used by normalization and operator validation; IDs remain binaries.".
+-type value_type() :: session_id | window_id | pane_id | boolean | uint |
+                      integer | text | bytes.
+-doc """
+Generated field contract. stable is a versioned portable identity; wire is the
+JSON key. required controls construction and nullable permits known absence.
+format is present only for directly observed tmux fields; derived fields omit
+it. minimum tightens an integer field's lower bound. Field names themselves
+are the keys returned by `fields/1`, not this map's wire or stable values.
+""".
+-type field_metadata() :: #{type := value_type(), wire := binary(),
+    stable := binary(), required := boolean(), nullable := boolean(),
+    format => binary(), minimum => integer()}.
+-doc """
+Generated relationship contract: kind is one or many; target names the related
+entity. wire and stable have the same roles as in `t:field_metadata/0`.
+Completeness belongs to snapshot coverage, not this static schema.
+""".
+-type relation_metadata() :: #{kind := one | many, target := entity(),
+    wire := binary(), stable := binary()}.
+-doc "Validated scalar operators. The field's type and nullability restrict this set.".
+-type operator() :: equals | 'not' | in | not_in | lt | lte | gt | gte |
+                    contains | starts_with | ends_with | regex | present.
 -define(MAX_INTEGER, 9007199254740991).
 
 -doc """
@@ -24,7 +48,7 @@ Return generated field metadata for a known entity, or a tagged
 unknown_entity error. Field names, wire names and stable IDs are allowlisted;
 this is not reflection over arbitrary record fields.
 """.
--spec fields(entity()) -> {ok, map()} | {error, error_detail()}.
+-spec fields(entity()) -> {ok, #{atom() => field_metadata()}} | {error, error_detail()}.
 fields(Entity) ->
     case lists:member(Entity, tmux_schema_data:entities()) of
         true -> {ok, tmux_schema_data:fields(Entity)};
@@ -35,7 +59,7 @@ fields(Entity) ->
 Return generated relationship metadata, including target entities and
 one/many cardinality. Performs no I/O.
 """.
--spec relations(entity()) -> {ok, map()} | {error, error_detail()}.
+-spec relations(entity()) -> {ok, #{atom() => relation_metadata()}} | {error, error_detail()}.
 relations(Entity) ->
     maybe
         {ok, _} ?= fields(Entity),
@@ -46,7 +70,7 @@ relations(Entity) ->
 Look up one permitted field by its Erlang atom name. Unknown names return a
 tagged error; this does not turn input strings into atoms.
 """.
--spec field(entity(), atom()) -> {ok, map()} | {error, error_detail()}.
+-spec field(entity(), atom()) -> {ok, field_metadata()} | {error, error_detail()}.
 field(Entity, Field) ->
     maybe
         {ok, Fields} ?= fields(Entity),
@@ -117,7 +141,7 @@ value(Metadata, _Value) ->
 Return the permitted scalar operators for this field type and nullability.
 The generated field reference uses this same validator. Performs no I/O.
 """.
--spec operators(map()) -> [atom()].
+-spec operators(#{type := value_type(), nullable := boolean(), atom() => term()}) -> [operator()].
 operators(#{type := Type, nullable := Nullable}) ->
     Base = [equals, 'not', in, not_in],
     Typed = case Type of

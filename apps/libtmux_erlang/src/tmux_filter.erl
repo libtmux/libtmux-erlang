@@ -30,7 +30,7 @@ depth and byte limits. Resource errors can refer to the canonical wire path.
 -export([new/2, new_or_error/2, from_wire/2, to_wire/1, decode_json/1,
          entity/1, expression/1, requirements/1, prepare/2, predicate/1, matches/2,
          prepare_rows/3]).
--export_type([t/0, prepared/0, expr/0]).
+-export_type([t/0, prepared/0, expr/0, wire_document/0]).
 -doc """
 Portable normalized predicate data for one schema entity; contains no executable state.
 """.
@@ -44,6 +44,14 @@ Portable normalized predicate data for one schema entity; contains no executable
 A cached evaluator bound to one captured observation and schema context.
 """.
 -opaque prepared() :: tmux_filter_eval:t().
+-doc """
+Version-one JSON-compatible filter envelope with binary keys version, entity
+and where. entity is the generated wire entity name; where contains Boolean,
+field and relationship conditions. Version is the integer 1.
+Keys and operators still require `from_wire/2` validation; the typespec alone
+does not authorize arbitrary fields or unbounded external input.
+""".
+-type wire_document() :: #{binary() => json:encode_value()}.
 -define(MAX_NODES, 1024).
 -define(MAX_DEPTH, 32).
 -define(MAX_MEMBERS, 256).
@@ -109,7 +117,7 @@ Export versioned JSON-compatible predicate data with generated wire names.
 Byte operands use base64 objects and known absence uses JSON null. Functions,
 compiled regexes and native record internals never enter this representation.
 """.
--spec to_wire(t()) -> map().
+-spec to_wire(t()) -> wire_document().
 to_wire({tmux_filter, 1, Entity, Tree}) ->
     #{<<"version">> => 1, <<"entity">> => tmux_schema_data:wire_entity(Entity),
       <<"where">> => wire_node(Entity, Tree)}.

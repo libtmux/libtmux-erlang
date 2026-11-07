@@ -17,7 +17,7 @@ Selections are opaque values; use to_list for ordinary list functions.
          take/2, summary/1, size/1, first/1, first/2, one/1, one/2,
          one_or_none/1, one_or_none/2, one_or_error/1, one_or_error/2,
          exists/1, exists/2, count/1, count/2]).
--export_type([t/0, t/1]).
+-export_type([t/0, t/1, summary/0]).
 -compile({no_auto_import, [size/1]}).
 -record(selection, {entity :: tmux_schema:entity(), rows :: [tmux_model:row()],
                     size :: non_neg_integer(),
@@ -32,6 +32,16 @@ A selection over schema-defined native domain records.
 -type t() :: t(tmux_model:row()).
 -type criteria() :: map() | tmux_filter:t().
 -type cardinality_error() :: {error, no_match | {multiple_matches, #{at_least := 2}}}.
+-doc """
+Compact local inspection. size counts current materialized rows; coverage
+still describes the original captured context after filtering or take.
+snapshot_id is none for a list-backed selection. Capture bounds and query
+diagnostics are included only when that source metadata exists.
+""".
+-type summary() :: #{entity := tmux_schema:entity(), size := non_neg_integer(),
+    snapshot_id := reference() | none, coverage := tmux_snapshot:entity_coverage(),
+    capture_started => integer(), capture_finished => integer(),
+    time_unit => microsecond, query => tmux_snapshot:query_metadata()}.
 
 -doc """
 Select captured physical panes while retaining snapshot graph and coverage.
@@ -167,7 +177,7 @@ Return a compact Erlang diagnostic map with entity, size, capture identity,
 interval and coverage. Fetched queries include candidate/attempt information.
 Opaque snapshot references make this a diagnostic value, not a wire format.
 """.
--spec summary(t()) -> map().
+-spec summary(t()) -> summary().
 summary(#selection{entity = Entity, size = Size, context = Context}) ->
     Base = #{entity => Entity, size => Size},
     case Context of

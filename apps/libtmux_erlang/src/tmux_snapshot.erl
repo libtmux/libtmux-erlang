@@ -16,17 +16,66 @@ empty collection and unavailable fields from known absence.
 """.
 -export([sessions/1, windows/1, window_links/1, panes/1, rows/2, get/3,
          related/3, metadata/1, coverage/1, require/2, build/2]).
--export_type([t/0, requirement/0]).
+-export_type([t/0, requirement/0, metadata/0, source_call/0,
+              entity_coverage/0, coverage/0, query_metadata/0]).
 -doc """
 An immutable captured graph with identity, indexes, coverage and source intervals.
 """.
 -opaque t() :: #{rows := map(), indexes := map(), edges := map(),
-                 metadata := map(), coverage := map()}.
+                 metadata := metadata(), coverage := coverage()}.
 -doc """
 A collection, field or complete relationship needed for faithful local evaluation.
 """.
 -type requirement() :: {collection, tmux_schema:entity()} |
     {field | relation, tmux_schema:entity(), atom()}.
+-doc """
+One completed capture command and its stdout byte count. started and finished
+are local monotonic microseconds, not wall-clock timestamps. The interval
+includes identity preflight and command completion; it is not an atomic read.
+""".
+-type source_call() :: #{command := binary(), args := [binary()],
+    started := integer(), finished := integer(), stdout_bytes := non_neg_integer()}.
+-doc """
+Collection completeness, field availability and relationship completeness.
+A loaded field can hold a known value or known absence; inspect the row to
+distinguish them. not_loaded never means empty, and unavailable never means
+known absence. Completeness is relative to the captured source collection.
+""".
+-type entity_coverage() :: #{collection := complete | not_loaded,
+    fields := #{atom() => loaded | not_loaded | unavailable},
+    relations := #{atom() => complete | not_loaded}}.
+-doc "Per-entity coverage. Use `require/2` to check requirements before evaluation.".
+-type coverage() :: #{tmux_schema:entity() => entity_coverage()}.
+-doc """
+Source-query capture diagnostics. candidate_count is the deduplicated candidate
+identity count before local residuals and limits. pushed_down records a
+nontrivial native condition in the plan, not proof that its command ran:
+empty collections can skip it. source_calls records actual capture commands.
+The flag does not mean the full predicate was translated. attempt starts at
+one and increases only for an explicitly requested retry.
+""".
+-type query_metadata() :: #{candidate_count := non_neg_integer(),
+    pushed_down := boolean(), attempt := 1 | 2, consistency := observed}.
+-doc """
+Capture identity and provenance. id identifies this snapshot, origin its
+registered endpoint and generation the endpoint lifetime. model_version names
+the row representation. graph describes relationship coverage, not atomicity.
+
+Live captures include endpoint, observed server_instance, tmux_version,
+monotonic capture bounds in time_unit, source_calls, observed stdout bytes and
+capabilities. Those fields can be absent in internally constructed partial
+captures. Query captures also include `t:query_metadata/0`. Opaque references
+and process identities are local values, not portable wire identifiers.
+""".
+-type metadata() :: #{id := reference(), origin := reference(), model_version := 1,
+    graph := complete | partial, generation => reference(),
+    endpoint => #{socket_path := binary()}, server_instance => tmux_identity:t(),
+    tmux_version => tmux_version:t(), capture_started => integer(),
+    capture_finished => integer(), time_unit => microsecond,
+    source_calls => [source_call()], observed_bytes => non_neg_integer(),
+    consistency => observed,
+    capabilities => #{field_schema := 1, identity := observed, capture := observed},
+    query => query_metadata(), atom() => term()}.
 
 -doc """
 Return captured sessions in numeric ID order. Performs no I/O and raises
@@ -113,14 +162,14 @@ related(Relation, Row, #{indexes := Indexes, edges := Edges} = Snapshot) ->
 Return capture identity, server generation, source calls, capabilities and
 read interval metadata. Does not refresh the graph or imply atomic capture.
 """.
--spec metadata(t()) -> map().
+-spec metadata(t()) -> metadata().
 metadata(#{metadata := Metadata}) -> Metadata.
 -doc """
 Return per-collection, field and relationship coverage. Loaded values, known
 absence, not_loaded and unavailable capabilities have distinct meanings.
 Performs no I/O.
 """.
--spec coverage(t()) -> map().
+-spec coverage(t()) -> coverage().
 coverage(#{coverage := Coverage}) -> Coverage.
 
 -doc """
