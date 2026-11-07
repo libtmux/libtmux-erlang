@@ -67,6 +67,7 @@ run_endpoint(Socket, Executable) ->
         try
             {ok, Window} = tmux_window:create(
                 Session, #{launch => #{argv => [<<"/bin/cat">>]}}),
+            {ok, _} = tmux_window:respawn(Window, #{force => true}),
             {ok, Pane} = tmux_pane:split(Window,
                 #{direction => horizontal, size => {percent, 40},
                   launch => #{shell => <<>>}}),

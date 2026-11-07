@@ -16,12 +16,15 @@ one session membership. These calls perform I/O after validating their inputs.
 select_layout changes the physical window's layout across all its session links;
 previously observed pane geometry remains unchanged in captured values.
 """.
--export([create/2, get/2, rename/2, kill/1, select_layout/2]).
+-export([create/2, get/2, rename/2, kill/1, respawn/2, select_layout/2]).
 
--export_type([create_options/0, layout/0]).
+-export_type([create_options/0, respawn_options/0, layout/0]).
 -doc "Physical-window creation options; defaults to a detached window at the next free session index.".
 -type create_options() :: #{name => binary(), cwd => binary(), env => #{binary() => binary()},
     launch => tmux_command:launch_spec(), detach => boolean()}.
+-doc "Physical-window respawn options. Defaults: force false, launch previous, saved cwd. A forced respawn removes other panes.".
+-type respawn_options() :: #{force => boolean(), launch => tmux_command:respawn_spec(),
+                             cwd => binary(), env => #{binary() => binary()}}.
 -doc "A built-in arrangement, its exact binary name, or a serialized layout. Native JSON v2 requires tmux 3.8.".
 -type layout() :: even_horizontal | even_vertical | main_horizontal | main_vertical |
                   tiled | binary().
@@ -66,6 +69,34 @@ unlink only one membership. Performs I/O after origin and target validation.
 """.
 -spec kill(tmux_model:window()) -> {ok, map()} | {error, map()}.
 kill(Window) -> tmux_target:act(window, Window, <<"kill-window">>, []).
+
+-doc """
+Respawn a registered physical window across all its session links. tmux keeps
+the first pane's ID, removes the other panes and rebuilds a single-pane layout.
+force defaults false: a window with a running pane normally returns
+command_error. force = true permits closing existing PTYs. Command completion
+does not establish former-job termination or application readiness.
+Other panes can already be removed if a later spawn step fails.
+Respawn also selects this window in tmux's resolved session. For a window
+linked into several sessions, tmux chooses that context from the physical ID;
+this facade does not pin selection or environment to a captured membership.
+
+launch defaults to previous and reuses the retained pane's saved command.
+Explicit argv and shell maps, saved cwd and fresh-spawn environment rules
+follow `tmux_pane:respawn/2`, using the resolved session's environment. This
+physical-window mutation affects every link. Performs I/O after validation
+and returns the command result without refreshing rows. Use `get/2` or a new
+snapshot for current data.
+""".
+-spec respawn(tmux_model:window(), respawn_options()) ->
+    {ok, tmux_operation:completed()} | {error, tmux_operation:failure()}.
+respawn(Window, Options) ->
+    maybe
+        {ok, Flags, Launch} ?= tmux_args:respawn_options(Options),
+        {ok, Server, Target} ?= tmux_target:resolve(window, Window),
+        tmux_target:run(Server, <<"respawn-window">>,
+            Flags ++ [<<"-t">>, Target, <<"--">> | Launch])
+    end.
 
 -doc """
 Select a built-in arrangement or restore a literal serialized layout for this

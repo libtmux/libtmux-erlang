@@ -1,6 +1,6 @@
 -module(tmux_args).
 -moduledoc false.
--export([options/2, launch_options/2]).
+-export([options/2, launch_options/2, respawn_options/1]).
 -type schema() :: [{atom(), atom(), binary()}].
 
 -spec options(map(), schema()) -> {ok, [binary()]} | {error, map()}.
@@ -22,6 +22,20 @@ launch_options(Options, Extra) when is_map(Options) ->
         {ok, Flags, Launch}
     end;
 launch_options(_, _) -> {error, #{code => invalid_options, path => []}}.
+
+-spec respawn_options(map()) -> {ok, [binary()], [binary()]} | {error, map()}.
+respawn_options(Options) when is_map(Options) ->
+    maybe
+        {ok, Flags} ?= options(maps:remove(launch, Options),
+            [{force, flag, <<"-k">>}, {cwd, format, <<"-c">>}, {env, environment, <<"-e">>}]),
+        {ok, Launch} ?= case maps:get(launch, Options, previous) of
+            previous -> {ok, []};
+            Spec when is_map(Spec) -> tmux_command:launch(Spec);
+            _ -> {error, #{code => invalid_launch}}
+        end,
+        {ok, Flags, Launch}
+    end;
+respawn_options(_) -> {error, #{code => invalid_options, path => []}}.
 
 fields([], _, Acc) -> {ok, lists:append(lists:reverse(Acc))};
 fields([{Key, Kind, Flag} | Rest], Options, Acc) ->

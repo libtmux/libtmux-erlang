@@ -37,6 +37,10 @@ default_shell explicitly requests tmux's configured default command/shell.
 -doc "Explicit executable argv, an explicitly requested shell command, or tmux's configured default shell.".
 -type launch_spec() :: default_shell | #{argv := nonempty_list(binary())} | #{shell := binary()}.
 
+-export_type([respawn_spec/0]).
+-doc "Reuse tmux's saved command/shell, or explicitly replace it with argv or a shell command. Used by pane/window respawn, not launch/1.".
+-type respawn_spec() :: previous | #{argv := nonempty_list(binary())} | #{shell := binary()}.
+
 -doc """
 A validated single-command value. Rendering and execution remain separate.
 """.

@@ -31,7 +31,8 @@ run(Socket, Executable) ->
             JobFile = filename:absname("examples/terminal_job.py"),
             Launch = #{argv => [<<"/usr/bin/python3">>,
                 list_to_binary(JobFile)]},
-            {ok, Job} = tmux_pane:split(Window, #{launch => Launch}),
+            {ok, Job} = tmux_pane:split(Window, #{launch => #{shell => <<>>}}),
+            {ok, _} = tmux_pane:respawn(Job, #{launch => Launch}),
             {ok, #{exit_status := 0, cleanup := complete}} =
                 tmux_operation:await(Operation, 900),
             {ok, Completed} = tmux_pane:get(Server, tmux_model:get(id, Job)),

@@ -53,3 +53,13 @@ link_validation_before_dispatch_test() ->
         tmux_window_link:unlink(invalid_row, #{force => yes})),
     ?assertMatch({error, #{code := invalid_option, path := [index]}},
         tmux_window_link:get(invalid_server, <<"$1">>, -1)).
+
+respawn_validation_before_dispatch_test() ->
+    ?assertMatch({error, #{code := unknown_option, path := [detach]}},
+        tmux_pane:respawn(invalid_row, #{detach => true})),
+    ?assertMatch({error, #{code := invalid_option, path := [force]}},
+        tmux_window:respawn(invalid_row, #{force => 1})),
+    ?assertMatch({error, #{code := invalid_launch}},
+        tmux_pane:respawn(invalid_row, #{launch => default_shell})),
+    ?assertMatch({error, #{code := invalid_launch}},
+        tmux_window:respawn(invalid_row, #{launch => #{argv => []}})).

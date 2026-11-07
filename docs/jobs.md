@@ -59,7 +59,8 @@ run(Socket, Executable) ->
             JobFile = filename:absname("examples/terminal_job.py"),
             Launch = #{argv => [<<"/usr/bin/python3">>,
                 list_to_binary(JobFile)]},
-            {ok, Job} = tmux_pane:split(Window, #{launch => Launch}),
+            {ok, Job} = tmux_pane:split(Window, #{launch => #{shell => <<>>}}),
+            {ok, _} = tmux_pane:respawn(Job, #{launch => Launch}),
             {ok, #{exit_status := 0, cleanup := complete}} =
                 tmux_operation:await(Operation, 900),
             {ok, Completed} = tmux_pane:get(Server, tmux_model:get(id, Job)),
@@ -90,6 +91,12 @@ zero. The zero-duration await proves that abandoning a wait leaves the
 operation usable. The separate cancelled wait reports an unknown tmux outcome
 and complete client cleanup; cancellation does not undo submitted work.
 
+The example prepares an empty pane, then starts its job with
+`tmux_pane:respawn/2`. Respawn keeps the pane ID. Its default launch mode,
+`previous`, reuses tmux's saved command; this example supplies new argv instead.
+Running panes require explicit `force => true`. Use a job-specific completion
+condition and fresh observations to check the result.
+
 `await_started/2` returns lifecycle status, including when an operation already
 failed or retired. Use `await/2` for its command result. Successful command
 results preserve separate stdout/stderr binaries, stdin bytes delivered to the
@@ -101,13 +108,14 @@ The native API defines `t:tmux_operation:completed/0`,
 ## Operation ownership
 
 The process that starts an operation owns it. Other processes can await its
-handle without becoming owners. The endpoint confirms a transfer after monitoring the new owner
-and releasing the old monitor; the new process does not perform a handshake. Owner death and cancellation retire queued
-or possibly-sent clients; they do not replay mutations.
+handle without becoming owners. The endpoint confirms a transfer after
+monitoring the new owner and releasing the old monitor; the new process does
+not perform a handshake. Owner death and cancellation retire queued or
+possibly-sent clients; they do not replay mutations.
 
 Retired results are retained for at most 60 seconds. The endpoint also evicts
-the oldest results when retention exceeds 64 results or 4 MiB of stdout/stderr. Use
-`tmux_operation:status/1` while a handle is valid, and handle
+the oldest results when retention exceeds 64 results or 4 MiB of stdout/stderr.
+Use `tmux_operation:status/1` while a handle is valid, and handle
 `operation_expired` after retention. Closing an endpoint retires its library
 clients and preserves the borrowed tmux server.
 

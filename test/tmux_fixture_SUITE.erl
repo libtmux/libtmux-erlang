@@ -25,10 +25,7 @@ command_failure_and_cleanup(Config) ->
         {ok, #{exit_status := 0, stdout := <<"$0\n">>}} = tmux_test_fixture:command(Fixture,
             [<<"new-session">>, <<"-d">>, <<"-P">>, <<"-F">>, <<"#{session_id}">>,
              <<"-s">>, <<"fixture">>, <<"/bin/cat">>]),
-        {ok, #{stdout := PidText, exit_status := 0}} = tmux_test_fixture:command(Fixture,
-            [<<"display-message">>, <<"-p">>, <<"#{pane_pid}">>]),
-        PanePid = binary_to_integer(string:trim(PidText)),
-        PaneIdentity = tmux_test_fixture:process_identity(PanePid),
+        {PanePid, PaneIdentity} = track_pane(Fixture),
         {ok, #{exit_status := 1, stderr := Error, cleanup := complete}} =
             tmux_test_fixture:command(Fixture, [<<"no-such-command">>]),
         true = byte_size(Error) > 0,
@@ -48,6 +45,7 @@ owner_death(Config) ->
         {ok, Fixture} = tmux_test_fixture:start(proplists:get_value(tmux, Config)),
         {ok, #{exit_status := 0}} = tmux_test_fixture:command(Fixture,
             [<<"new-session">>, <<"-d">>, <<"/bin/cat">>]),
+        _ = track_pane(Fixture),
         Parent ! {ready, self(), Fixture, tmux_test_fixture:info(Fixture)},
         receive finish -> ok end
     end),
@@ -66,6 +64,7 @@ cancelled_client(Config) ->
     try
         {ok, #{exit_status := 0}} = tmux_test_fixture:command(Fixture,
             [<<"new-session">>, <<"-d">>, <<"/bin/cat">>]),
+        _ = track_pane(Fixture),
         {ok, Handle} = tmux_test_fixture:start_command(Fixture,
             [<<"wait-for">>, <<"never-signalled">>]),
         {ok, _} = tmux_transport:await_started(Handle, 900),
@@ -82,6 +81,18 @@ cancelled_client(Config) ->
         tmux_test_fixture:ensure_closed(Fixture)
     end.
 
-retired(#{directory := Directory, server_pid := Server, server_identity := Identity}) ->
+track_pane(Fixture) ->
+    {ok, #{stdout := Text, exit_status := 0}} = tmux_test_fixture:command(Fixture,
+        [<<"display-message">>, <<"-p">>, <<"#{pane_pid}">>]),
+    Pid = binary_to_integer(string:trim(Text)),
+    Identity = tmux_test_fixture:process_identity(Pid),
+    ok = tmux_test_fixture:track_process(Fixture, Pid),
+    {Pid, Identity}.
+
+retired(#{directory := Directory, server_pid := Server, server_identity := Identity,
+          tracked_processes := Tracked}) ->
     false = filelib:is_dir(Directory),
-    false = tmux_test_fixture:same_process(Server, Identity).
+    false = tmux_test_fixture:same_process(Server, Identity),
+    maps:foreach(fun(Pid, Start) ->
+        false = tmux_test_fixture:same_process(Pid, Start)
+    end, Tracked).

@@ -2,12 +2,13 @@
 -compile(nowarn_missing_spec).
 -behaviour(gen_server).
 -export([start/1, info/1, command/2, start_command/2, close/1, ensure_closed/1,
-         process_identity/1, same_process/2, with_server/2]).
+         process_identity/1, same_process/2, track_process/2, with_server/2]).
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2]).
 
 start(Executable) -> gen_server:start(?MODULE, {self(), Executable}, []).
 info(Fixture) -> gen_server:call(Fixture, info, 900).
 close(Fixture) -> gen_server:call(Fixture, close, 1000).
+track_process(Fixture, Pid) -> gen_server:call(Fixture, {track_process, Pid}, 900).
 
 with_server(Executable, Function) ->
     {ok, Fixture} = start(Executable),
@@ -42,7 +43,8 @@ init({Owner, Executable}) ->
     ok = file:make_dir(Directory),
     ok = file:change_mode(Directory, 8#700),
     try create(Executable, Directory) of
-        State -> {ok, State#{owner_monitor => Monitor, cleaned => false}}
+        State -> {ok, State#{owner_monitor => Monitor, cleaned => false,
+                            tracked_processes => #{}}}
     catch Class:Reason:Stack ->
         ok = file:del_dir_r(Directory),
         erlang:raise(Class, Reason, Stack)
@@ -91,6 +93,10 @@ watch_line(Watcher, Line) ->
     end.
 
 handle_call(info, _From, State) -> {reply, maps:without([transport, owner_monitor], State), State};
+handle_call({track_process, Pid}, _From, State) ->
+    Identity = process_identity(Pid),
+    Tracked = maps:get(tracked_processes, State),
+    {reply, ok, State#{tracked_processes => Tracked#{Pid => Identity}}};
 handle_call(close, _From, State) ->
     Cleaned = cleanup(State),
     {stop, normal, ok, Cleaned}.
@@ -110,6 +116,9 @@ cleanup(#{transport := Handle, directory := Directory, server_pid := Server,
     ok = tmux_transport:close(Handle),
     false = same_process(Server, ServerIdentity),
     false = same_process(Helper, HelperIdentity),
+    maps:foreach(fun(Pid, Identity) ->
+        false = same_process(Pid, Identity)
+    end, maps:get(tracked_processes, State)),
     ok = file:del_dir_r(Directory),
     State#{cleaned => true}.
 

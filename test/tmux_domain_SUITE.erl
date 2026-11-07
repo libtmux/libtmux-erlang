@@ -2,11 +2,11 @@
 -compile(nowarn_missing_spec).
 -export([all/0, init_per_suite/1, end_per_suite/1, creation_and_identity/1,
          launch_and_input/1, capture_bytes/1, linked_snapshot/1, snapshot_limits/1,
-         geometry/1, membership_actions/1]).
+         geometry/1, membership_actions/1, respawn/1]).
 
 %% Outer: public domain calls, literal values, explicit binding and owned teardown.
 all() -> [creation_and_identity, launch_and_input, capture_bytes,
-          linked_snapshot, snapshot_limits, geometry, membership_actions].
+          linked_snapshot, snapshot_limits, geometry, membership_actions, respawn].
 
 init_per_suite(Config) ->
     {ok, _} = application:ensure_all_started(libtmux_erlang),
@@ -198,6 +198,84 @@ membership_actions(Config) ->
         end,
         {ok, _} = tmux_session:kill(Mirror),
         {ok, _} = tmux_session:kill(Work)
+    end).
+
+respawn(Config) ->
+    with_server(Config, fun(Server, Fixture) ->
+        #{directory := Directory} = tmux_test_fixture:info(Fixture),
+        Cwd = list_to_binary(filename:join(Directory, "respawn-#{pid};")),
+        ok = file:make_dir(Cwd),
+        Ready = filename:join(Directory, "respawn-ready"),
+        {ok, Listener} = gen_tcp:listen(0, [local, {ifaddr, {local, Ready}},
+            binary, {packet, 4}, {active, false}]),
+        Script = <<"import os,socket,sys,json,signal\n"
+            "s=socket.socket(socket.AF_UNIX);s.connect(sys.argv[1])\n"
+            "p=json.dumps([sys.argv[2],os.getcwd(),"
+            "os.environ.get(sys.argv[3],'unset'),os.getpid()]).encode()\n"
+            "s.sendall(len(p).to_bytes(4,'big')+p);signal.pause()\n">>,
+        Argument = <<"literal; #{pid}\n">>,
+        Value = <<"fresh;\n#{pane_id}">>,
+        Key = <<"LIBTMUX_PROBE_", (binary:encode_hex(crypto:strong_rand_bytes(8)))/binary>>,
+        try
+            Launch = #{launch => #{argv => [<<"/bin/cat">>]}},
+            {ok, Session} = tmux_session:create(Server, Launch),
+            {ok, Window} = tmux_window:create(Session, Launch),
+            {ok, Pane} = tmux_pane:split(Window, Launch),
+            PaneId = tmux_model:get(id, Pane),
+            OriginalPid = tmux_model:get(pid, Pane),
+            {ok, Before} = tmux_server:snapshot(Server),
+            lists:foreach(fun(Row) ->
+                ok = tmux_test_fixture:track_process(Fixture, tmux_model:get(pid, Row))
+            end, tmux_snapshot:panes(Before)),
+            WindowId = tmux_model:get(id, Window),
+            {ok, First} = tmux_select:one(#{window_id => WindowId, index => 0},
+                tmux_select:panes(Before)),
+            {ok, Inactive} = tmux_select:one(#{window_id => WindowId},
+                tmux_select:window_links(Before)),
+            false = tmux_model:get(active, Inactive),
+            {error, #{code := command_error}} = tmux_pane:respawn(Pane, #{}),
+            {ok, Unchanged} = tmux_pane:get(Server, PaneId),
+            OriginalPid = tmux_model:get(pid, Unchanged),
+            {error, #{code := command_error}} = tmux_window:respawn(Window, #{}),
+            {ok, _} = tmux_pane:respawn(Pane, #{force => true, cwd => Cwd,
+                env => #{Key => Value}, launch => #{argv => [<<"/usr/bin/python3">>,
+                    <<"-c">>, Script, list_to_binary(Ready), Argument, Key]}}),
+            {ok, Spawned} = tmux_pane:get(Server, PaneId),
+            NewPid = tmux_model:get(pid, Spawned),
+            ok = tmux_test_fixture:track_process(Fixture, NewPid),
+            {ok, Peer} = gen_tcp:accept(Listener, 900),
+            try
+                {ok, Payload} = gen_tcp:recv(Peer, 0, 900),
+                [Argument, Cwd, Value, NewPid] = json:decode(Payload),
+                true = NewPid =/= OriginalPid,
+                {ok, Fresh} = tmux_pane:get(Server, PaneId),
+                NewPid = tmux_model:get(pid, Fresh),
+                OriginalPid = tmux_model:get(pid, Pane)
+            after ok = gen_tcp:close(Peer)
+            end,
+            {ok, _} = tmux_pane:respawn(Pane, #{force => true}),
+            {ok, Reused} = tmux_pane:get(Server, PaneId),
+            ReusedPid = tmux_model:get(pid, Reused),
+            ok = tmux_test_fixture:track_process(Fixture, ReusedPid),
+            {ok, ReusedPeer} = gen_tcp:accept(Listener, 900),
+            try
+                {ok, ReusedPayload} = gen_tcp:recv(ReusedPeer, 0, 900),
+                [Argument, Cwd, <<"unset">>, ReusedPid] = json:decode(ReusedPayload)
+            after ok = gen_tcp:close(ReusedPeer)
+            end,
+            {ok, _} = tmux_window:respawn(Window, #{force => true}),
+            {ok, OnePane} = tmux_window:get(Server, tmux_model:get(id, Window)),
+            1 = tmux_model:get(pane_count, OnePane),
+            {error, #{code := target_gone}} = tmux_pane:get(Server, PaneId),
+            {ok, Restarted} = tmux_pane:get(Server, tmux_model:get(id, First)),
+            ok = tmux_test_fixture:track_process(Fixture, tmux_model:get(pid, Restarted)),
+            true = tmux_model:get(pid, Restarted) =/= tmux_model:get(pid, First),
+            {ok, Selected} = tmux_window_link:get(Server,
+                tmux_model:get(session_id, Inactive), tmux_model:get(index, Inactive)),
+            true = tmux_model:get(active, Selected),
+            {ok, _} = tmux_session:kill(Session)
+        after ok = gen_tcp:close(Listener)
+        end
     end).
 
 capture_bytes(Config) ->

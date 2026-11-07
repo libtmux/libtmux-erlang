@@ -29,9 +29,10 @@ escape_control, retain_trailing_spaces, alternate, pending and quiet. Defaults
 are tmux's current-screen capture without escapes, joined wraps or padding.
 The endpoint's output limit applies; an oversized capture returns an error.
 """.
--export([split/2, get/2, kill/1, resize/2, send_text/2, send_keys/2, capture/2]).
+-export([split/2, get/2, kill/1, resize/2, respawn/2, send_text/2, send_keys/2, capture/2]).
 
--export_type([split_options/0, capture_options/0, resize_options/0, coordinate/0, key/0]).
+-export_type([split_options/0, capture_options/0, resize_options/0, respawn_options/0,
+              coordinate/0, key/0]).
 -doc "Split geometry, placement and explicit launch options. Defaults to a detached vertical split.".
 -type split_options() :: #{direction => horizontal | vertical,
     size => {cells,1..2147483647} | {percent,1..100}, before => boolean(),
@@ -40,6 +41,9 @@ The endpoint's output limit applies; an oversized capture returns an error.
 -doc "Requested absolute pane dimensions in cells. Supply at least one dimension; tmux can clamp it to fit the layout.".
 -type resize_options() :: #{width := 1..65535, height => 1..65535} |
                           #{width => 1..65535, height := 1..65535}.
+-doc "Respawn options. Defaults: force false, launch previous, saved cwd. Environment augments tmux's resolved session environment for this spawn.".
+-type respawn_options() :: #{force => boolean(), launch => tmux_command:respawn_spec(),
+                             cwd => binary(), env => #{binary() => binary()}}.
 -doc "A capture line coordinate, or all for tmux's full available range.".
 -type coordinate() :: -2147483648..32767 | all.
 -doc "Capture range and rendering flags. Byte output and its final newline are preserved.".
@@ -110,6 +114,43 @@ resize(Pane, Options) ->
         ok ?= case Flags of [] -> {error, #{code => empty_resize}}; _ -> ok end,
         {ok, Server, Target} ?= tmux_target:resolve(pane, Pane),
         tmux_target:run(Server, <<"resize-pane">>, Flags ++ [<<"-t">>, Target])
+    end.
+
+-doc """
+Respawn this registered physical pane, keeping its pane ID. force defaults
+false and a running pane normally returns command_error. force = true lets
+tmux close its existing PTY before spawning again. This acknowledges the tmux
+command, not former-job termination or successful application initialization.
+The old PTY can already be closed if a later spawn step fails.
+
+launch defaults to previous, reusing tmux's saved argv or shell. An explicit
+argv or shell map replaces that command. default_shell is invalid here because
+absent respawn arguments mean saved-command reuse. Omitted cwd retains the
+saved launch directory, rather than the program's current directory. env
+augments the session environment tmux resolves for this physical pane; a
+captured membership does not pin that context. Prior per-spawn overrides are
+not automatically reapplied. Other launch rules follow
+`tmux_session:create/2`.
+
+Performs I/O after validation. Existing rows retain their observations; use
+`get/2` and an application readiness condition to inspect the new process.
+An uncertain result is not permission to replay this mutation automatically.
+
+Unsupported launch modes fail before dispatch:
+
+```erlang
+1> tmux_pane:respawn(invalid_row, #{launch => default_shell}).
+{error,#{code => invalid_launch}}
+```
+""".
+-spec respawn(tmux_model:pane(), respawn_options()) ->
+    {ok, tmux_operation:completed()} | {error, tmux_operation:failure()}.
+respawn(Pane, Options) ->
+    maybe
+        {ok, Flags, Launch} ?= tmux_args:respawn_options(Options),
+        {ok, Server, Target} ?= tmux_target:resolve(pane, Pane),
+        tmux_target:run(Server, <<"respawn-pane">>,
+            Flags ++ [<<"-t">>, Target, <<"--">> | Launch])
     end.
 
 -doc """
