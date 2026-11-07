@@ -1,7 +1,9 @@
 # Contributing
 
-This repository uses a Rebar umbrella with core, workspace and MCP OTP
-applications under apps/. The consumers depend on the core's public API.
+This repository uses a Rebar umbrella with core and workspace OTP applications
+under apps/. Workspace code depends on the core's public API. The
+[project policy](../docs/project-policy.md) defines these package boundaries,
+OTP runtime dependencies and the explicit MCP exclusion.
 Current checks cover models, the helper adapter, owned fixtures, borrowed
 endpoints, operation ownership, initial domain commands, captured graphs,
 local filtering, bounded JSON, source-query planning and package structure.

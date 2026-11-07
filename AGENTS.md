@@ -6,6 +6,8 @@ runtime qualification. Check current code and evidence before claiming support.
 
 ## Guides
 
+- Scope, application boundaries and runtime dependencies:
+  [project policy](docs/project-policy.md).
 - Setup, checks, and contributions:
   [.github/CONTRIBUTING.md](.github/CONTRIBUTING.md).
 - Documentation, comments, commits, and review text:

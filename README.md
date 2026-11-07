@@ -155,10 +155,14 @@ non-blocking submission, explicit waits, cancellation and ownership transfer.
 An await timeout abandons that wait; it does not cancel the operation.
 Cancellation after dispatch can leave the tmux outcome unknown.
 
-Persistent control mode, output streams, the MCP server and workspace CLI are
-not implemented yet. The [support and gaps](docs/compatibility.md) page lists
+Persistent control mode, output streams and the workspace CLI remain
+implementation work. The [support and gaps](docs/compatibility.md) page lists
 what is exercised, what remains open, and the required Linux/tmux matrix.
 There is no control-versus-streaming performance claim.
+
+The [project policy](docs/project-policy.md) keeps core and workspace in
+separate OTP applications with OTP runtime dependencies. MCP is excluded from
+this port's scope.
 
 ## Verify and contribute
 

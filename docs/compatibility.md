@@ -35,10 +35,12 @@ missing target positionally.
 
 ## Not yet shipped
 
-Persistent control connections, command groups, output subscriptions/streams,
-the MCP server and workspace file-loader/CLI remain implementation work.
-The consumer OTP application names exist in the umbrella; they do not provide
-usable servers or CLIs yet. There is no MCP connection configuration to copy.
+Persistent control connections, command groups, output subscriptions/streams
+and the workspace file-loader/CLI remain implementation work. The workspace
+OTP application exists in the umbrella; it does not provide a usable CLI yet.
+
+MCP packages, servers and SDK integration are excluded by
+[project policy](project-policy.md).
 
 Typed command coverage, generated capability inventory, source packaging,
 public cross-port filter conformance, published native API pages, shared-site documentation and
