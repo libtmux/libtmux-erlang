@@ -2,11 +2,11 @@
 -compile(nowarn_missing_spec).
 -export([all/0, init_per_suite/1, end_per_suite/1, literal_arguments/1,
          singleton_argv/1, source_configuration/1, wait_channels/1,
-         literal_shell_bytes/1]).
+         literal_shell_bytes/1, config_command_round_trip/1]).
 
 %% Outer: tmux argv/format parsing and singleton pane-command execution.
 all() -> [literal_arguments, literal_shell_bytes, singleton_argv,
-          source_configuration, wait_channels].
+          source_configuration, wait_channels, config_command_round_trip].
 
 init_per_suite(Config) ->
     {ok, _} = application:ensure_all_started(libtmux_erlang),
@@ -57,6 +57,25 @@ literal_shell_bytes(Config) ->
         {ok, Value} = file:read_file(Path)
     after ok = tmux_test_fixture:close(Fixture)
     end.
+
+config_command_round_trip(Config) ->
+    tmux_test_fixture:with_server(proplists:get_value(tmux, Config), fun(Server, _) ->
+        Value = <<"$HOME ${USER} ~root \"; set-option -g @injected bad; ",
+            "\\\n  # comment\n%if 1\n ",
+            (list_to_binary(lists:seq(1, 255)))/binary, $;>>,
+        {ok, Command} = tmux_command:raw(<<"set-option">>,
+            [<<"-g">>, <<"@stored-bytes">>, Value]),
+        {ok, Text} = tmux_command:to_config(Command),
+        {ok, Source} = tmux_command:source_file(stdin, #{}),
+        {ok, _} = tmux_server:command(Server, Source, #{stdin => Text}),
+        {ok, Value} = tmux_option:get({session_defaults, Server}, <<"@stored-bytes">>, #{}),
+        none = tmux_option:get({session_defaults, Server}, <<"@injected">>, #{}),
+        {ok, Empty} = tmux_command:raw(<<"set-option">>,
+            [<<"-g">>, <<"@stored-bytes">>, <<>>]),
+        {ok, EmptyText} = tmux_command:to_config(Empty),
+        {ok, _} = tmux_server:command(Server, Source, #{stdin => EmptyText}),
+        {ok, <<>>} = tmux_option:get({session_defaults, Server}, <<"@stored-bytes">>, #{})
+    end).
 
 singleton_argv(Config) ->
     {ok, Fixture} = tmux_test_fixture:start(proplists:get_value(tmux, Config)),

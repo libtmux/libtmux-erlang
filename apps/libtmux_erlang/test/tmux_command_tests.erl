@@ -66,3 +66,9 @@ literal_time_limit_test() ->
     ?assertMatch({ok, _}, tmux_command:literal_format(WithHash, time)),
     ?assertMatch({error, #{code := format_limit}},
         tmux_command:literal_format(<<WithHash/binary, $a>>, time)).
+
+config_render_validation_test() ->
+    ?assertMatch({error, #{code := invalid_command}}, tmux_command:to_config(invalid)),
+    {ok, Large} = tmux_command:raw(<<"set-option">>,
+        [<<"-g">>, <<"@bytes">>, binary:copy(<<255>>, 10000)]),
+    ?assertMatch({error, #{code := command_limit}}, tmux_command:to_config(Large)).

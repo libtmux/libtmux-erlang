@@ -47,9 +47,11 @@ The [job guide](jobs.md) shows submission, completion and cancellation.
 `wait_for/2` builds native channel signals, waits and advisory locks.
 `source_file/2` builds configuration loading from stdin or a literal absolute
 path. Both return command values without opening an endpoint or doing I/O.
+`to_config/1` renders a command for native configuration input, preserving its
+argument bytes through tmux's lexer.
 """.
 -export([raw/2, validate/1, argv/1, literal_format/1, literal_format/2, launch/1,
-         wait_for/2, source_file/2]).
+         wait_for/2, source_file/2, to_config/1]).
 -export_type([t/0]).
 -export_type([wait_action/0, source/0, source_options/0]).
 
@@ -199,6 +201,48 @@ argv(Command) ->
             [Name | [escape_separator(Word) || Word <- Arguments]];
         {error, Detail} -> error({invalid_command, Detail})
     end.
+
+-doc """
+Render one validated command as native configuration text, without I/O.
+Returns an ASCII binary of at most 32 KiB, without a final newline. Validation
+uses `validate/1`; escaping growth can additionally return `command_limit`.
+
+Each argument is doublequoted. Quote, backslash, dollar, tilde, control and
+non-ASCII bytes use three-digit octal escapes. Empty arguments, semicolons,
+newlines and non-UTF-8 byte values remain argument data. The lexer does not
+expand their variables or tilde prefixes, strip newline indentation, or
+interpret them as directives, comments or additional commands.
+
+Protection covers one lexer pass. Native command-string arguments, including
+`bind-key` and `set-hook` values, can be parsed again by the receiving command.
+Render each inner command string separately for its own parse boundary.
+
+This is tmux configuration syntax, separate from `argv/1` executable arguments
+and shell quoting. Native commands still interpret their values and expand
+formats as usual; `literal_format/2` handles that separate boundary when
+literal format values are required. Load the text explicitly with
+`source_file/2`, or store it through a native command that accepts configuration
+text. The [configuration guide](configuration.md) uses this renderer with
+explicit execution and completion signals.
+""".
+-spec to_config(t()) -> {ok, binary()} | {error, map()}.
+to_config(Command) ->
+    maybe
+        {ok, {tmux_command, Name, Arguments}} ?= validate(Command),
+        Words = [Name | [config_word(Word) || Word <- Arguments]],
+        Text = iolist_to_binary(lists:join(<<" ">>, Words)),
+        case byte_size(Text) =< 32768 of
+            true -> {ok, Text};
+            false -> {error, #{code => command_limit}}
+        end
+    end.
+
+config_word(Word) -> [<<$">>, [config_byte(Byte) || <<Byte>> <= Word], <<$">>].
+
+config_byte(Byte) when Byte >= 32, Byte =< 126, Byte =/= $", Byte =/= $\\,
+                       Byte =/= $$, Byte =/= $~ -> <<Byte>>;
+config_byte(Byte) ->
+    <<$\\, ($0 + (Byte bsr 6)), ($0 + ((Byte bsr 3) band 7)), ($0 + (Byte band 7))>>.
 
 -doc """
 Quote a complete literal argument for tmux format expansion. This does not
