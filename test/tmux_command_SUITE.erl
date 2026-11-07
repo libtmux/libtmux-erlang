@@ -1,10 +1,12 @@
 -module(tmux_command_SUITE).
 -compile(nowarn_missing_spec).
 -export([all/0, init_per_suite/1, end_per_suite/1, literal_arguments/1,
-         singleton_argv/1, source_configuration/1, wait_channels/1]).
+         singleton_argv/1, source_configuration/1, wait_channels/1,
+         literal_shell_bytes/1]).
 
 %% Outer: tmux argv/format parsing and singleton pane-command execution.
-all() -> [literal_arguments, singleton_argv, source_configuration, wait_channels].
+all() -> [literal_arguments, literal_shell_bytes, singleton_argv,
+          source_configuration, wait_channels].
 
 init_per_suite(Config) ->
     {ok, _} = application:ensure_all_started(libtmux_erlang),
@@ -28,7 +30,31 @@ literal_arguments(Config) ->
             Expected = <<Value/binary, 10>>,
             Expected = Output
         end, [<<"literal;">>, <<"slash\\;">>, <<";">>,
-              <<"api-#{pane_id},};">>, <<"literal\n%end 1 2 3">>])
+              <<"api-#{pane_id},};">>, <<"literal\n%end 1 2 3">>,
+              <<"#[fg=red] ##[bg=blue] ###[x]">>,
+              <<"#[#{pid}] #} #, #X #(false) %Y">>,
+              <<"#[unfinished ##[ # [###]">>,
+              <<$%, (binary:copy(<<$a>>, 8190))/binary>>,
+              binary:copy(<<$a>>, 10000)])
+    after ok = tmux_test_fixture:close(Fixture)
+    end.
+
+literal_shell_bytes(Config) ->
+    {ok, Fixture} = tmux_test_fixture:start(proplists:get_value(tmux, Config)),
+    try
+        #{directory := Directory} = tmux_test_fixture:info(Fixture),
+        Path = list_to_binary(filename:join(Directory, "literal-bytes")),
+        Value = <<"#[fg=red] ##[bg=blue] #{pid} #(false) %Y ",
+            (list_to_binary(lists:seq(1, 255)))/binary>>,
+        Quoted = binary:replace(Value, <<"'">>, <<"'\\''">>, [global]),
+        Shell = <<"printf '%s' '", Quoted/binary, "' >'", Path/binary, "'">>,
+        {ok, Encoded} = tmux_command:literal_format(Shell, tmux),
+        {ok, Command} = tmux_command:raw(<<"run-shell">>, [<<"--">>, Encoded]),
+        {ok, #{exit_status := 0, cleanup := complete}} =
+            tmux_test_fixture:command(Fixture, tmux_command:argv(Command)),
+        %% Observe the shell's file, not a display printer that VIS-encodes
+        %% bytes on some native versions.
+        {ok, Value} = file:read_file(Path)
     after ok = tmux_test_fixture:close(Fixture)
     end.
 

@@ -23,7 +23,9 @@ expands as a format, such as a new name or cwd. It does not encode a value
 nested in a format expression. tmux's stored-name escaping and session-name
 substitutions still apply. Use `literal_format/2` with mode time
 for commands such as display-message that also expand strftime percent
-directives. No renderer reverses stored-name semantics.
+directives. This protects one format-expansion pass, not later visual style
+rendering or recursive/nested expansion. No renderer reverses stored-name
+semantics.
 
 `launch/1` distinguishes executable argv from an explicitly
 requested shell command. A singleton argv uses the installed helper's
@@ -209,23 +211,51 @@ literal_format(Value) ->
 -doc """
 Quote a complete literal format argument. Mode tmux protects hash expansion;
 mode time also protects strftime percent directives. Stored-name semantics
-remain tmux's own. Performs no I/O.
+remain tmux's own. This handles one expansion pass, not a nested operand,
+recursive expansion or later visual style rendering. Performs no I/O.
+
+Hash runs before `[` stay unchanged because tmux preserves style-looking
+prefixes for a separate drawing step. Other hashes are doubled. In time mode,
+an argument containing percent bytes must fit tmux's 8191-byte strftime result
+limit after hash encoding and before percent doubling; larger values return
+`format_limit` with `time_bytes` and `max_bytes`. Arguments without percent
+bytes skip that native time-expansion limit. The encoded 32 KiB command limit
+still applies in either mode.
 """.
 -spec literal_format(binary(), tmux | time) -> {ok, binary()} | {error, map()}.
 literal_format(Value, Mode) when Mode =:= tmux; Mode =:= time ->
     maybe
         ok ?= word(Value),
-        Hashes = binary:replace(Value, <<"#">>, <<"##">>, [global]),
+        Hashes = literal_hashes(Value),
         Encoded = case Mode of
             tmux -> Hashes;
             time -> binary:replace(Hashes, <<"%">>, <<"%%">>, [global])
         end,
-        case byte_size(Encoded) =< 32768 of
-            true -> {ok, Encoded};
-            false -> {error, #{code => command_limit}}
+        Time = Mode =:= time andalso binary:match(Value, <<"%">>) =/= nomatch,
+        case {byte_size(Encoded) =< 32768, Time andalso byte_size(Hashes) > 8191} of
+            {false, _} -> {error, #{code => command_limit}};
+            {_, true} -> {error, #{code => format_limit, max_bytes => 8191,
+                                  time_bytes => byte_size(Hashes)}};
+            _ -> {ok, Encoded}
         end
     end;
 literal_format(_, _) -> {error, #{code => invalid_format_mode}}.
+
+literal_hashes(Value) ->
+    case binary:match(Value, <<"#">>) of
+        nomatch -> Value;
+        _ -> iolist_to_binary(lists:reverse(literal_hashes(Value, [])))
+    end.
+
+literal_hashes(<<>>, Acc) -> Acc;
+literal_hashes(<<$#, Rest/binary>>, Acc) ->
+    {Count, Tail} = hash_run(Rest, 1),
+    Size = case Tail of <<$[, _/binary>> -> Count; _ -> Count * 2 end,
+    literal_hashes(Tail, [binary:copy(<<$#>>, Size) | Acc]);
+literal_hashes(<<Byte, Rest/binary>>, Acc) -> literal_hashes(Rest, [Byte | Acc]).
+
+hash_run(<<$#, Rest/binary>>, Count) -> hash_run(Rest, Count + 1);
+hash_run(Tail, Count) -> {Count, Tail}.
 
 -doc """
 Render explicit executable argv, an explicitly requested shell command, or

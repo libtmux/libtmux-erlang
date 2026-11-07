@@ -55,3 +55,14 @@ server_utility_commands_test() ->
         tmux_command:source_file(stdin, #{parse_only => yes})),
     ?assertMatch({error, #{code := unknown_option, path := [expand_formats]}},
         tmux_command:source_file(stdin, #{expand_formats => true})).
+
+literal_time_limit_test() ->
+    Boundary = <<$%, (binary:copy(<<$a>>, 8190))/binary>>,
+    ?assertMatch({ok, _}, tmux_command:literal_format(Boundary, time)),
+    ?assertMatch({error, #{code := format_limit, max_bytes := 8191}},
+        tmux_command:literal_format(<<Boundary/binary, $a>>, time)),
+    ?assertMatch({ok, _}, tmux_command:literal_format(binary:copy(<<$a>>, 10000), time)),
+    WithHash = <<$%, $#, (binary:copy(<<$a>>, 8188))/binary>>,
+    ?assertMatch({ok, _}, tmux_command:literal_format(WithHash, time)),
+    ?assertMatch({error, #{code := format_limit}},
+        tmux_command:literal_format(<<WithHash/binary, $a>>, time)).
