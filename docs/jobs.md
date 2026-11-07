@@ -94,6 +94,12 @@ The example prepares an empty pane, then starts its job with
 Running panes require explicit `force => true`. Use a job-specific completion
 condition and fresh observations to check the result.
 
+Use an empty shell command to prepare a process-free pane with
+`tmux_pane:split/2`. Session creation on every supported version, and window
+creation before tmux 3.8, can finish that command immediately and remove the
+new object. This example uses `/bin/cat` to keep its parent session and window
+available across versions.
+
 `await_started/2` returns lifecycle status, including when an operation already
 failed or retired. Use `await/2` for its command result. Successful command
 results preserve separate stdout/stderr binaries, stdin bytes delivered to the

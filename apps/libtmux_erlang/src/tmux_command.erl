@@ -29,6 +29,12 @@ launch distinguishes executable argv from an explicitly requested shell
 command. A singleton argv uses the installed helper's exec-only mode because
 tmux otherwise passes one argument to its default shell. Empty argv is invalid;
 default_shell explicitly requests tmux's configured default command/shell.
+
+Empty shell commands have command-specific lifetime. split-window creates a
+process-free pane. new-session executes an empty shell command and can remove
+the new object immediately. new-window does likewise before tmux 3.8; tmux 3.8
+creates a process-free pane. Use a persistent job for parent sessions/windows
+that must remain available across supported versions.
 """.
 -export([raw/2, validate/1, argv/1, literal_format/1, literal_format/2, launch/1]).
 -export_type([t/0]).
