@@ -11,6 +11,7 @@ source, checks immutability and cleans up.
 - [Shared-window graph](graph.md): physical entities, memberships and quantifiers.
 - [Jobs and operations](jobs.md): real completion events, output capture and cancellation.
 - [Scoped options](options.md): workspace ownership, inheritance and sparse arrays.
+- [Buffers and paste](buffers.md): binary artifacts, observed names and input delivery.
 - [Option catalogue](options-reference.md): versioned canonical names, scopes and parser types.
 - [Querying](querying.md): local values, portable criteria and explicit source plans.
 - [Fields](fields.md): generated entity/relationship/operator reference.

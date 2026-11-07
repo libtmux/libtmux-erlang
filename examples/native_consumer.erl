@@ -94,6 +94,24 @@ run_endpoint(Socket, Executable) ->
             {ok, Current} = tmux_window:get(Server, tmux_model:get(id, Window)),
             <<"consumer-#{pane_id};">> = tmux_model:get(name, Current),
             {ok, Snapshot} = tmux_server:snapshot(Server),
+            {ok, CatPane} = tmux_select:one(
+                #{window_id => tmux_model:get(id, Window),
+                  pid => #{present => true}}, tmux_select:panes(Snapshot)),
+            Buffer = <<"archive-buffer">>,
+            Artifact = <<0, 255, "\n%end 1 2 3\n">>,
+            {ok, _} = tmux_buffer:load(Server, Buffer, Artifact),
+            {ok, Artifact} = tmux_buffer:show(Server, Buffer),
+            {ok, [#{name := Buffer}]} = tmux_buffer:list(Server),
+            {ok, _} = tmux_buffer:rename(Server, Buffer, <<"archive-saved">>),
+            {error, #{code := buffer_not_found}} =
+                tmux_buffer:show(Server, Buffer),
+            {ok, _} = tmux_buffer:load(Server, <<"archive-input">>,
+                <<"archive paste\n">>),
+            {ok, _} = tmux_buffer:paste(CatPane, <<"archive-input">>,
+                #{delete => true}),
+            {error, #{code := buffer_not_found}} =
+                tmux_buffer:show(Server, <<"archive-input">>),
+            {ok, _} = tmux_buffer:delete(Server, <<"archive-saved">>),
             {ok, Source} = tmux_select:one(
                 #{window_id => tmux_model:get(id, Window)},
                 tmux_select:window_links(Snapshot)),

@@ -147,6 +147,8 @@ session/index membership.
 - [Fields and operators](docs/fields.md): generated from the runtime schema.
 - [Scoped options](docs/options.md): local ownership markers, explicit
   inheritance and sparse arrays, with a source-pinned option catalogue.
+- [Buffers and paste](docs/buffers.md): preserve binary artifacts, inspect
+  names and control terminal delivery.
 - [API browser and source docs](docs/api.md): build searchable native reference
   pages with specs, types and links to the exact source revision.
 

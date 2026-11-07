@@ -50,6 +50,12 @@ fields([{Key, Kind, Flag} | Rest], Options, Acc) ->
 
 encode(flag, Flag, true) -> {ok, [Flag]};
 encode(flag, _, false) -> {ok, []};
+encode(boolean, _, Value) when is_boolean(Value) -> {ok, []};
+encode(bytes, Flag, Value) when is_binary(Value), byte_size(Value) =< 32768 ->
+    case binary:match(Value, <<0>>) of
+        nomatch -> {ok, [Flag, Value]};
+        _ -> {error, #{code => invalid_option}}
+    end;
 encode(text_format, Flag, Value) ->
     maybe
         {ok, _} ?= tmux_schema:value(#{type => text}, Value),
