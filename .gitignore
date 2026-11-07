@@ -1,0 +1,52 @@
+# Build and coverage output.
+/build/
+/dist/
+/coverage/
+/docs/_build/
+/tmp/
+__pycache__/
+*.pyc
+
+# Erlang tooling and packages.
+/_build/
+/_checkouts/
+/deps/
+/cover/
+/doc/
+/.rebar3/
+/.erlang_ls/
+erl_crash.dump
+*.beam
+*.ez
+/*.tar
+/*.tar.gz
+
+# Editors and operating systems.
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+.idea/
+.vscode/
+
+# Local environment and tool state.
+/.cache/
+/.direnv/
+/.envrc.local
+.env
+.env.*
+!.env.example
+
+# Per-machine agent configuration.
+CLAUDE.local.md
+.claude/settings.local.json
+
+# Worktrees, scratch files, and agent plans.
+/.worktrees/
+/worktrees/
+/scratch/
+/*.log
+/docs/superpowers/
+/plans/
+/superpowers/
