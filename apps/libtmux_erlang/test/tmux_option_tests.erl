@@ -46,3 +46,23 @@ array_observation_codec_test() ->
     end, [<<"other[0] x\n">>, <<"update-environment[0] 'broken\n">>,
           <<"update-environment[0] x\nupdate-environment[0] y\n">>,
           <<"update-environment[0] \\\n">>]).
+
+scalar_quoted_codec_test() ->
+    {ok, V34} = tmux_version:parse(<<"tmux 3.4">>),
+    {ok, V35} = tmux_version:parse(<<"tmux 3.5a">>),
+    Meta = #{array => false, type => string},
+    Expected = <<"line", 13, $\\, $r, 255, "$HOME">>,
+    Old = <<"@value \"line\\r\\\\r\\377", $\\, $\\, $$, "HOME\"\n">>,
+    New = <<"@value \"line\\r\\\\r\\377", $\\, $$, "HOME\"\n">>,
+    ?assertEqual({ok, Expected}, tmux_option_codec:decode(<<"@value">>, Old, Meta, V34)),
+    ?assertEqual({ok, Expected}, tmux_option_codec:decode(<<"@value">>, New, Meta, V35)),
+    Name = <<"@caf", 195, 169, 13, 255>>,
+    Header = <<"@caf", 195, 169, "\\r\\377* ''\n">>,
+    ?assertEqual({ok, <<>>}, tmux_option_codec:decode(Name, Header, Meta, V35)),
+    Extended = <<$@, 244, 144, 128, 128>>,
+    ?assertEqual({ok, <<"x">>}, tmux_option_codec:decode(Extended,
+        <<Extended/binary, " x\n">>, Meta, V35)),
+    ?assertEqual({ok, <<"display-message \"\\\\r\"">>},
+        tmux_option_codec:decode(<<"default-client-command">>,
+            <<"default-client-command display-message \"\\\\r\"\n">>,
+            #{array => false, type => command}, V35)).

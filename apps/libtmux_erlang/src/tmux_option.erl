@@ -97,11 +97,10 @@ get(Scope, Key, Options) ->
         {ok, Flags} ?= tmux_args:options(Options, [{inherit, flag, <<"-A">>}]),
         {ok, Server, ScopeArgs, Name, Index, Meta} ?= prepare(Scope, Key, read),
         {ok, Literal} ?= tmux_command:literal_format(Name),
-        Array = maps:get(array, Meta),
-        ValueFlag = case Array of true -> []; false -> [<<"-v">>] end,
+        {ok, Version} ?= tmux_server:version(Server),
         Result = tmux_target:run(Server, <<"show-options">>,
-            ScopeArgs ++ Flags ++ ValueFlag ++ [<<"--">>, Literal]),
-        read_result(Result, Name, Index, Array)
+            ScopeArgs ++ Flags ++ [<<"--">>, Literal]),
+        read_result(Result, Name, Index, Meta, Version)
     end.
 
 -doc """
@@ -253,13 +252,12 @@ find(Profile, Name, [{Versions, Meta} | Rest]) ->
         false -> find(Profile, Name, Rest)
     end.
 
-read_result({ok, #{stdout := Output}}, Name, Index, true) ->
-    case tmux_option_codec:array(Name, Output) of
-        {ok, Entries} when Index =/= none ->
+read_result({ok, #{stdout := Output}}, Name, Index, Meta, Version) ->
+    case tmux_option_codec:decode(Name, Output, Meta, Version) of
+        {ok, Entries} when is_map(Entries), Index =/= none ->
             case maps:find(Index, Entries) of {ok, Value} -> {ok, Value}; error -> none end;
         Result -> Result
     end;
-read_result({ok, #{stdout := Output}}, _, _, false) -> tmux_option_codec:scalar(Output);
-read_result({error, #{code := command_error, stderr := Stderr}} = Error, <<$@, _/binary>> = Name, _, _) ->
+read_result({error, #{code := command_error, stderr := Stderr}} = Error, <<$@, _/binary>> = Name, _, _, _) ->
     case Stderr =:= <<"invalid option: ", Name/binary, $\n>> of true -> none; false -> Error end;
-read_result(Result, _, _, _) -> Result.
+read_result(Result, _, _, _, _) -> Result.

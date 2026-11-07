@@ -75,6 +75,7 @@ arrays_and_bytes(Config) ->
         Values = [<<>>, <<"'\"\\~ #;${}%\n\t\r", 7, 8, 11, 12>>,
                   <<"caf", 16#c3, 16#a9>>, <<255, 128, 1, 127>>, <<"~">>,
                   <<";">>, <<"#">>, <<"$">>, <<"{">>, <<"'">>, <<"\"">>,
+                  <<"$HOME ${HOME} \\$HOME \\\\$HOME">>,
                   list_to_binary(lists:seq(1, 255))],
         lists:foreach(fun({Index, Value}) ->
             {ok, _} = tmux_option:set(Session, {Array, Index}, Value),
@@ -84,6 +85,11 @@ arrays_and_bytes(Config) ->
         end, lists:zip(lists:seq(0, length(Values) - 1), Values)),
         {ok, Entries} = tmux_option:get(Session, Array, #{}),
         Values = [maps:get(I, Entries) || I <- lists:seq(0, length(Values) - 1)],
+        lists:foreach(fun(Name) ->
+            {ok, _} = tmux_option:set(Session, Name, <<"literal $HOME\\r">>),
+            {ok, <<"literal $HOME\\r">>} = tmux_option:get(Session, Name, #{})
+        end, [<<"@with space #{pid}\n">>, <<"@caf", 195, 169, 13, 255>>,
+              <<"@${HOME}\\$HOME">>, <<$@, 244, 144, 128, 128>>]),
         none = tmux_option:get(Session, {Array, 100}, #{}),
         {ok, <<>>} = tmux_option:get(Session, {Array, 0}, #{}),
         {ok, _} = tmux_option:set(Session, {Array, 0}, <<"appended">>, #{append => true}),
