@@ -1,0 +1,9 @@
+{application, libtmux_erlang, [
+    {description, "Native Erlang values and explicit tmux operations"},
+    {vsn, "0.0.0+development"},
+    {registered, [tmux_sup]},
+    {mod, {libtmux_erlang_app, []}},
+    {applications, [kernel, stdlib, crypto]},
+    {env, []},
+    {modules, []}
+]}.

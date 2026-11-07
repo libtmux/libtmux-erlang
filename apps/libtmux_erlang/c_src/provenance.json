@@ -1,0 +1,18 @@
+{
+  "repository": "https://github.com/libtmux/libtmux-elixir",
+  "revision": "a740a1308e51e5e975d4239e0e017efacf4cb169",
+  "license": "MIT",
+  "files": [
+    {
+      "source": "c_src/owned_io.c",
+      "file": "owned_io.c",
+      "sha256": "d123aff332fd4d187094be1a80018db36811d04be7f10e5d470bbb85100009ff"
+    },
+    {
+      "source": "LICENSE",
+      "file": "LICENSE",
+      "sha256": "ff0c1f30af76bb773034a1e785c431d9c58d503d7a817e5e249d20e36576b3cf"
+    }
+  ],
+  "source_changes": []
+}

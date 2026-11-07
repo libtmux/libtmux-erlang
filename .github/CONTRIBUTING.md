@@ -1,8 +1,11 @@
 # Contributing
 
-This repository is a stub for the Erlang libtmux port. It contains repository
-settings and contributor instructions. Package manifests, source code, tests,
-and CI belong to later implementation work.
+This repository uses a Rebar umbrella with core, workspace and MCP OTP
+applications under apps/. The consumers depend on the core's public API.
+Current checks cover models, the helper adapter, owned fixtures, borrowed
+endpoints, operation ownership, initial domain commands, captured graphs,
+local filtering, bounded JSON and package structure.
+Full command, consumer and CI qualification remains in the epic.
 
 [AGENTS.md](../AGENTS.md) governs scope and change discipline.
 [WRITING.md](WRITING.md) governs prose and commit messages.
@@ -32,10 +35,70 @@ Verify that the pinned build tool runs on the selected Erlang runtime:
 $ mise exec -- rebar3 version
 ```
 
-tmux is not needed to check this stub. No library compatibility or
-installation claim is established by selecting a development toolchain.
+The pure model checks do not start tmux. Live integration checks must use
+owned sockets and prove cleanup. Selecting a toolchain does not establish
+runtime compatibility.
 
 ## Current checks
+
+Run a focused EUnit module after changing its critical behavior:
+
+```console
+$ time python3 tools/check.py inner \
+    --module tmux_model_tests
+```
+
+Run the unit, generated-source and tracked whitespace checks:
+
+```console
+$ time python3 tools/check.py mid
+```
+
+Run compilation, native helper qualification, Dialyzer, real subprocess/tmux
+integration, executable docs and the external OTP archive consumer:
+
+```console
+$ time python3 tools/check.py outer
+```
+
+These commands retain command output and timing under _build/checks/.
+The Python runner needs Python 3.12 or newer from the development host.
+It times each complete child command, including mise and VM startup; the
+shell time command measures the complete loop invocation.
+The runner defaults to four Erlang schedulers to bound its share of a busy
+development host. An explicit ERL_FLAGS overrides that test profile; receipts
+record the selected flags. This does not configure the installed application.
+
+[Portable filter fixtures](../test/fixtures/README.md) define shared graph,
+result and validation cases. EUnit consumes them and checks composed wire
+round trips. Other-port conformance remains a separate qualification gate.
+
+Edit schema/entities.json, then regenerate the native records and registry:
+
+```console
+$ mise exec -- escript tools/generate_schema.escript
+```
+
+The generator uses OTP JSON. Generated files are checked in so package
+consumers do not need the generator. Do not hand-edit generated Erlang.
+
+The core application builds its Linux helper with make and a C11 compiler.
+The pinned source and its license live under apps/libtmux_erlang/c_src/.
+The helper checks use events and PID descriptors to verify owned retirement;
+the Erlang adapter checks require retirement proof and actual helper exit.
+Output limits reserve one additional byte per stream to distinguish EOF from
+overflow. Completed results release the accumulator's chunk references.
+
+Common Test selects tmux from LIBTMUX_TEST_TMUX, or PATH when unset. Set that
+variable to an absolute executable path to qualify a particular release.
+The fixture owns a foreground server on a private socket. A test-only Linux
+inotify watcher waits for its post-listen permission event; startup never
+polls a borrowed server. The watcher uses the host's /usr/bin/python3.
+Passing this local suite does not establish the complete CI version matrix.
+
+Dialyzer includes Common Test in its analysis table because the external
+consumer executes ct_doctest. Its first run builds the table; retain that
+setup time when reporting the outer check.
 
 Validate the repository settings after editing them:
 
@@ -58,7 +121,8 @@ $ time git diff --cached --check
 Git does not include untracked files in those checks; inspect newly created
 files before staging them. Verify relative Markdown links, the
 `CLAUDE.md -> AGENTS.md` symlink, and the settings on both GitHub repositories.
-There are no source, build, or test checks yet.
+Compiler warnings are errors. Native formatter qualification, source package
+assembly and the full real-tmux matrix remain explicit implementation gates.
 
 ## Check budgets
 
@@ -86,6 +150,6 @@ work. A review description explains the resulting behavior and reports
 relevant checks, whole-command durations, failures, and skipped checks.
 Implementation, release, and compatibility claims need their own evidence.
 
-Future real-tmux checks follow the ownership rules in
-[AGENTS.md](../AGENTS.md). Package, CI, documentation export, and release
-workflows belong to later implementation work.
+Real-tmux checks follow the ownership rules in [AGENTS.md](../AGENTS.md).
+Package, CI, documentation export and release claims require their respective
+epic gates; current local checks do not pass unimplemented surfaces.

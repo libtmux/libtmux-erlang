@@ -18,6 +18,8 @@ __pycache__/
 erl_crash.dump
 *.beam
 *.ez
+/apps/libtmux_erlang/priv/tmux_owned_io
+/apps/libtmux_erlang/priv/owned_io.LICENSE
 /*.tar
 /*.tar.gz
 

@@ -1,0 +1,91 @@
+-module(native_consumer).
+-moduledoc """
+Construct native values and exercise a borrowed endpoint through public APIs.
+
+Run through tools/check_package.py to compile this module against an unpacked
+OTP application archive outside the library checkout.
+""".
+-export([run/0, pane_ids/1, run_endpoint/2]).
+-import_record(tmux_model, [pane]).
+
+-doc """
+Return pane IDs from an ordinary list of validated domain records.
+
+```erlang
+1> native_consumer:pane_ids([]).
+[]
+```
+""".
+-spec pane_ids([tmux_model:pane()]) -> [tmux_model:pane_id()].
+pane_ids(Rows) ->
+    [Id || #pane{id = Id} <:- Rows].
+
+-spec run() -> ok.
+run() ->
+    {ok, _} = application:ensure_all_started(libtmux_erlang),
+    try
+        {ok, Pane} = tmux_model:pane(#{id => <<"%1">>, active => true,
+                                      width => 120}),
+        [<<"%1">>] = pane_ids([Pane]),
+        #pane{id = <<"%1">>, active = true, width = 120} = Pane,
+        {ok, Pane} = tmux_model:validate(Pane),
+        {error, #{code := invalid_row}} =
+            tmux_model:validate(Pane#pane{model_version = 2}),
+        Selection = tmux_select:from_list(pane, [Pane]),
+        {ok, Pane} = tmux_select:one(#{width => #{gte => 120}}, Selection),
+        {error, #{code := duplicate_key}} =
+            tmux_filter:decode_json(<<"{\"version\":1,\"version\":2}">>),
+        ok = ct_doctest:module(?MODULE),
+        ok
+    after
+        ok = application:stop(libtmux_erlang)
+    end.
+
+-spec run_endpoint(binary(), binary()) -> ok.
+run_endpoint(Socket, Executable) ->
+    {ok, Server} = tmux_server:open(#{socket_path => Socket, executable => Executable}),
+    try
+        {ok, Message} = tmux_command:raw(<<"display-message">>,
+                                        [<<"-p">>, <<"archive consumer">>]),
+        {ok, #{stdout := <<"archive consumer\n">>, cleanup := complete}} =
+            tmux_server:command(Server, Message, #{}),
+        {ok, Wait} = tmux_command:raw(<<"wait-for">>, [<<"archive-consumer">>]),
+        {ok, Operation} = tmux_operation:start(Server, Wait, #{}),
+        {ok, _} = tmux_operation:await_started(Operation, 900),
+        {error, #{code := await_timeout}} = tmux_operation:await(Operation, 0),
+        {ok, cancel_requested} = tmux_operation:cancel(Operation),
+        {error, #{outcome := unknown, cleanup := complete}} =
+            tmux_operation:await(Operation, 900),
+        {ok, Session} = tmux_session:create(Server,
+            #{name => <<"archive-domain">>, launch => #{argv => [<<"/bin/cat">>]}}),
+        try
+            {ok, Window} = tmux_window:create(Session, #{launch => #{argv => [<<"/bin/cat">>]}}),
+            {ok, Pane} = tmux_pane:split(Window,
+                #{direction => horizontal, size => {percent, 40}, launch => #{shell => <<>>}}),
+            [Id] = pane_ids([Pane]),
+            {ok, Detached} = tmux_model:pane(#{id => Id}),
+            {ok, Bound} = tmux_server:bind(Server, Detached),
+            {ok, <<"\n">>} = tmux_pane:capture(Bound, #{start => 0, 'end' => 0}),
+            {ok, _} = tmux_window:rename(Window, <<"consumer-#{pane_id};">>),
+            {ok, Current} = tmux_window:get(Server, tmux_model:get(id, Window)),
+            <<"consumer-#{pane_id};">> = tmux_model:get(name, Current),
+            {ok, Snapshot} = tmux_server:snapshot(Server),
+            {ok, CapturedWindow} = tmux_snapshot:get(window, tmux_model:get(id, Window), Snapshot),
+            {ok, Children} = tmux_snapshot:related(panes, CapturedWindow, Snapshot),
+            true = lists:member(Id, pane_ids(Children)),
+            ok = tmux_snapshot:require([{relation, window, panes}, {field, pane, pid}], Snapshot),
+            {ok, Filter} = tmux_filter:new(pane, #{id => Id,
+                window => #{is => #{name => <<"consumer-#{pane_id};">>}}}),
+            {ok, Document} = tmux_filter:decode_json(iolist_to_binary(json:encode(tmux_filter:to_wire(Filter)))),
+            {ok, Filter} = tmux_filter:from_wire(pane, Document),
+            {ok, Selected} = tmux_select:one(Filter, tmux_select:panes(Snapshot)),
+            [Id] = pane_ids([Selected]),
+            {ok, Prepared} = tmux_filter:prepare(Filter, Snapshot),
+            {ok, true} = tmux_filter:matches(Prepared, Selected)
+        after
+            {ok, _} = tmux_session:kill(Session)
+        end,
+        ok
+    after
+        ok = tmux_server:close(Server)
+    end.

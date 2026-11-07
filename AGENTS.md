@@ -1,8 +1,8 @@
 # Agent instructions
 
-This repository is a stub for the Erlang libtmux port. It contains repository
-settings and contributor instructions. Architecture and implementation work
-begin only when requested.
+This repository implements the Erlang libtmux port. The active implementation
+epic governs scope; architecture approval does not establish package or
+runtime qualification. Check current code and evidence before claiming support.
 
 ## Guides
 
