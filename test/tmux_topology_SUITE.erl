@@ -1,10 +1,10 @@
 -module(tmux_topology_SUITE).
 -compile(nowarn_missing_spec).
 -export([all/0, init_per_suite/1, end_per_suite/1,
-         physical_moves/1, contextual_breaks/1]).
+         physical_moves/1, contextual_breaks/1, explicit_client_selection/1]).
 
 %% Outer: topology assertions require owned live servers and process retirement.
-all() -> [physical_moves, contextual_breaks].
+all() -> [physical_moves, contextual_breaks, explicit_client_selection].
 
 init_per_suite(Config) ->
     {ok, _} = application:ensure_all_started(libtmux_erlang),
@@ -126,6 +126,64 @@ contextual_breaks(Config) ->
         Pid1 = tmux_model:get(pid, StillRunning),
         {error, #{code := target_gone}} =
             tmux_pane:break(Pane0, Duplicate, Session1, #{index => 12})
+    end).
+
+explicit_client_selection(Config) ->
+    with_server(Config, fun(Server, Fixture) ->
+        {Session0, _, _, _} = base(Server, Fixture, <<"client-source">>),
+        {Session1, _, _, _} = base(Server, Fixture, <<"client-destination">>),
+        S0 = tmux_model:get(id, Session0),
+        S1 = tmux_model:get(id, Session1),
+        Key = <<"LIBTMUX_CLIENT_TEST">>,
+        {ok, _} = tmux_option:set(Session1, {<<"update-environment">>, 0}, Key),
+        {ok, #{exit_status := 0}} = tmux_test_fixture:command(Fixture,
+            [<<"set-environment">>, <<"-t">>, S1, Key, <<"original">>]),
+        Env = [{binary_to_list(Key), "from-client"}],
+        tmux_test_fixture:with_client(Fixture, S0, Env, fun(Client0) ->
+            #{name := Name0} = Client0,
+            OldName = tmux_test_fixture:with_client(Fixture, S0, [], fun(Client1) ->
+                #{name := Name1} = Client1,
+                {ok, _} = tmux_session:select(Session1, Name0),
+                {Name0, S1} = tmux_test_fixture:client_session(Client0),
+                {Name1, S0} = tmux_test_fixture:client_session(Client1),
+                Prefix = binary:part(Name0, 0, byte_size(Name0) - 1),
+                {error, #{code := client_not_found}} =
+                    tmux_session:select(Session0, Prefix),
+                {error, #{code := client_not_found}} = tmux_session:select(
+                    Session0, <<"#{client_name}; kill-server">>),
+                {Name0, S1} = tmux_test_fixture:client_session(Client0),
+                {Name1, S0} = tmux_test_fixture:client_session(Client1),
+                {ok, #{stdout := <<"LIBTMUX_CLIENT_TEST=original\n">>}} =
+                    tmux_test_fixture:command(Fixture,
+                        [<<"show-environment">>, <<"-t">>, S1, Key]),
+                {ok, Fresh0} = tmux_session:get(Server, S0),
+                {ok, Fresh1} = tmux_session:get(Server, S1),
+                1 = tmux_model:get(attached_count, Fresh0),
+                1 = tmux_model:get(attached_count, Fresh1),
+                0 = tmux_model:get(attached_count, Session0),
+                {ok, _} = tmux_session:select(Session0, Name0),
+                {ok, _} = tmux_session:select(Session1, Name0,
+                    #{update_environment => true}),
+                {Name0, S1} = tmux_test_fixture:client_session(Client0),
+                {Name1, S0} = tmux_test_fixture:client_session(Client1),
+                {ok, #{stdout := <<"LIBTMUX_CLIENT_TEST=from-client\n">>}} =
+                    tmux_test_fixture:command(Fixture,
+                        [<<"show-environment">>, <<"-t">>, S1, Key]),
+                Name1
+            end),
+            {error, #{code := client_not_found, cleanup := complete}} =
+                tmux_session:select(Session0, OldName),
+            {Name0, S1} = tmux_test_fixture:client_session(Client0),
+            {ok, Detached} = tmux_model:session(#{id => S0}),
+            {error, #{code := detached_reference}} =
+                tmux_session:select(Detached, Name0),
+            {ok, _} = tmux_session:kill(Session0),
+            {error, #{code := target_gone}} =
+                tmux_session:select(Session0, Name0),
+            {Name0, S1} = tmux_test_fixture:client_session(Client0)
+        end),
+        {ok, DetachedSession} = tmux_session:get(Server, S1),
+        0 = tmux_model:get(attached_count, DetachedSession)
     end).
 
 base(Server, Fixture, Name) ->

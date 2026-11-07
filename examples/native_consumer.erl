@@ -66,6 +66,27 @@ run_endpoint(Socket, Executable) ->
               cwd => filename:dirname(Socket),
               launch => #{argv => [<<"/bin/cat">>]}}),
         try
+            SessionId0 = tmux_model:get(id, Session),
+            ClientEndpoint = #{socket => Socket, executable => Executable},
+            tmux_test_fixture:with_client(ClientEndpoint, SessionId0, [],
+                fun(Client) ->
+                    #{name := ClientName} = Client,
+                    {ok, Destination} = tmux_session:create(Server,
+                        #{name => <<"archive-client">>,
+                          launch => #{argv => [<<"/bin/cat">>]}}),
+                    try
+                        {ok, _} = tmux_session:select(Destination, ClientName),
+                        {ClientName, DestinationId} =
+                            tmux_test_fixture:client_session(Client),
+                        DestinationId = tmux_model:get(id, Destination),
+                        {ok, _} = tmux_session:select(Session, ClientName,
+                            #{update_environment => false}),
+                        {ClientName, SessionId0} =
+                            tmux_test_fixture:client_session(Client)
+                    after
+                        {ok, _} = tmux_session:kill(Destination)
+                    end
+                end),
             {ok, Window} = tmux_window:create(
                 Session, #{launch => #{argv => [<<"/bin/cat">>]}}),
             {ok, _} = tmux_option:set(Session, <<"@workspace">>, <<"archive">>),

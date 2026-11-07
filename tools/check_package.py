@@ -145,6 +145,7 @@ def main() -> None:
             commands.append(run([
                 "dialyzer", "--plt", str(plts[0]),
                 str(consumer_ebin / "native_consumer.beam"),
+                str(consumer_ebin / "tmux_test_fixture.beam"),
                 "-r", str(installed_ebin)
             ], temp, env))
     assert not temp.exists()

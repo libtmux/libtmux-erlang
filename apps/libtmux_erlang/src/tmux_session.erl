@@ -21,14 +21,21 @@ completed and the original command result. `rename/2` and
 `kill/1` return command results without refreshing the input
 record. Detached rows require `tmux_server:bind/2` before actions. Every call
 performs I/O except when validation rejects its arguments first.
-""".
--export([create/2, get/2, rename/2, kill/1]).
 
--export_type([create_options/0]).
+`select/2` switches one explicitly named attached client to a session. It
+never attaches a client or infers the current client. Use
+`tmux_window_link:select/1` to select a session's window membership instead.
+""".
+-export([create/2, get/2, rename/2, select/2, select/3, kill/1]).
+
+-export_type([create_options/0, select_options/0]).
 -doc "Session creation options. Launch defaults to the configured shell; creation defaults to detached.".
 -type create_options() :: #{name => binary(), window_name => binary(),
     width => 1..65535, height => 1..65535, cwd => binary(),
     env => #{binary() => binary()}, launch => tmux_command:launch_spec(), detach => boolean()}.
+
+-doc "Session selection options. update_environment defaults to false, preserving the destination environment.".
+-type select_options() :: #{update_environment => boolean()}.
 
 -doc """
 Create a detached session by default and explicitly observe the returned row.
@@ -66,6 +73,70 @@ rename(Session, Name) ->
         {ok, [_, Literal]} ?= tmux_args:options(#{name => Name}, [{name, text_format, <<"-n">>}]),
         tmux_target:act(session, Session, <<"rename-session">>, [Literal])
     end.
+
+-doc """
+Switch an explicitly named attached client to this registered session,
+preserving the session environment. Performs I/O. See `select/3` for client
+lookup, environment updates and disconnection races.
+
+An empty client name cannot select an implicit current client:
+
+```erlang
+1> tmux_session:select(invalid_session, <<>>).
+{error,#{code => invalid_client,path => [client]}}
+```
+""".
+-spec select(tmux_model:session(), binary()) -> {ok, map()} | {error, map()}.
+select(Session, Client) -> select(Session, Client, #{}).
+
+-doc """
+Switch one attached client, selected by its literal native client name or TTY
+path, to the session's registered stable ID. Performs I/O and returns the
+command result; existing rows remain captured values. Obtain the name from
+the caller's own client context, such as tmux's `client_name` format. There
+is no default client and this call never attaches one.
+
+`update_environment` defaults to false (`switch-client -E`). When true, tmux
+updates the destination session environment using its `update-environment`
+option and that client's environment; listed variables absent from the client
+can be marked for removal. Running pane processes retain their environment.
+
+Names are nonempty NUL-free binaries of at most 32 KiB. Trailing-colon aliases
+are rejected. Native lookup matches an exact name or TTY path, including its
+`/dev/`-relative alias; there is no prefix or pattern matching. A disconnected
+name returns `client_not_found`. Names and TTY paths can be reused by a later
+connection; this API does not identify a client incarnation atomically. A
+missing destination returns `target_gone`. See `tmux_server:bind/2` for detached
+session rows and `tmux_window_link:select/1` for window selection.
+""".
+-spec select(tmux_model:session(), binary(), select_options()) ->
+    {ok, map()} | {error, map()}.
+select(Session, Client, Options) ->
+    maybe
+        ok ?= client_name(Client),
+        {ok, []} ?= tmux_args:options(Options,
+            [{update_environment, boolean, <<>>}]),
+        {ok, Server, Target} ?= tmux_target:resolve(session, Session),
+        Flags = case maps:get(update_environment, Options, false) of
+            true -> [];
+            false -> [<<"-E">>]
+        end,
+        case tmux_target:run(Server, <<"switch-client">>,
+            Flags ++ [<<"-c">>, Client, <<"-t">>, Target]) of
+            {error, #{code := command_error,
+                      stderr := <<"can't find client: ", _/binary>>} = Error} ->
+                {error, Error#{code => client_not_found}};
+            Result -> Result
+        end
+    end.
+
+client_name(Name) when is_binary(Name), byte_size(Name) > 0,
+                       byte_size(Name) =< 32768 ->
+    case binary:last(Name) =/= $: andalso binary:match(Name, <<0>>) =:= nomatch of
+        true -> ok;
+        false -> {error, #{code => invalid_client, path => [client]}}
+    end;
+client_name(_) -> {error, #{code => invalid_client, path => [client]}}.
 
 -doc """
 Destroy this registered session. Performs I/O and returns the command result;

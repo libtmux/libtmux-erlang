@@ -2,7 +2,8 @@
 -compile(nowarn_missing_spec).
 -behaviour(gen_server).
 -export([start/1, info/1, command/2, start_command/2, close/1, ensure_closed/1,
-         process_identity/1, same_process/2, track_process/2, with_server/2]).
+         process_identity/1, same_process/2, track_process/2, with_server/2,
+         with_client/4, client_session/1]).
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2]).
 
 start(Executable) -> gen_server:start(?MODULE, {self(), Executable}, []).
@@ -35,6 +36,67 @@ start_command(Fixture, Arguments) ->
     #{executable := Executable, socket := Socket} = info(Fixture),
     tmux_transport:start(Executable, [<<"-N">>, <<"-S">>, Socket | Arguments],
                          #{timeout_ms => 5000}).
+
+%% Test-only control attachment. It does not qualify the public transport.
+with_client(Fixture, Session, Environment, Function) ->
+    #{executable := Executable, socket := Socket} = case Fixture of
+        #{executable := _, socket := _} -> Fixture;
+        _ -> info(Fixture)
+    end,
+    Port = open_port({spawn_executable, binary_to_list(Executable)},
+        [binary, {line, 4096}, exit_status, use_stdio,
+         {env, [{"TMUX", false}, {"TMUX_PANE", false} | Environment]},
+         {args, ["-u", "-C", "-N", "-S", binary_to_list(Socket),
+                 "attach-session", "-t", binary_to_list(Session)]}]),
+    {os_pid, Pid} = erlang:port_info(Port, os_pid),
+    Identity = process_identity(Pid),
+    ok = case is_pid(Fixture) of
+        true -> track_process(Fixture, Pid);
+        false -> ok
+    end,
+    try
+        {Name, Session} = client_session(Port),
+        Function(#{port => Port, name => Name})
+    after
+        case erlang:port_info(Port) of
+            undefined -> ok;
+            _ ->
+                true = erlang:port_command(Port, <<"detach-client\n">>),
+                client_exit(Port, erlang:monotonic_time(millisecond) + 900, 65536)
+        end,
+        false = same_process(Pid, Identity)
+    end.
+
+client_session(#{port := Port}) -> client_session(Port);
+client_session(Port) when is_port(Port) ->
+    true = erlang:port_command(Port,
+        <<"display-message -p 'fixture-client\t#{client_name}\t#{session_id}'\n">>),
+    client_line(Port, erlang:monotonic_time(millisecond) + 900, 65536).
+
+client_line(Port, Deadline, Budget) when Budget > 0 ->
+    Remaining = max(0, Deadline - erlang:monotonic_time(millisecond)),
+    receive
+        {Port, {data, {eol, <<"fixture-client\t", Fields/binary>>}}} ->
+            [Name, Session] = binary:split(Fields, <<"\t">>, [global]),
+            {Name, Session};
+        {Port, {data, {eol, Line}}} ->
+            client_line(Port, Deadline, Budget - byte_size(Line) - 1);
+        {Port, {data, {noeol, _}}} -> error(client_line_limit);
+        {Port, {exit_status, Status}} -> error({client_exit, Status})
+    after Remaining -> error(client_reply_timeout)
+    end;
+client_line(_, _, _) -> error(client_output_limit).
+
+client_exit(Port, Deadline, Budget) when Budget > 0 ->
+    Remaining = max(0, Deadline - erlang:monotonic_time(millisecond)),
+    receive
+        {Port, {exit_status, 0}} -> ok;
+        {Port, {data, {_, Line}}} ->
+            client_exit(Port, Deadline, Budget - byte_size(Line) - 1);
+        {Port, {exit_status, Status}} -> error({client_exit, Status})
+    after Remaining -> error(client_exit_timeout)
+    end;
+client_exit(_, _, _) -> error(client_output_limit).
 
 init({Owner, Executable}) ->
     Monitor = monitor(process, Owner),

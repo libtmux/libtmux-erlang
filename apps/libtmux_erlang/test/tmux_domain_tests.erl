@@ -78,3 +78,13 @@ topology_validation_before_dispatch_test() ->
         tmux_pane:move(invalid_row, invalid_row, #{zoom => true})),
     ?assertMatch({error, #{code := invalid_option, path := [detach]}},
         tmux_pane:swap(invalid_row, invalid_row, #{detach => yes})).
+
+client_validation_before_dispatch_test() ->
+    lists:foreach(fun(Client) ->
+        ?assertMatch({error, #{code := invalid_client, path := [client]}},
+            tmux_session:select(invalid_row, Client))
+    end, [<<>>, <<0>>, <<"client-1:">>, binary:copy(<<$x>>, 32769), current]),
+    ?assertMatch({error, #{code := invalid_option, path := [update_environment]}},
+        tmux_session:select(invalid_row, <<"client-1">>, #{update_environment => yes})),
+    ?assertMatch({error, #{code := unknown_option, path := [detach]}},
+        tmux_session:select(invalid_row, <<"client-1">>, #{detach => true})).

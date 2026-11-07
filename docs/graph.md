@@ -5,6 +5,14 @@ window links. It then checks the physical object graph and session-relative
 membership counts. `tmux_window_link` acts on a session/index membership and
 checks its expected physical window before dispatch.
 
+Selecting a window membership changes that session's current window.
+`tmux_session:select/2` switches one explicitly named attached client to a
+session. It never attaches a client or chooses a current client implicitly.
+Its `tmux_session:select/3` variant updates the destination environment only
+when requested. Client names can be reused after disconnection; this call
+does not provide an atomic client-incarnation check. The native API contract
+documents name lookup and environment-removal semantics.
+
 Run it on a private server after compiling:
 
 ```console
