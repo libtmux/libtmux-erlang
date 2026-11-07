@@ -28,6 +28,7 @@ macOS, native Windows and psmux are not advertised as qualified platforms.
 | Operations | Bounded one-shot submission, waits, cancellation, transfer and cleanup |
 | Domain commands | Initial create/read/rename/kill calls, explicit client/session selection, checked window memberships, pane split/break/join/move/swap/resize, pane/window respawn, window layouts, literal/key input and capture |
 | Options | Explicit local/global tables, local or inherited reads, indexed writes/unsets and generated source metadata; hooks remain outside the option API |
+| Hooks | Versioned builtin arrays, indexed command values, inheritance and explicit execution contexts |
 | Buffers | Named or automatic binary load, exact show, metadata lists, delete/rename and paste; native version differences are explicit |
 | Server utilities | Command values for literal source-file/stdin configuration and native wait-for signals, waits and explicit advisory locks |
 | Pane pipe | Literal shell command, output/input/both directions, native toggle and explicit stop; tmux-owned process and delivery checks |

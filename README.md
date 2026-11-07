@@ -155,6 +155,8 @@ session/index membership.
   from stdin, observe the event and verify parse-only behavior.
 - [Pipe terminal output](docs/pipe.md): save a job's bytes, await its consumer
   acknowledgement and verify the resulting log.
+- [Hooks and completion](docs/hooks.md): register a split callback, await its
+  acknowledgement and remove the local hook.
 - [API browser and source docs](docs/api.md): build searchable native reference
   pages with specs, types and links to the exact source revision.
 

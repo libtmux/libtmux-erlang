@@ -90,7 +90,7 @@ def main() -> None:
         shutil.copyfile(root / "tools/run_examples.escript", temp / "tools/run_examples.escript")
         for name in ("tmux_test_fixture.erl", "tmux_fixture_watch.py"):
             shutil.copyfile(root / "test" / name, temp / "test" / name)
-        for name in ("filter_demo", "inspect_demo", "readme_demo", "linked_graph", "job_demo", "options_demo", "buffer_demo", "pane_demo", "config_demo", "pipe_demo"):
+        for name in ("filter_demo", "inspect_demo", "readme_demo", "linked_graph", "job_demo", "options_demo", "buffer_demo", "pane_demo", "config_demo", "pipe_demo", "hook_demo"):
             shutil.copyfile(root / "examples" / (name + ".erl"), temp / "examples" / (name + ".erl"))
         shutil.copyfile(root / "examples/terminal_job.py", temp / "examples/terminal_job.py")
         env = dict(os.environ)
@@ -164,7 +164,7 @@ def main() -> None:
         "public_snapshot_consumer": "PASS: captured graph, native pane lists, relationships and coverage",
         "public_filter_consumer": "PASS: local selection, graph filter, wire round trip, cardinality and prepared context",
         "public_option_consumer": "PASS: local ownership, sparse arrays and inherited restoration",
-        "documentation_examples": "PASS: first program, graph, jobs, options, buffers, pane topology, configuration and pipe consumer from the installed archive",
+        "documentation_examples": "PASS: first program, graph, jobs, options, buffers, pane topology, configuration, pipe consumer and hooks from the installed archive",
         "public_tmux_command_api": "PARTIAL: command values, operations and initial domain facades",
         "publication": "UNVERIFIED",
     }

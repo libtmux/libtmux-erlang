@@ -40,6 +40,7 @@ source-extraction path rejects native-record attributes.
 | Break, join, move and swap running panes | `tmux_pane:break/4`, `tmux_pane:join/3`, `tmux_pane:move/3`, `tmux_pane:swap/3` |
 | Act on session-relative window memberships | `m:tmux_window_link` |
 | Read local or inherited options and change explicit tables | `m:tmux_option` |
+| Register, inspect and explicitly run native hooks | `m:tmux_hook` |
 | Store byte buffers and paste into a pane | `m:tmux_buffer` |
 | Read a captured graph | `m:tmux_snapshot`, `m:tmux_model` |
 | Filter captured data | `m:tmux_select`, `m:tmux_filter`, `m:tmux_matcher` |

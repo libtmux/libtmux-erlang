@@ -14,6 +14,9 @@ scope_validation_before_dispatch_test() ->
         tmux_option:get(Pane, <<"@ambiguous[0]">>, #{})),
     ?assertMatch({error, #{code := array_index_required}},
         tmux_option:set({session_defaults, invalid}, <<"update-environment">>, <<"A B">>)),
+    ?assertMatch({error, #{code := invalid_option_key}},
+        tmux_option:get({session_defaults, invalid},
+            {{<<"update-environment">>, 1}, 2}, #{})),
     ?assertMatch({error, #{code := invalid_option_value}},
         tmux_option:set(Pane, <<"@value">>, <<0>>)),
     ?assertMatch({error, #{code := unknown_option}},
@@ -66,3 +69,11 @@ scalar_quoted_codec_test() ->
         tmux_option_codec:decode(<<"default-client-command">>,
             <<"default-client-command display-message \"\\\\r\"\n">>,
             #{array => false, type => command}, V35)).
+
+command_array_codec_test() ->
+    {ok, Version} = tmux_version:parse(<<"tmux 3.3">>),
+    Name = <<"pane-died">>,
+    Command = <<"set-option -g @value \"line\\n\\\\n\\$HOME\"">>,
+    Output = <<Name/binary, "[7] ", Command/binary, "\n">>,
+    ?assertEqual({ok, #{7 => Command}}, tmux_option_codec:decode(Name,
+        Output, #{array => true, type => command}, Version)).

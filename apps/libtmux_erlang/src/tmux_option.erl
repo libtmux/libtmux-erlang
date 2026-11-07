@@ -6,8 +6,8 @@ Session, physical window and pane records from `m:tmux_model` select their
 local tables. Global tables use {server, Server}, {session_defaults, Server}
 or {window_defaults, Server}. Built-in canonical names and scopes are checked
 against pinned source metadata; tmux otherwise lets a name override the
-supplied scope flags. Hooks require a separate command API and are rejected
-here. Prefixes and aliases are rejected.
+supplied scope flags. `m:tmux_hook` owns hook registration and execution;
+hooks are rejected here. Prefixes and aliases are rejected.
 
 `get/3` requires an explicit options map. Local-only reads are the
 default; inherit = true follows tmux's table parents (pane -> window -> window
@@ -102,7 +102,7 @@ inheritance.
 get(Scope, Key, Options) ->
     maybe
         {ok, Flags} ?= tmux_args:options(Options, [{inherit, flag, <<"-A">>}]),
-        {ok, Server, ScopeArgs, Name, Index, Meta} ?= prepare(Scope, Key, read),
+        {ok, Server, ScopeArgs, Name, Index, Meta} ?= tmux_option_scope:prepare(Scope, Key, read, option),
         {ok, Literal} ?= tmux_command:literal_format(Name),
         {ok, Version} ?= tmux_server:version(Server),
         Result = tmux_target:run(Server, <<"show-options">>,
@@ -136,8 +136,8 @@ set(Scope, Key, Value, Options) ->
         ok ?= value(Value),
         {ok, Flags} ?= tmux_args:options(Options,
             [{append, flag, <<"-a">>}, {only_if_unset, flag, <<"-o">>}]),
-        {ok, Server, ScopeArgs, Name, Index, _} ?= prepare(Scope, Key, write),
-        {ok, Literal} ?= tmux_command:literal_format(indexed(Name, Index)),
+        {ok, Server, ScopeArgs, Name, Index, _} ?= tmux_option_scope:prepare(Scope, Key, write, option),
+        {ok, Literal} ?= tmux_command:literal_format(tmux_option_scope:indexed(Name, Index)),
         tmux_target:run(Server, <<"set-option">>,
             ScopeArgs ++ Flags ++ [<<"--">>, Literal, Value])
     end.
@@ -153,88 +153,10 @@ Performs I/O and returns the command result without refreshing captured rows.
     {ok, tmux_operation:completed()} | {error, tmux_operation:failure()}.
 unset(Scope, Key) ->
     maybe
-        {ok, Server, ScopeArgs, Name, Index, _} ?= prepare(Scope, Key, unset),
-        {ok, Literal} ?= tmux_command:literal_format(indexed(Name, Index)),
+        {ok, Server, ScopeArgs, Name, Index, _} ?= tmux_option_scope:prepare(Scope, Key, unset, option),
+        {ok, Literal} ?= tmux_command:literal_format(tmux_option_scope:indexed(Name, Index)),
         tmux_target:run(Server, <<"set-option">>, ScopeArgs ++ [<<"-u">>, <<"--">>, Literal])
     end.
-
-prepare(Scope, Key, Action) ->
-    maybe
-        {ok, Name, Index} ?= key(Key),
-        {ok, Kind, Target} ?= scope(Scope),
-        {ok, Variants} ?= known(Name),
-        ok ?= precheck(Kind, Index, Action, Variants),
-        {ok, Server, ScopeArgs} ?= owner(Kind, Target),
-        {ok, Meta} ?= case Name of
-            <<$@, _/binary>> -> {ok, user_metadata()};
-            _ ->
-                maybe
-                    {ok, Version} ?= tmux_server:version(Server),
-                    {ok, Specific} ?= describe(Version, Name),
-                    ok ?= allowed(Kind, Index, Action, Specific),
-                    {ok, Specific}
-                end
-        end,
-        {ok, Server, ScopeArgs, Name, Index, Meta}
-    end.
-
-scope({Kind, Server}) when Kind =:= server; Kind =:= session_defaults; Kind =:= window_defaults ->
-    {ok, Kind, Server};
-scope(Row) ->
-    maybe
-        {ok, Valid} ?= tmux_model:validate(Row),
-        case tmux_model:entity(Valid) of
-            Kind when Kind =:= session; Kind =:= window; Kind =:= pane -> {ok, Kind, Valid};
-            _ -> {error, #{code => wrong_target_kind}}
-        end
-    end.
-
-owner(server, Server) -> {ok, Server, [<<"-s">>]};
-owner(session_defaults, Server) -> {ok, Server, [<<"-g">>]};
-owner(window_defaults, Server) -> {ok, Server, [<<"-g">>, <<"-w">>]};
-owner(Kind, Row) ->
-    maybe
-        {ok, Server, Target} ?= tmux_target:resolve(Kind, Row),
-        Flags = case Kind of session -> []; window -> [<<"-w">>]; pane -> [<<"-p">>] end,
-        {ok, Server, Flags ++ [<<"-t">>, Target]}
-    end.
-
-known(<<$@, _/binary>>) -> {ok, [{[], user_metadata()}]};
-known(Name) ->
-    case tmux_option_data:variants(Name) of
-        [] -> {error, #{code => unknown_tmux_option, name => Name}};
-        Variants -> {ok, Variants}
-    end.
-
-user_metadata() -> #{scopes => [server, session, window, pane], type => string,
-                     array => false, hook => false}.
-
-precheck(Kind, Index, Action, Variants) ->
-    Checks = [allowed(Kind, Index, Action, M) || {_, M} <- Variants],
-    case lists:member(ok, Checks) of true -> ok; false -> hd(Checks) end.
-
-allowed(_, _, _, #{hook := true}) -> {error, #{code => hook_requires_api}};
-allowed(Kind, Index, Action, #{scopes := Scopes, array := Array}) ->
-    Actual = case Kind of session_defaults -> session; window_defaults -> window; _ -> Kind end,
-    case {lists:member(Actual, Scopes), Array, Index, Action} of
-        {false, _, _, _} -> {error, #{code => wrong_option_scope, actual => Actual, allowed => Scopes}};
-        {true, false, N, _} when N =/= none -> {error, #{code => not_an_array}};
-        {true, true, none, write} -> {error, #{code => array_index_required}};
-        _ -> ok
-    end.
-
-key({Name, Index}) when is_integer(Index, 0, 2147483647) ->
-    maybe {ok, Name, none} ?= key(Name), {ok, Name, Index} end;
-key(Name) when is_binary(Name), byte_size(Name) > 0, byte_size(Name) =< 1024 ->
-    case binary:match(Name, [<<0>>, <<"[">>, <<"]">>]) of
-        nomatch ->
-            case Name of
-                <<$@>> -> {error, #{code => invalid_option_key}};
-                _ -> {ok, Name, none}
-            end;
-        _ -> {error, #{code => invalid_option_key}}
-    end;
-key(_) -> {error, #{code => invalid_option_key}}.
 
 value(Value) when is_binary(Value), byte_size(Value) =< 32768 ->
     case binary:match(Value, <<0>>) of
@@ -242,9 +164,6 @@ value(Value) when is_binary(Value), byte_size(Value) =< 32768 ->
         _ -> {error, #{code => invalid_option_value}}
     end;
 value(_) -> {error, #{code => invalid_option_value}}.
-
-indexed(Name, none) -> Name;
-indexed(Name, Index) -> <<Name/binary, $[, (integer_to_binary(Index))/binary, $]>>.
 
 profile(#{major := Major, minor := Minor, patch := Patch, tracking := false}) ->
     Profile = <<(integer_to_binary(Major))/binary, $., (integer_to_binary(Minor))/binary, Patch/binary>>,

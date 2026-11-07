@@ -11,7 +11,7 @@ decode(Name, Output, #{array := Array, type := Type}, Version) ->
     %% that layer; 3.4 additionally inserts a slash before dollar variables.
     {Mode, Normalized} = tmux_text_codec:print_layer(Output, Version),
     case Array of
-        true -> array(Name, Normalized);
+        true -> array(Name, Normalized, Type);
         false ->
             maybe
                 {ok, Line} ?= scalar(Normalized),
@@ -61,30 +61,32 @@ scalar(Output) ->
 
 -spec array(binary(), binary()) -> {ok, #{non_neg_integer() => binary()}} |
     none | {error, map()}.
-array(_, <<>>) -> none;
-array(Name, Output) ->
+array(Name, Output) -> array(Name, Output, string).
+
+array(_, <<>>, _) -> none;
+array(Name, Output, Type) ->
     case binary:last(Output) of
-        $\n -> lines(Name, binary:split(Output, <<"\n">>, [global]), #{});
+        $\n -> lines(Name, binary:split(Output, <<"\n">>, [global]), #{}, Type);
         _ -> invalid()
     end.
 
-lines(_, [<<>>], Entries) -> {ok, Entries};
-lines(Name, [Name, <<>>], Entries) when map_size(Entries) =:= 0 -> {ok, #{}};
-lines(Name, [Line | Rest], Entries) ->
+lines(_, [<<>>], Entries, _) -> {ok, Entries};
+lines(Name, [Name, <<>>], Entries, _) when map_size(Entries) =:= 0 -> {ok, #{}};
+lines(Name, [Line | Rest], Entries, Type) ->
     PrefixSize = byte_size(Name),
     case Line of
         <<Name:PrefixSize/binary, $[, Tail/binary>> ->
             maybe
                 {ok, Index, Escaped} ?= entry(Tail),
                 false ?= maps:is_key(Index, Entries),
-                {ok, Value} ?= value(Escaped),
-                lines(Name, Rest, Entries#{Index => Value})
+                {ok, Value} ?= array_value(Type, Escaped),
+                lines(Name, Rest, Entries#{Index => Value}, Type)
             else
                 _ -> invalid()
             end;
         _ -> invalid()
     end;
-lines(_, _, _) -> invalid().
+lines(_, _, _, _) -> invalid().
 
 entry(Tail) ->
     case binary:split(Tail, <<"]">>) of
@@ -104,6 +106,15 @@ index(Digits, Value) when byte_size(Digits) > 0, byte_size(Digits) =< 10 ->
         false -> invalid()
     end;
 index(_, _) -> invalid().
+
+%% Command arrays already contain a command-list serialization, not one
+%% args_escape value. Preserve that syntax for a later explicit native parse.
+array_value(command, Bytes) ->
+    case binary:match(Bytes, <<0>>) of
+        nomatch -> {ok, binary:copy(Bytes)};
+        _ -> invalid()
+    end;
+array_value(_, Bytes) -> value(Bytes).
 
 value(Bytes) ->
     case tmux_text_codec:argument(Bytes) of

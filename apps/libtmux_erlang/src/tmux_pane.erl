@@ -211,7 +211,7 @@ break(Pane, SourceLink, Session, Options) ->
         {ok, Index, Flags} ?= break_options(Options),
         {ok, Server} ?= tmux_target:same_owner(pane, Pane, window_link, SourceLink),
         {ok, Server} ?= tmux_target:same_owner(pane, Pane, session, Session),
-        {ok, Source} ?= break_source(Server, Pane, SourceLink),
+        {ok, Source} ?= tmux_target:linked_pane(Server, Pane, SourceLink),
         {ok, SessionTarget} ?= tmux_target:selector(session, tmux_model:get(id, Session)),
         Target = <<SessionTarget/binary, Index/binary>>,
         tmux_target:run(Server, <<"break-pane">>, Flags ++ [<<"-s">>, Source, <<"-t">>, Target])
@@ -293,22 +293,6 @@ break_options(Options) when is_map(Options) ->
         {ok, Index, Flags}
     end;
 break_options(_) -> {error, #{code => invalid_options, path => []}}.
-
-break_source(Server, Pane, Link) ->
-    maybe
-        {ok, _, Target} ?= tmux_window_link:check(Server, Link),
-        Id = tmux_model:get(id, Pane),
-        Expected = tmux_model:get(window_id, Link),
-        {ok, #{stdout := Output}} ?= tmux_target:run(Server, <<"display-message">>,
-            [<<"-p">>, <<"-t">>, Id, <<"-F">>, <<"#{pane_id}\t#{window_id}">>],
-            #{max_stdout => 128}),
-        case binary:split(Output, [<<"\t">>, <<"\n">>], [global]) of
-            [Id, Expected, <<>>] -> {ok, <<Target/binary, $., Id/binary>>};
-            [Id, Actual, <<>>] -> {error, #{code => pane_link_mismatch,
-                expected => Expected, actual => Actual}};
-            _ -> {error, #{code => target_gone}}
-        end
-    end.
 
 -doc """
 Request an absolute width, height or both for this registered physical pane.

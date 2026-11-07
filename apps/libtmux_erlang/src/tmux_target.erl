@@ -1,6 +1,6 @@
 -module(tmux_target).
 -moduledoc false.
--export([owner/2, same_owner/4, resolve/2, selector/2, run/3, run/4, act/4]).
+-export([owner/2, same_owner/4, resolve/2, selector/2, run/3, run/4, act/4, linked_pane/3]).
 
 -spec resolve(atom() | [atom()], term()) ->
     {ok, tmux_server:t(), binary()} | {error, map()}.
@@ -66,6 +66,25 @@ act(Entity, Row, Name, Args) ->
         {ok, Server, Target} ?= resolve(Entity, Row),
         run(Server, Name, [<<"-t">>, Target, <<"--">> | Args])
     end.
+
+-spec linked_pane(tmux_server:t(), tmux_model:pane(), tmux_model:window_link()) ->
+    {ok, binary()} | {error, map()}.
+linked_pane(Server, Pane, Link) ->
+    maybe
+        {ok, _, Target} ?= tmux_window_link:check(Server, Link),
+        Id = tmux_model:get(id, Pane),
+        Expected = tmux_model:get(window_id, Link),
+        {ok, #{stdout := Output}} ?= tmux_target:run(Server, <<"display-message">>,
+            [<<"-p">>, <<"-t">>, Id, <<"-F">>, <<"#{pane_id}\t#{window_id}">>],
+            #{max_stdout => 128}),
+        case binary:split(Output, [<<"\t">>, <<"\n">>], [global]) of
+            [Id, Expected, <<>>] -> {ok, <<Target/binary, $., Id/binary>>};
+            [Id, Actual, <<>>] -> {error, #{code => pane_link_mismatch,
+                expected => Expected, actual => Actual}};
+            _ -> {error, #{code => target_gone}}
+        end
+    end.
+
 
 classify({error, #{code := command_error, stderr := Stderr} = Detail}) ->
     Missing = case Stderr of
