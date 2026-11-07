@@ -30,7 +30,7 @@ run(Arguments) ->
     true = is_list(Executable),
     Modules = case Selected of
         [] -> [filter_demo, inspect_demo, readme_demo, linked_graph, job_demo,
-               options_demo, buffer_demo, pane_demo, config_demo];
+               options_demo, buffer_demo, pane_demo, config_demo, pipe_demo];
         ["filter"] -> [filter_demo];
         ["inspect"] -> [inspect_demo];
         ["readme"] -> [readme_demo];
@@ -39,7 +39,8 @@ run(Arguments) ->
         ["options"] -> [options_demo];
         ["buffers"] -> [buffer_demo];
         ["panes"] -> [pane_demo];
-        ["config"] -> [config_demo]
+        ["config"] -> [config_demo];
+        ["pipe"] -> [pipe_demo]
     end,
     Suffix = binary:encode_hex(crypto:strong_rand_bytes(10), lowercase),
     Scratch = binary_to_list(<<"/tmp/ltm-examples-", Suffix/binary>>),

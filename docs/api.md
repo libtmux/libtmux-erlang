@@ -46,6 +46,7 @@ source-extraction path rejects native-record attributes.
 | Plan source retrieval | `m:tmux_query` |
 | Submit, await and cancel work | `m:tmux_operation`, `m:tmux_command` |
 | Load configuration and build channel waits or signals | `tmux_command:source_file/2`, `tmux_command:wait_for/2` |
+| Connect a shell consumer to live pane bytes | `tmux_pane:pipe/3`, `tmux_pane:stop_pipe/1` |
 | Inspect schema and wire validation | `m:tmux_schema`, `m:tmux_json`, `m:tmux_version` |
 | Inspect observed process identities | `m:tmux_identity` |
 

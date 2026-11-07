@@ -39,12 +39,24 @@ breaking a window's only pane moves that membership, while breaking one of
 several panes creates a new physical window. The [topology guide](panes.md)
 shows the distinction. Use `get/2` or a new snapshot for updated parents and
 indexes; actions leave captured values unchanged.
+
+`pipe/3` connects a tmux-owned shell process to pane output, input or both.
+It protects the shell text from tmux hash/strftime expansion; shell quoting
+remains the caller's responsibility. `stop_pipe/1` closes that native pipe.
+These actions do not create an Erlang output subscription or transfer process
+ownership to the endpoint. Use an application acknowledgement for consumer
+readiness, delivered bytes and job completion.
 """.
 -export([split/2, get/2, kill/1, resize/2, respawn/2, send_text/2, send_keys/2,
-         capture/2, break/4, join/3, move/3, swap/3]).
+         capture/2, break/4, join/3, move/3, swap/3, pipe/3, stop_pipe/1]).
 
 -export_type([split_options/0, capture_options/0, resize_options/0, respawn_options/0,
-              coordinate/0, key/0, break_options/0, join_options/0, swap_options/0]).
+              coordinate/0, key/0, break_options/0, join_options/0, swap_options/0,
+              pipe_command/0, pipe_options/0]).
+-doc "Explicit shell code: a nonempty NUL-free binary, with no tmux format or strftime expansion.".
+-type pipe_command() :: #{shell := binary()}.
+-doc "Pipe direction defaults to output. toggle defaults false; true closes an existing pipe instead of replacing it.".
+-type pipe_options() :: #{direction => output | input | both, toggle => boolean()}.
 -doc """
 Break placement: explicit destination index, optional literal window name.
 detach defaults true.
@@ -118,6 +130,60 @@ stable ID; it never falls back to a positional target.
 """.
 -spec kill(tmux_model:pane()) -> {ok, map()} | {error, map()}.
 kill(Pane) -> tmux_target:act(pane, Pane, <<"kill-pane">>, []).
+
+-doc """
+Connect a shell process to this registered physical pane, performing I/O.
+An explicit nonempty `#{shell => Command}` is required (`t:pipe_command/0`).
+tmux hash formats and strftime directives are escaped so the shell receives
+the supplied text.
+This does not quote values interpolated into shell code; the caller owns that
+quoting. Executable argv is not accepted by this shell-only native command.
+Encoding follows `tmux_command:literal_format/2` in time mode. A percent-bearing
+command above its native 8191-byte intermediate limit returns `format_limit`
+before dispatch, preserving any existing pipe.
+
+`direction` (`t:pipe_options/0`) is `output` (default: pane output to child
+stdin), `input` (child stdout to pane input) or `both`. `toggle` defaults false,
+replacing any existing pipe. True maps to native `-o`: close an existing pipe without
+starting another, or open one when none exists. A stopped pipe and replacement
+can discard pending output. Await consumer acknowledgements before closing
+if delivered bytes matter. This is a live PTY byte stream, not rendered
+capture text or replay of terminal history; terminal modes affect its bytes.
+
+The child is started by tmux through `/bin/sh -c`. Its stderr is discarded;
+unused directions are routed to the native null device. No pane cwd or
+environment copying is promised. A successful command result does not prove
+exec success, readiness, delivery or child exit. The process is tmux-owned;
+`tmux_server:close/1` preserves the borrowed pane and its pipe. This is not an
+Erlang subscription with library flow control. Use `stop_pipe/1` to close the
+pipe; stopping is not process cancellation or a wait for job completion.
+""".
+-spec pipe(tmux_model:pane(), pipe_command(), pipe_options()) ->
+    {ok, map()} | {error, map()}.
+pipe(Pane, #{shell := Shell} = Command, Options)
+  when map_size(Command) =:= 1, is_binary(Shell), byte_size(Shell) > 0 ->
+    maybe
+        {ok, Flags} ?= tmux_args:options(Options,
+            [{direction, pipe_direction, <<>>}, {toggle, flag, <<"-o">>}],
+            #{direction => output}),
+        {ok, Literal} ?= tmux_command:literal_format(Shell, time),
+        {ok, Server, Target} ?= tmux_target:resolve(pane, Pane),
+        tmux_target:run(Server, <<"pipe-pane">>,
+            Flags ++ [<<"-t">>, Target, <<"--">>, Literal])
+    end;
+pipe(_, _, _) -> {error, #{code => invalid_pipe_command}}.
+
+-doc """
+Close this registered pane's native pipe, performing I/O. On a live pane,
+closing an already closed pipe succeeds. An exited pane can produce a native
+command error; a vanished ID returns `target_gone`.
+
+Closing can discard pending bytes. It neither kills nor waits for an arbitrary
+shell job started by `pipe/3`; applications must verify consumption and
+process completion themselves. The endpoint does not own that shell process.
+""".
+-spec stop_pipe(tmux_model:pane()) -> {ok, map()} | {error, map()}.
+stop_pipe(Pane) -> tmux_target:act(pane, Pane, <<"pipe-pane">>, []).
 
 -doc """
 Break a physical pane through its explicit source membership into a destination

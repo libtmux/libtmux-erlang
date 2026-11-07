@@ -153,6 +153,8 @@ session/index membership.
   it back, preserving its process and the original snapshot.
 - [Apply configuration and await a signal](docs/configuration.md): load settings
   from stdin, observe the event and verify parse-only behavior.
+- [Pipe terminal output](docs/pipe.md): save a job's bytes, await its consumer
+  acknowledgement and verify the resulting log.
 - [API browser and source docs](docs/api.md): build searchable native reference
   pages with specs, types and links to the exact source revision.
 

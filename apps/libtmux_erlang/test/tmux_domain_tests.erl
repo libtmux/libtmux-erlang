@@ -88,3 +88,17 @@ client_validation_before_dispatch_test() ->
         tmux_session:select(invalid_row, <<"client-1">>, #{update_environment => yes})),
     ?assertMatch({error, #{code := unknown_option, path := [detach]}},
         tmux_session:select(invalid_row, <<"client-1">>, #{detach => true})).
+
+pipe_validation_before_dispatch_test() ->
+    lists:foreach(fun(Command) ->
+        ?assertMatch({error, #{code := invalid_pipe_command}},
+            tmux_pane:pipe(invalid_row, Command, #{}))
+    end, [#{argv => [<<"/bin/cat">>]}, #{shell => <<>>}, <<"cat">>]),
+    ?assertMatch({error, #{code := invalid_argument}},
+        tmux_pane:pipe(invalid_row, #{shell => <<0>>}, #{})),
+    ?assertMatch({error, #{code := invalid_option, path := [direction]}},
+        tmux_pane:pipe(invalid_row, #{shell => <<"cat">>}, #{direction => sideways})),
+    ?assertMatch({error, #{code := invalid_option, path := [toggle]}},
+        tmux_pane:pipe(invalid_row, #{shell => <<"cat">>}, #{toggle => yes})),
+    ?assertMatch({error, #{code := unknown_option, path := [cwd]}},
+        tmux_pane:pipe(invalid_row, #{shell => <<"cat">>}, #{cwd => <<"/tmp">>})).

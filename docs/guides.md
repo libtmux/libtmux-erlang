@@ -14,6 +14,7 @@ source, checks immutability and cleans up.
 - [Buffers and paste](buffers.md): binary artifacts, observed names and input delivery.
 - [Rearrange panes](panes.md): isolate and rejoin a process, with explicit window links.
 - [Configuration and signals](configuration.md): load session settings and await an explicit event.
+- [Pipe terminal output](pipe.md): save bytes and wait for the consumer's acknowledgement.
 - [Option catalogue](options-reference.md): versioned canonical names, scopes and parser types.
 - [Querying](querying.md): local values, portable criteria and explicit source plans.
 - [Fields](fields.md): generated entity/relationship/operator reference.

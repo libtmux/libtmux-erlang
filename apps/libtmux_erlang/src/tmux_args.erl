@@ -80,6 +80,9 @@ encode(dimension, Flag, Value) when is_integer(Value, 1, 65535) ->
     {ok, [Flag, integer_to_binary(Value)]};
 encode(direction, _, horizontal) -> {ok, [<<"-h">>]};
 encode(direction, _, vertical) -> {ok, [<<"-v">>]};
+encode(pipe_direction, _, output) -> {ok, [<<"-O">>]};
+encode(pipe_direction, _, input) -> {ok, [<<"-I">>]};
+encode(pipe_direction, _, both) -> {ok, [<<"-I">>, <<"-O">>]};
 encode(size, Flag, {percent, Value}) when is_integer(Value, 1, 100) ->
     {ok, [Flag, <<(integer_to_binary(Value))/binary, $%>>]};
 encode(size, Flag, {cells, Value}) when is_integer(Value, 1, 2147483647) ->
