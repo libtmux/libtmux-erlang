@@ -53,6 +53,7 @@ classify({error, #{code := command_error, stderr := Stderr} = Detail}) ->
         <<"can't find session: ", _/binary>> -> true;
         <<"can't find window: ", _/binary>> -> true;
         <<"can't find pane: ", _/binary>> -> true;
+        <<"no current target\n">> -> true;
         _ -> false
     end,
     {error, case Missing of true -> Detail#{code => target_gone}; false -> Detail end};

@@ -29,14 +29,17 @@ escape_control, retain_trailing_spaces, alternate, pending and quiet. Defaults
 are tmux's current-screen capture without escapes, joined wraps or padding.
 The endpoint's output limit applies; an oversized capture returns an error.
 """.
--export([split/2, get/2, kill/1, send_text/2, send_keys/2, capture/2]).
+-export([split/2, get/2, kill/1, resize/2, send_text/2, send_keys/2, capture/2]).
 
--export_type([split_options/0, capture_options/0, coordinate/0, key/0]).
+-export_type([split_options/0, capture_options/0, resize_options/0, coordinate/0, key/0]).
 -doc "Split geometry, placement and explicit launch options. Defaults to a detached vertical split.".
 -type split_options() :: #{direction => horizontal | vertical,
     size => {cells,1..2147483647} | {percent,1..100}, before => boolean(),
     full_size => boolean(), zoom => boolean(), cwd => binary(),
     env => #{binary() => binary()}, launch => tmux_command:launch_spec(), detach => boolean()}.
+-doc "Requested absolute pane dimensions in cells. Supply at least one dimension; tmux can clamp it to fit the layout.".
+-type resize_options() :: #{width := 1..65535, height => 1..65535} |
+                          #{width => 1..65535, height := 1..65535}.
 -doc "A capture line coordinate, or all for tmux's full available range.".
 -type coordinate() :: -2147483648..32767 | all.
 -doc "Capture range and rendering flags. Byte output and its final newline are preserved.".
@@ -82,6 +85,32 @@ stable ID; it never falls back to a positional target.
 """.
 -spec kill(tmux_model:pane()) -> {ok, map()} | {error, map()}.
 kill(Pane) -> tmux_target:act(pane, Pane, <<"kill-pane">>, []).
+
+-doc """
+Request an absolute width, height or both for this registered physical pane.
+Performs I/O after validating dimensions and origin. tmux can clamp the request
+to its layout constraints and can resize neighboring panes. Resizing a tiled
+pane unzooms its window. Use `get/2` for actual dimensions; the input row is unchanged.
+The accepted library range is not a promise that every server accepts every
+dimension: tmux versions can impose tighter limits and return a command error.
+
+An empty request is rejected before dispatch:
+
+```erlang
+1> tmux_pane:resize(invalid_row, #{}).
+{error,#{code => empty_resize}}
+```
+""".
+-spec resize(tmux_model:pane(), resize_options()) ->
+    {ok, tmux_operation:completed()} | {error, tmux_operation:failure()}.
+resize(Pane, Options) ->
+    maybe
+        {ok, Flags} ?= tmux_args:options(Options,
+            [{width, dimension, <<"-x">>}, {height, dimension, <<"-y">>}]),
+        ok ?= case Flags of [] -> {error, #{code => empty_resize}}; _ -> ok end,
+        {ok, Server, Target} ?= tmux_target:resolve(pane, Pane),
+        tmux_target:run(Server, <<"resize-pane">>, Flags ++ [<<"-t">>, Target])
+    end.
 
 -doc """
 Send at most 2,000 literal bytes as hexadecimal tmux keys. Adds no Enter key

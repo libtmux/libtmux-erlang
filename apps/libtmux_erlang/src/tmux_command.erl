@@ -46,6 +46,8 @@ A validated single-command value. Rendering and execution remain separate.
 Validate one trusted command name and binary argv, without I/O. The renderer
 protects tmux separators; it does not provide shell or nested-format quoting.
 External services still need their own allowlists and write policy.
+Names are at most 128 bytes. NUL bytes are rejected, and at most 2,040
+arguments fit within a 32 KiB command reservation including framing overhead.
 """.
 -spec raw(binary(), [binary()]) -> {ok, t()} | {error, map()}.
 raw(Name, Arguments) ->

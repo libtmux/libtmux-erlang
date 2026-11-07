@@ -73,6 +73,10 @@ run_endpoint(Socket, Executable) ->
             [Id] = pane_ids([Pane]),
             {ok, Detached} = tmux_model:pane(#{id => Id}),
             {ok, Bound} = tmux_server:bind(Server, Detached),
+            {ok, _} = tmux_window:select_layout(Window, even_horizontal),
+            {ok, _} = tmux_pane:resize(Pane, #{width => 24}),
+            {ok, Geometry} = tmux_pane:get(Server, Id),
+            24 = tmux_model:get(width, Geometry),
             {ok, <<"\n">>} = tmux_pane:capture(
                 Bound, #{start => 0, 'end' => 0}),
             {ok, _} = tmux_window:rename(Window, <<"consumer-#{pane_id};">>),

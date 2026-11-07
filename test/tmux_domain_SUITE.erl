@@ -1,11 +1,12 @@
 -module(tmux_domain_SUITE).
 -compile(nowarn_missing_spec).
 -export([all/0, init_per_suite/1, end_per_suite/1, creation_and_identity/1,
-         launch_and_input/1, capture_bytes/1, linked_snapshot/1, snapshot_limits/1]).
+         launch_and_input/1, capture_bytes/1, linked_snapshot/1, snapshot_limits/1,
+         geometry/1]).
 
 %% Outer: public domain calls, literal values, explicit binding and owned teardown.
 all() -> [creation_and_identity, launch_and_input, capture_bytes,
-          linked_snapshot, snapshot_limits].
+          linked_snapshot, snapshot_limits, geometry].
 
 init_per_suite(Config) ->
     {ok, _} = application:ensure_all_started(libtmux_erlang),
@@ -90,6 +91,55 @@ launch_and_input(Config) ->
             {ok, _} = tmux_session:kill(Session)
         after ok = gen_tcp:close(Listener)
         end
+    end).
+
+geometry(Config) ->
+    with_server(Config, fun(Server, _) ->
+        Launch = #{argv => [<<"/bin/cat">>]},
+        {ok, Session} = tmux_session:create(Server,
+            #{name => <<"geometry">>, width => 120, height => 40, launch => Launch}),
+        {ok, Window} = tmux_window:create(Session, #{launch => Launch}),
+        {ok, Pane} = tmux_pane:split(Window,
+            #{direction => horizontal, launch => Launch}),
+        {ok, _} = tmux_window:select_layout(Window, even_horizontal),
+        {ok, _} = tmux_pane:resize(Pane, #{width => 30}),
+        PaneId = tmux_model:get(id, Pane),
+        {ok, Resized} = tmux_pane:get(Server, PaneId),
+        30 = tmux_model:get(width, Resized),
+        {ok, _} = tmux_window:select_layout(Window, even_vertical),
+        {ok, Vertical} = tmux_pane:get(Server, PaneId),
+        120 = tmux_model:get(width, Vertical),
+        true = tmux_model:get(height, Vertical) < 40,
+        {ok, _} = tmux_pane:resize(Pane, #{height => 10}),
+        {ok, HeightOnly} = tmux_pane:get(Server, PaneId),
+        10 = tmux_model:get(height, HeightOnly),
+        {ok, _} = tmux_pane:resize(Pane, #{width => 120, height => 12}),
+        {ok, Both} = tmux_pane:get(Server, PaneId),
+        120 = tmux_model:get(width, Both),
+        12 = tmux_model:get(height, Both),
+        30 = tmux_model:get(width, Resized),
+        {ok, CurrentWindow} = tmux_window:get(Server, tmux_model:get(id, Window)),
+        Layout = tmux_model:get(layout, CurrentWindow),
+        {ok, _} = tmux_window:select_layout(Window, main_horizontal),
+        {ok, _} = tmux_window:select_layout(Window, Layout),
+        {ok, Restored} = tmux_pane:get(Server, PaneId),
+        120 = tmux_model:get(width, Restored),
+        12 = tmux_model:get(height, Restored),
+        lists:foreach(fun(Bad) ->
+            {error, #{code := invalid_layout}} = tmux_window:select_layout(Window, Bad)
+        end, [<<"tiled; kill-server;">>, <<"not-a-layout">>, <<"a">>, <<"-n">>]),
+        {error, #{code := command_error}} = tmux_window:select_layout(Window, <<"0000,x">>),
+        {ok, Version} = tmux_server:version(Server),
+        Json = <<"{\"V\":2,\"L\":{}}">>,
+        case tmux_version:at_least(Version, {3, 8}) of
+            false ->
+                {error, #{code := unsupported_capability, capability := layout_json}} =
+                    tmux_window:select_layout(Window, Json);
+            true ->
+                {error, #{code := command_error}} = tmux_window:select_layout(Window, Json)
+        end,
+        {ok, _} = tmux_session:kill(Session),
+        {error, #{code := target_gone}} = tmux_pane:resize(Pane, #{width => 30})
     end).
 
 capture_bytes(Config) ->
