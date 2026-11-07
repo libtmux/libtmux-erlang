@@ -29,6 +29,8 @@ launch distinguishes executable argv from an explicitly requested shell
 command. A singleton argv uses the installed helper's exec-only mode because
 tmux otherwise passes one argument to its default shell. Empty argv is invalid;
 default_shell explicitly requests tmux's configured default command/shell.
+The internal helper uses an absolute path so a child's cwd does not change
+helper resolution. Relative executable arguments retain their native meaning.
 
 Empty shell commands have command-specific lifetime. split-window creates a
 process-free pane. new-session executes an empty shell command and can remove
@@ -133,7 +135,8 @@ launch(#{argv := [Executable]} = Spec) when map_size(Spec) =:= 1 ->
         case code:priv_dir(libtmux_erlang) of
             {error, _} -> {error, #{code => application_unavailable}};
             Priv ->
-                Helper = unicode:characters_to_binary(filename:join(Priv, "tmux_owned_io")),
+                Path = filename:absname(filename:join(Priv, "tmux_owned_io")),
+                Helper = unicode:characters_to_binary(Path),
                 {ok, [Helper, <<"--exec-one">>, Executable]}
         end
     end;

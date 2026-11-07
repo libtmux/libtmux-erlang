@@ -63,6 +63,7 @@ run_endpoint(Socket, Executable) ->
             tmux_operation:await(Operation, 900),
         {ok, Session} = tmux_session:create(Server,
             #{name => <<"archive-domain">>,
+              cwd => filename:dirname(Socket),
               launch => #{argv => [<<"/bin/cat">>]}}),
         try
             {ok, Window} = tmux_window:create(

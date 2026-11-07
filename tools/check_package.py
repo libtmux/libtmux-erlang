@@ -46,13 +46,14 @@ def main() -> None:
     args = parser.parse_args()
     started = time.monotonic()
     root = Path(__file__).resolve().parent.parent
+    artifact_dir = root / "_build/package-check"
+    artifact_dir.mkdir(parents=True, exist_ok=True)
+    (artifact_dir / "receipt.json").unlink(missing_ok=True)
     app = root / "_build/default/lib/libtmux_erlang"
     beams = sorted((app / "ebin").glob("*"))
     if not beams or not (app / "ebin/libtmux_erlang.app").is_file():
         raise RuntimeError("Run mise exec -- rebar3 compile first")
 
-    artifact_dir = root / "_build/package-check"
-    artifact_dir.mkdir(parents=True, exist_ok=True)
     archive = artifact_dir / "libtmux_erlang-otp.tar.gz"
     prefix = "libtmux_erlang-0.0.0+development"
     members = [("ebin/" + path.name, path) for path in beams if path.is_file()]
@@ -125,7 +126,9 @@ def main() -> None:
             'ok = application:stop(libtmux_erlang), halt(0).'
         ], temp, env))
         commands.append(run([
-            "erl", "-noshell", "-noinput", "-pa", str(installed_ebin),
+            # OTP makes a bare top-level app path absolute; ./ retains the
+            # relative priv path needed to exercise child-cwd independence.
+            "erl", "-noshell", "-noinput", "-pa", "./" + str(installed_ebin.relative_to(temp)),
             "-pa", str(consumer_ebin), "-eval",
             'Executable = unicode:characters_to_binary(os:getenv("LIBTMUX_TEST_TMUX")), '
             '{ok, _} = application:ensure_all_started(libtmux_erlang), '
@@ -155,6 +158,7 @@ def main() -> None:
         "hex_source_package": "UNVERIFIED",
         "installed_helper_adapter": "PASS",
         "public_borrowed_endpoint": "PASS",
+        "relative_code_path_child_cwd": "PASS",
         "public_domain_consumer": "PASS: create, split, bind, capture, rename, read and session cleanup",
         "public_snapshot_consumer": "PASS: captured graph, native pane lists, relationships and coverage",
         "public_filter_consumer": "PASS: local selection, graph filter, wire round trip, cardinality and prepared context",
