@@ -4,7 +4,7 @@ This repository uses a Rebar umbrella with core, workspace and MCP OTP
 applications under apps/. The consumers depend on the core's public API.
 Current checks cover models, the helper adapter, owned fixtures, borrowed
 endpoints, operation ownership, initial domain commands, captured graphs,
-local filtering, bounded JSON and package structure.
+local filtering, bounded JSON, source-query planning and package structure.
 Full command, consumer and CI qualification remains in the epic.
 
 [AGENTS.md](../AGENTS.md) governs scope and change discipline.

@@ -85,7 +85,12 @@ run_endpoint(Socket, Executable) ->
             {ok, Selected} = tmux_select:one(Filter, tmux_select:panes(Snapshot)),
             [Id] = pane_ids([Selected]),
             {ok, Prepared} = tmux_filter:prepare(Filter, Snapshot),
-            {ok, true} = tmux_filter:matches(Prepared, Selected)
+            {ok, true} = tmux_filter:matches(Prepared, Selected),
+            Query = tmux_query:where(Filter, tmux_query:panes(Server)),
+            #{candidate := #{exact := false}} = tmux_query:explain(Query),
+            {ok, Fetched} = tmux_query:fetch(Query),
+            [Id] = pane_ids(tmux_select:to_list(Fetched)),
+            #{query := #{candidate_count := 1, pushed_down := true}} = tmux_select:summary(Fetched)
         after
             {ok, _} = tmux_session:kill(Session)
         end,

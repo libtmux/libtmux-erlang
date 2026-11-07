@@ -28,7 +28,7 @@ Both input criteria and their normalized wire document must fit the grammar,
 depth and byte limits. Resource errors can refer to the canonical wire path.
 """.
 -export([new/2, new_or_error/2, from_wire/2, to_wire/1, decode_json/1,
-         entity/1, requirements/1, prepare/2, predicate/1, matches/2,
+         entity/1, expression/1, requirements/1, prepare/2, predicate/1, matches/2,
          prepare_rows/3]).
 -export_type([t/0, prepared/0, expr/0]).
 -opaque t() :: {tmux_filter, 1, tmux_schema:entity(), expr()}.
@@ -97,6 +97,11 @@ decode_json(Binary) -> tmux_json:decode(Binary).
 
 -spec entity(t()) -> tmux_schema:entity().
 entity({tmux_filter, 1, Entity, _}) -> Entity.
+
+%% Internal planner boundary. The expression contains data and stable IDs only.
+-doc false.
+-spec expression(t()) -> expr().
+expression({tmux_filter, 1, _, Tree}) -> Tree.
 
 -spec requirements(t()) -> [tmux_snapshot:requirement()].
 requirements({tmux_filter, 1, Entity, Tree}) ->

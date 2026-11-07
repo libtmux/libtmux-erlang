@@ -14,10 +14,12 @@ intervals and reject detected conflicts; they are not atomic.
 Local selections preserve row order and coverage, with portable map filters,
 Boolean callbacks, relationship quantifiers and checked cardinality. Native
 JSON decoding enforces document bounds and rejects duplicate keys. Prepared
-filters remain bound to their captured context; portable regex qualification
-is still open.
-Integration tests use owned tmux servers. Remaining command families, source
-queries, persistent control, MCP and the workspace CLI remain implementation
+filters remain bound to their captured context. Restricted ASCII regex has
+shared PCRE2, JavaScript and Rust matching fixtures. Source queries plan
+conservative native filters, fetch complete graph context and apply the full
+local predicate before limits.
+Integration tests use owned tmux servers. Remaining command families,
+persistent control, MCP and the workspace CLI remain implementation
 work.
 
 Development targets Erlang/OTP 29.1.2. The planned Linux compatibility floor

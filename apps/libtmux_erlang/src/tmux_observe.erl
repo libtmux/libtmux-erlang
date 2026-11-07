@@ -1,6 +1,6 @@
 -module(tmux_observe).
 -moduledoc false.
--export([get/3, created/3, snapshot/2]).
+-export([get/3, created/3, snapshot/2, query/3, plan/2]).
 
 %% Each arbitrary text field has its own output, prefixed by a checked ID.
 %% Only the generated final newline is removed. Reads are not an atomic capture.
@@ -18,6 +18,16 @@ get(Server, Entity, Id) ->
 -spec snapshot(tmux_server:t(), map()) -> {ok, tmux_snapshot:t()} | {error, map()}.
 snapshot(Server, Options) ->
     maybe
+        {ok, Snapshot, _} ?= capture(Server, Options, none),
+        {ok, Snapshot}
+    end.
+
+-spec query(tmux_server:t(), map(), map()) ->
+    {ok, tmux_snapshot:t(), [term()]} | {error, map()}.
+query(Server, Plan, Options) -> capture(Server, Options, Plan).
+
+capture(Server, Options, Query) ->
+    maybe
         {ok, State0} ?= read_state(Server, Options),
         {ok, Context} ?= tmux_server:observation_context(Server),
         Metadata = Context#{id => make_ref(), graph => complete,
@@ -25,18 +35,105 @@ snapshot(Server, Options) ->
         {ok, First, State1} ?= spine(State0),
         {ok, Base} ?= tmux_snapshot:build(maps:get(rows, First), Metadata),
         ok ?= membership_occurrences(First, Base),
+        {ok, Keys, StateQ} ?= candidates(Query, Base, State1),
         {ok, Observed, State2} ?= hydrate([session, window, pane], Base,
-            #{window_link => tmux_snapshot:window_links(Base)}, State1),
+            #{window_link => tmux_snapshot:window_links(Base)}, StateQ),
         {ok, Last, State3} ?= spine(State2),
         ok ?= case First =:= Last of
             true -> ok;
             false -> {error, #{code => inconsistent_capture, reason => topology_changed}}
         end,
         {ok, Server} ?= tmux_server:from_origin(maps:get(origin, Context)),
-        tmux_snapshot:build(Observed, Metadata#{capture_finished => now_us(),
+        QueryMetadata = case Query of
+            none -> #{};
+            #{candidate := #{format := Format}, attempt := Attempt} ->
+                #{query => #{candidate_count => length(Keys), pushed_down => Format =/= <<"1">>,
+                             attempt => Attempt, consistency => observed}}
+        end,
+        {ok, Snapshot} ?= tmux_snapshot:build(Observed, maps:merge(QueryMetadata,
+            Metadata#{capture_finished => now_us(),
             time_unit => microsecond, source_calls => lists:reverse(maps:get(calls, State3)),
             observed_bytes => maps:get(bytes, State3), consistency => observed,
-            capabilities => #{field_schema => 1, identity => observed, capture => observed}})
+            capabilities => #{field_schema => 1, identity => observed, capture => observed}})),
+        {ok, Snapshot, Keys}
+    end.
+
+%% This codec contains only canonical IDs, integers and booleans. Text uses
+%% isolated ID-prefixed frames and never enters the tab-separated scan.
+-spec plan(tmux_schema:entity(), binary()) -> map().
+plan(Entity, Candidate) ->
+    Scans = [scan_spec(Kind) || Kind <- [session, window, pane]],
+    Hydration = [#{entity => E, field => Field, command => <<"display-message">>,
+        target => observed_id, format => <<"#{", Id/binary, "}\n#{", F/binary, "}">>,
+        transport => one_shot, codec => id_prefixed_single_field}
+        || E <- [session, window, pane],
+           #{format := Id} <- [maps:get(id, tmux_schema_data:fields(E))],
+           {Field, #{format := F, type := Type}} <- lists:sort(maps:to_list(tmux_schema_data:fields(E))),
+           Type =:= text orelse Type =:= bytes],
+    Native = case Candidate of
+        <<"1">> -> [];
+        _ -> [(scan_spec(Entity))#{filter => Candidate}]
+    end,
+    #{initial_spine => Scans, candidate => Native, hydration => Hydration,
+      final_spine => Scans, empty_server => skip_window_and_pane_scans}.
+
+scan_spec(session) -> #{entity => session, kind => session, command => <<"list-sessions">>,
+    args => [], format => <<"#{session_id}\t#{session_attached}\t#{session_created}">>,
+    transport => one_shot, codec => scalar_spine};
+scan_spec(window) -> #{entity => window, kind => window, command => <<"list-windows">>,
+    args => [<<"-a">>], format => <<"#{session_id}\t#{window_id}\t#{window_index}\t#{window_active}\t"
+        "#{window_width}\t#{window_height}\t#{window_panes}">>,
+    transport => one_shot, codec => scalar_spine};
+scan_spec(window_link) -> (scan_spec(window))#{entity => window_link};
+scan_spec(pane) -> #{entity => pane, kind => pane, command => <<"list-panes">>,
+    args => [<<"-a">>], format => <<"#{session_id}\t#{window_id}\t#{window_index}\t#{pane_id}\t#{pane_index}\t#{pane_active}\t"
+        "#{pane_dead}\t#{pane_dead_status}\t#{pane_height}\t#{pane_pid}\t#{pane_width}">>,
+    transport => one_shot, codec => scalar_spine}.
+
+scan(Entity, Candidate, State) ->
+    #{kind := Kind, command := Name, args := Args, format := Format} = scan_spec(Entity),
+    FilterArgs = case Candidate of none -> []; _ -> [<<"-f">>, Candidate] end,
+    maybe
+        {ok, Bytes, Next} ?= command(Name, Args ++ FilterArgs ++ [<<"-F">>, Format], State),
+        {ok, Rows} ?= scan_rows(Kind, Bytes, Next),
+        {ok, Rows, Next}
+    end.
+
+candidates(none, _, State) -> {ok, [], State};
+candidates(#{entity := Entity, candidate := #{format := Format}}, Base, State) ->
+    All = tmux_snapshot:rows(Entity, Base),
+    case Format =:= <<"1">> orelse All =:= [] of
+        true -> {ok, [identity(Row) || Row <- All], State};
+        false ->
+            maybe
+                {ok, Source, Next} ?= scan(Entity, Format, State),
+                Rows = case Entity of
+                    window -> [W || {_, W} <- Source];
+                    window_link -> [L || {L, _} <- Source];
+                    pane -> [P || {_, P} <- Source];
+                    session -> Source
+                end,
+                ok ?= check_candidates(Rows, Entity, Base),
+                {ok, lists:usort([identity(Row) || Row <- Rows]), Next}
+            end
+    end.
+
+check_candidates([], _, _) -> ok;
+check_candidates([Row | Rest], Entity, Base) ->
+    case tmux_snapshot:get(Entity, identity(Row), Base) of
+        {ok, Previous} ->
+            case tmux_model:to_map(Row) =:= tmux_model:to_map(Previous) of
+                true -> check_candidates(Rest, Entity, Base);
+                false -> {error, #{code => inconsistent_capture, reason => candidate_values_changed}}
+            end;
+        _ -> {error, #{code => inconsistent_capture, reason => candidate_identity_changed}}
+    end.
+
+identity(Row) ->
+    case tmux_model:entity(Row) of
+        window_link -> {tmux_model:get(session_id, Row), tmux_model:get(index, Row),
+                        tmux_model:get(window_id, Row)};
+        _ -> tmux_model:get(id, Row)
     end.
 
 -spec created(tmux_server:t(), atom(), map()) -> {ok, tmux_model:row()} | {error, map()}.
@@ -156,9 +253,7 @@ command(Name, Args, #{server := Server, deadline := Deadline,
 
 spine(State) ->
     maybe
-        {ok, SessionBytes, State1} ?= command(<<"list-sessions">>,
-            [<<"-F">>, <<"#{session_id}\t#{session_attached}\t#{session_created}">>], State),
-        {ok, Sessions} ?= scan_rows(session, SessionBytes, State1),
+        {ok, Sessions, State1} ?= scan(session, none, State),
         spine_windows(Sessions, State1)
     end.
 
@@ -167,14 +262,8 @@ spine_windows([], State) ->
            occurrences => []}, State};
 spine_windows(Sessions, State) ->
     maybe
-        {ok, WindowBytes, State1} ?= command(<<"list-windows">>, [<<"-a">>, <<"-F">>,
-            <<"#{session_id}\t#{window_id}\t#{window_index}\t#{window_active}\t"
-              "#{window_width}\t#{window_height}\t#{window_panes}">>], State),
-        {ok, Windows} ?= scan_rows(window, WindowBytes, State1),
-        {ok, PaneBytes, State2} ?= command(<<"list-panes">>, [<<"-a">>, <<"-F">>,
-            <<"#{session_id}\t#{window_id}\t#{window_index}\t#{pane_id}\t#{pane_index}\t#{pane_active}\t"
-              "#{pane_dead}\t#{pane_dead_status}\t#{pane_height}\t#{pane_pid}\t#{pane_width}">>], State1),
-        {ok, Panes} ?= scan_rows(pane, PaneBytes, State2),
+        {ok, Windows, State1} ?= scan(window, none, State),
+        {ok, Panes, State2} ?= scan(pane, none, State1),
         ok ?= row_limit(length(Sessions) + length(Windows) + length(Panes), State2),
         {ok, #{rows => #{session => Sessions, window => [W || {_, W} <- Windows],
                          window_link => [L || {L, _} <- Windows], pane => [P || {_, P} <- Panes]},

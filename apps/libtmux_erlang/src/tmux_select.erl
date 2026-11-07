@@ -116,7 +116,7 @@ summary(#selection{entity = Entity, size = Size, context = Context}) ->
             Meta = tmux_snapshot:metadata(Snapshot),
             maps:merge(Base#{snapshot_id => maps:get(id, Meta),
                              coverage => maps:get(Entity, tmux_snapshot:coverage(Snapshot))},
-                       maps:with([capture_started, capture_finished, time_unit], Meta));
+                       maps:with([capture_started, capture_finished, time_unit, query], Meta));
         {local, Coverage} ->
             {ok, Relations} = tmux_schema:relations(Entity),
             Base#{snapshot_id => none, coverage => #{collection => complete, fields => Coverage,

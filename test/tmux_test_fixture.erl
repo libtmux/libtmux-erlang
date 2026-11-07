@@ -2,12 +2,23 @@
 -compile(nowarn_missing_spec).
 -behaviour(gen_server).
 -export([start/1, info/1, command/2, start_command/2, close/1, ensure_closed/1,
-         process_identity/1, same_process/2]).
+         process_identity/1, same_process/2, with_server/2]).
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2]).
 
 start(Executable) -> gen_server:start(?MODULE, {self(), Executable}, []).
 info(Fixture) -> gen_server:call(Fixture, info, 900).
 close(Fixture) -> gen_server:call(Fixture, close, 1000).
+
+with_server(Executable, Function) ->
+    {ok, Fixture} = start(Executable),
+    try
+        #{socket := Socket} = info(Fixture),
+        {ok, Server} = tmux_server:open(#{socket_path => Socket, executable => Executable}),
+        try Function(Server, Fixture)
+        after ok = tmux_server:close(Server)
+        end
+    after ok = ensure_closed(Fixture)
+    end.
 
 ensure_closed(Fixture) ->
     case is_process_alive(Fixture) of
