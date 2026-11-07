@@ -26,7 +26,7 @@ macOS, native Windows and psmux are not advertised as qualified platforms.
 | Local query | Map predicates, Boolean callbacks, quantifiers, cardinality and bounded JSON |
 | Source query | Explicit plans/fetch, conservative candidates, full residuals and final limits |
 | Operations | Bounded one-shot submission, waits, cancellation, transfer and cleanup |
-| Domain commands | Initial create/read/rename/kill calls, pane split/resize, window layouts, literal/key input and capture |
+| Domain commands | Initial create/read/rename/kill calls, checked window memberships, pane split/resize, window layouts, literal/key input and capture |
 
 The [examples](../examples) exercise the current public API. Real integration
 checks use private sockets and verify owned process retirement. A captured row

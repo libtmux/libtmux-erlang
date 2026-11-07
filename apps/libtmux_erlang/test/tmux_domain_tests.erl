@@ -39,3 +39,17 @@ geometry_validation_before_dispatch_test() ->
             tmux_window:select_layout(invalid_row, Layout))
     end, [<<>>, <<"a">>, <<"-n">>, <<"t">>, <<"tiled;">>,
           <<"tiled; kill-server;">>, <<"not-a-layout">>, <<"1234,">>]).
+
+link_validation_before_dispatch_test() ->
+    ?assertMatch({error, #{code := missing_option, path := [index]}},
+        tmux_window_link:link(invalid_row, invalid_row, #{})),
+    lists:foreach(fun(Index) ->
+        ?assertMatch({error, #{code := invalid_option, path := [index]}},
+            tmux_window_link:move(invalid_row, invalid_row, #{index => Index}))
+    end, [-1, 2147483648, <<"7">>]),
+    ?assertMatch({error, #{code := unknown_option, path := [replace]}},
+        tmux_window_link:swap(invalid_row, invalid_row, #{replace => true})),
+    ?assertMatch({error, #{code := invalid_option, path := [force]}},
+        tmux_window_link:unlink(invalid_row, #{force => yes})),
+    ?assertMatch({error, #{code := invalid_option, path := [index]}},
+        tmux_window_link:get(invalid_server, <<"$1">>, -1)).

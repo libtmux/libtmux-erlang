@@ -164,10 +164,12 @@ snapshot(Server, Options) -> tmux_observe:snapshot(Server, Options).
 observation_context(Server) -> server_request(Server, observation_context, 900).
 
 -doc """
-Explicitly read a row's stable ID from this server and register the new value.
-This performs I/O and discards the supplied observations. It does not validate
-an old row's fields against current state or provide an atomic identity check.
-Window-link binding requires a membership precondition and is not implemented.
+Explicitly read current fields from this server and register the new value.
+For sessions, physical windows and panes, the read uses the stable ID and
+discards the supplied field observations. It provides no atomic identity check.
+Window-link binding checks its session/index and expected physical window.
+A replaced or missing membership returns stale_link. This observed preflight
+does not make a later action atomic.
 
 Invalid rows are rejected before I/O:
 
@@ -181,7 +183,11 @@ bind(Server, Row) ->
     maybe
         {ok, Validated} ?= tmux_model:validate(Row),
         case tmux_model:entity(Validated) of
-            window_link -> {error, #{code => unsupported_target_kind}};
+            window_link ->
+                maybe
+                    {ok, Current, _} ?= tmux_window_link:check(Server, Validated),
+                    {ok, Current}
+                end;
             Entity -> tmux_observe:get(Server, Entity, tmux_model:get(id, Validated))
         end
     end.

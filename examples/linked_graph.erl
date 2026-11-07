@@ -19,13 +19,13 @@ run(Socket, Executable) ->
                 Launch = #{launch => #{argv => [<<"/bin/cat">>]}},
                 {ok, _} = tmux_pane:split(Shared, Launch),
                 WorkId = tmux_model:get(id, Work),
-                MirrorId = tmux_model:get(id, Mirror),
                 WindowId = tmux_model:get(id, Shared),
-                lists:foreach(fun(Target) ->
-                    {ok, Link} = tmux_command:raw(<<"link-window">>,
-                        [<<"-d">>, <<"-s">>, WindowId, <<"-t">>, Target]),
-                    {ok, _} = tmux_server:command(Server, Link, #{})
-                end, [<<WorkId/binary, ":7">>, <<MirrorId/binary, ":9">>]),
+                {ok, Before} = tmux_server:snapshot(Server),
+                {ok, Source} = tmux_select:one(#{window_id => WindowId},
+                    tmux_select:window_links(Before)),
+                {ok, _} = tmux_window_link:link(Source, Work, #{index => 7}),
+                {ok, _} = tmux_window_link:link(
+                    Source, Mirror, #{index => 9}),
                 {ok, Snapshot} = tmux_server:snapshot(Server),
                 3 = length(tmux_snapshot:windows(Snapshot)),
                 4 = length(tmux_snapshot:panes(Snapshot)),

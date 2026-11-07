@@ -1,11 +1,20 @@
 -module(tmux_target).
 -moduledoc false.
--export([resolve/2, selector/2, run/3, run/4, act/4]).
+-export([owner/2, resolve/2, selector/2, run/3, run/4, act/4]).
 
 -spec resolve(atom() | [atom()], term()) ->
     {ok, tmux_server:t(), binary()} | {error, map()}.
 resolve(Expected, Row) when is_atom(Expected) -> resolve([Expected], Row);
 resolve(Expected, Row) ->
+    maybe
+        {ok, Server} ?= owner(Expected, Row),
+        {ok, Target} ?= selector(tmux_model:entity(Row), tmux_model:get(id, Row)),
+        {ok, Server, Target}
+    end.
+
+-spec owner(atom() | [atom()], term()) -> {ok, tmux_server:t()} | {error, map()}.
+owner(Expected, Row) when is_atom(Expected) -> owner([Expected], Row);
+owner(Expected, Row) ->
     maybe
         {ok, Validated} ?= tmux_model:validate(Row),
         Entity = tmux_model:entity(Validated),
@@ -17,9 +26,7 @@ resolve(Expected, Row) ->
             none -> {error, #{code => detached_reference}};
             Ref -> {ok, Ref}
         end,
-        {ok, Server} ?= tmux_server:from_origin(Origin),
-        {ok, Target} ?= selector(Entity, tmux_model:get(id, Validated)),
-        {ok, Server, Target}
+        tmux_server:from_origin(Origin)
     end.
 
 -spec selector(atom(), binary()) -> {ok, binary()} | {error, map()}.

@@ -2,11 +2,11 @@
 -compile(nowarn_missing_spec).
 -export([all/0, init_per_suite/1, end_per_suite/1, creation_and_identity/1,
          launch_and_input/1, capture_bytes/1, linked_snapshot/1, snapshot_limits/1,
-         geometry/1]).
+         geometry/1, membership_actions/1]).
 
 %% Outer: public domain calls, literal values, explicit binding and owned teardown.
 all() -> [creation_and_identity, launch_and_input, capture_bytes,
-          linked_snapshot, snapshot_limits, geometry].
+          linked_snapshot, snapshot_limits, geometry, membership_actions].
 
 init_per_suite(Config) ->
     {ok, _} = application:ensure_all_started(libtmux_erlang),
@@ -140,6 +140,64 @@ geometry(Config) ->
         end,
         {ok, _} = tmux_session:kill(Session),
         {error, #{code := target_gone}} = tmux_pane:resize(Pane, #{width => 30})
+    end).
+
+membership_actions(Config) ->
+    with_server(Config, fun(Server, Fixture) ->
+        Launch = #{launch => #{argv => [<<"/bin/cat">>]}},
+        {ok, Work} = tmux_session:create(Server, Launch#{name => <<"work">>}),
+        {ok, Mirror} = tmux_session:create(Server, Launch#{name => <<"mirror">>}),
+        WorkId = tmux_model:get(id, Work),
+        MirrorId = tmux_model:get(id, Mirror),
+        {ok, Shared} = tmux_window:create(Work, Launch),
+        SharedId = tmux_model:get(id, Shared),
+        {ok, Source} = tmux_window_link:get(Server, WorkId, 1),
+        SharedId = tmux_model:get(window_id, Source),
+        {ok, Detached} = tmux_model:window_link(tmux_model:to_map(Source)),
+        {error, #{code := detached_reference}} = tmux_window_link:select(Detached),
+        {ok, Bound} = tmux_server:bind(Server, Detached),
+        SharedId = tmux_model:get(window_id, Bound),
+        {ok, _} = tmux_window_link:link(Source, Work, #{index => 7}),
+        {ok, _} = tmux_window_link:link(Source, Mirror, #{index => 9}),
+        {error, #{code := command_error}} =
+            tmux_window_link:link(Source, Mirror, #{index => 9}),
+        {ok, Copy} = tmux_window_link:get(Server, WorkId, 7),
+        {ok, OriginalMirror} = tmux_window_link:get(Server, MirrorId, 0),
+        OtherId = tmux_model:get(window_id, OriginalMirror),
+        {ok, Mirrored} = tmux_window_link:get(Server, MirrorId, 9),
+        {ok, _} = tmux_window_link:swap(Mirrored, OriginalMirror, #{}),
+        {error, #{code := stale_link, expected := SharedId, actual := OtherId}} =
+            tmux_window_link:unlink(Mirrored, #{force => true}),
+        {error, #{code := stale_link, expected := SharedId, actual := OtherId}} =
+            tmux_server:bind(Server, Mirrored),
+        {ok, StillThere} = tmux_window_link:get(Server, MirrorId, 9),
+        OtherId = tmux_model:get(window_id, StillThere),
+        {ok, _} = tmux_window_link:move(Copy, Work, #{index => 11}),
+        {error, #{code := target_gone}} = tmux_window_link:get(Server, WorkId, 7),
+        {error, #{code := stale_link}} = tmux_window_link:select(Copy),
+        {ok, Moved} = tmux_window_link:get(Server, WorkId, 11),
+        SharedId = tmux_model:get(window_id, Moved),
+        {ok, _} = tmux_window_link:unlink(Moved, #{}),
+        {ok, Kept} = tmux_window_link:get(Server, WorkId, 1),
+        SharedId = tmux_model:get(window_id, Kept),
+        {ok, Selected} = tmux_window_link:get(Server, MirrorId, 0),
+        {ok, _} = tmux_window_link:select(Selected),
+        {ok, Active} = tmux_window_link:get(Server, MirrorId, 0),
+        true = tmux_model:get(active, Active),
+        {error, #{code := command_error}} = tmux_window_link:unlink(StillThere, #{}),
+        {ok, _} = tmux_window_link:unlink(StillThere, #{force => true}),
+        {error, #{code := target_gone}} = tmux_window:get(Server, OtherId),
+        #{socket := Socket} = tmux_test_fixture:info(Fixture),
+        {ok, SecondOwner} = tmux_server:open(#{socket_path => Socket,
+            executable => proplists:get_value(executable, Config)}),
+        try
+            {ok, OtherOwnerSession} = tmux_session:get(SecondOwner, WorkId),
+            {error, #{code := different_owner}} =
+                tmux_window_link:link(Source, OtherOwnerSession, #{index => 13})
+        after ok = tmux_server:close(SecondOwner)
+        end,
+        {ok, _} = tmux_session:kill(Mirror),
+        {ok, _} = tmux_session:kill(Work)
     end).
 
 capture_bytes(Config) ->

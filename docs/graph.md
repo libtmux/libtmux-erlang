@@ -2,8 +2,8 @@
 
 This program creates two sessions, a shared two-pane window, and two extra
 window links. It then checks the physical object graph and session-relative
-membership counts. The raw `link-window` command is a trusted escape hatch;
-a typed link facade is still part of the unfinished command surface.
+membership counts. `tmux_window_link` acts on a session/index membership and
+checks its expected physical window before dispatch.
 
 Run it on a private server after compiling:
 
@@ -35,13 +35,13 @@ run(Socket, Executable) ->
                 Launch = #{launch => #{argv => [<<"/bin/cat">>]}},
                 {ok, _} = tmux_pane:split(Shared, Launch),
                 WorkId = tmux_model:get(id, Work),
-                MirrorId = tmux_model:get(id, Mirror),
                 WindowId = tmux_model:get(id, Shared),
-                lists:foreach(fun(Target) ->
-                    {ok, Link} = tmux_command:raw(<<"link-window">>,
-                        [<<"-d">>, <<"-s">>, WindowId, <<"-t">>, Target]),
-                    {ok, _} = tmux_server:command(Server, Link, #{})
-                end, [<<WorkId/binary, ":7">>, <<MirrorId/binary, ":9">>]),
+                {ok, Before} = tmux_server:snapshot(Server),
+                {ok, Source} = tmux_select:one(#{window_id => WindowId},
+                    tmux_select:window_links(Before)),
+                {ok, _} = tmux_window_link:link(Source, Work, #{index => 7}),
+                {ok, _} = tmux_window_link:link(
+                    Source, Mirror, #{index => 9}),
                 {ok, Snapshot} = tmux_server:snapshot(Server),
                 3 = length(tmux_snapshot:windows(Snapshot)),
                 4 = length(tmux_snapshot:panes(Snapshot)),
@@ -82,6 +82,22 @@ in `mirror`. `Session.windows` projects two unique windows for `work`;
 A link is identified within a capture by session, index and expected physical
 window. It has no stable tmux link ID. Captured index references cannot promise
 atomic compare-and-act after another client moves a link.
+
+Use `tmux_window_link:get/3` for a fresh membership. `link/3` adds a membership;
+`move/3` moves just the checked membership; `swap/3` exchanges two memberships'
+physical windows. Their input rows must share one registered owner. Actions
+return command results and leave captured values unchanged.
+
+`select/1` selects the checked window in its session. `unlink/2` removes one
+membership, retaining tmux's last-link protection by default. Explicit
+`force => true` can destroy the physical window if its final membership goes.
+`tmux_window:kill/1` destroys that window across all links.
+
+If a captured index disappears or names another physical window, actions
+return `stale_link` before dispatch. `tmux_server:bind/2` applies this same
+precondition when rebinding a link to an owner. It does not adopt the new
+occupant of an old index. The one-shot preflight and action are separate;
+another client can still change that membership between them.
 
 The relation query checks the full captured graph. Filtering a window selection
 does not replace its panes with only matching panes. `some`, `every`, `none`

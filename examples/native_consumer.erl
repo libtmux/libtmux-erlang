@@ -83,6 +83,19 @@ run_endpoint(Socket, Executable) ->
             {ok, Current} = tmux_window:get(Server, tmux_model:get(id, Window)),
             <<"consumer-#{pane_id};">> = tmux_model:get(name, Current),
             {ok, Snapshot} = tmux_server:snapshot(Server),
+            {ok, Source} = tmux_select:one(
+                #{window_id => tmux_model:get(id, Window)},
+                tmux_select:window_links(Snapshot)),
+            {ok, _} = tmux_window_link:link(Source, Session, #{index => 9}),
+            SessionId = tmux_model:get(id, Session),
+            {ok, Duplicate} = tmux_window_link:get(Server, SessionId, 9),
+            {ok, _} = tmux_window_link:move(Duplicate, Session, #{index => 11}),
+            {ok, Moved} = tmux_window_link:get(Server, SessionId, 11),
+            {ok, _} = tmux_window_link:swap(Source, Moved, #{}),
+            {ok, _} = tmux_window_link:select(Moved),
+            {ok, _} = tmux_window_link:unlink(Moved, #{force => true}),
+            {error, #{code := stale_link}} = tmux_window_link:select(Moved),
+            {ok, _} = tmux_window:get(Server, tmux_model:get(id, Window)),
             {ok, CapturedWindow} = tmux_snapshot:get(
                 window, tmux_model:get(id, Window), Snapshot),
             {ok, Children} = tmux_snapshot:related(
