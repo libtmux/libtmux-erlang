@@ -206,6 +206,9 @@ prepare_or_error(Criteria, Selection) ->
     end.
 -spec raise_filter(map()) -> no_return().
 raise_filter(#{code := incomplete_snapshot} = Detail) -> error({incomplete_snapshot, Detail});
+raise_filter(#{code := Code} = Detail) when Code =:= unsupported_regex_subject;
+        Code =:= regex_subject_limit; Code =:= regex_resource_limit ->
+    error({filter_evaluation_failed, Detail});
 raise_filter(Detail) -> error({bad_filter, Detail}).
 
 select_rows(_, [], Acc) -> {ok, lists:reverse(Acc)};

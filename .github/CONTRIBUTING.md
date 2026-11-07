@@ -73,6 +73,11 @@ record the selected flags. This does not configure the installed application.
 result and validation cases. EUnit consumes them and checks composed wire
 round trips. Other-port conformance remains a separate qualification gate.
 
+The restricted ASCII regex dialect has a separate
+[reference-engine check](../tools/regex-conformance/README.md). Node and Rust
+are test-only tools; the core remains OTP-only. The mid loop checks fixture
+drift, while CI runs matching against PCRE2, JavaScript and Rust regex.
+
 [CI source builds](../tools/ci/README.md) explains the pinned tmux matrix,
 cache validation and separate PropEr profile. CI uses setup-beam's installed
 tools directly; the local runner uses mise.

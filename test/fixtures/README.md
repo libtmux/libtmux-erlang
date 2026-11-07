@@ -13,6 +13,11 @@ repeatability, normalization idempotence and wire round trips across composed
 conditions. It runs in the normal EUnit suite without tmux I/O.
 
 Other ports can consume the same file. Only the Erlang consumer is currently
-verified here; these fixtures do not establish cross-port conformance. Regex
-returns unsupported_dialect until its restricted grammar and shared matching
-fixtures pass their separate qualification gate.
+verified here; these fixtures do not establish cross-port conformance.
+
+[regex-v1.json](regex-v1.json) checks the restricted ASCII portable_v1 regex
+dialect against PCRE2, JavaScript and Rust regex engines. It contains explicit
+edge cases and deterministic generated expressions whose expected results use
+an independent position-set oracle. See the
+[conformance runner](../../tools/regex-conformance/README.md) for the grammar,
+resource limits, tool setup and the scope of this proof.

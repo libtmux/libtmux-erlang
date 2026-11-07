@@ -460,6 +460,26 @@
       "expected": [
         "$1"
       ]
+    },
+    {
+      "name": "portable ASCII command regex",
+      "filter": {
+        "version": 1,
+        "entity": "pane",
+        "where": {
+          "currentCommand": {
+            "regex": {
+              "pattern": "^(vim|nvim)$",
+              "flags": [],
+              "dialect": "portable_v1"
+            }
+          }
+        }
+      },
+      "expected": [
+        "%2",
+        "%3"
+      ]
     }
   ],
   "invalid": [
@@ -581,14 +601,14 @@
       ]
     },
     {
-      "name": "unqualified regex dialect",
+      "name": "unknown regex dialect",
       "filter": {
         "version": 1,
         "entity": "pane",
         "where": {
           "title": {
             "regex": {
-              "dialect": "portable_v1",
+              "dialect": "portable_v2",
               "pattern": "a",
               "flags": []
             }
@@ -599,7 +619,8 @@
       "path": [
         "where",
         "title",
-        "regex"
+        "regex",
+        "dialect"
       ]
     }
   ]

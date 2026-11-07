@@ -28,7 +28,7 @@ validation_paths_and_bounds_test() ->
     ?assertMatch({error, #{code := invalid_value}}, tmux_filter:new(pane, #{pid => 0})),
     ?assertMatch({error, #{code := invalid_value}}, tmux_filter:new(pane, #{title => <<255>>})),
     ?assertMatch({error, #{code := unsupported_dialect}}, tmux_filter:new(pane,
-        #{title => #{regex => #{pattern => <<"a">>, dialect => portable_v1}}})),
+        #{title => #{regex => #{pattern => <<"a">>, dialect => portable_v2}}})),
     ?assertMatch({error, #{code := membership_limit}}, tmux_filter:new(pane,
         #{width => #{in => lists:seq(0, 256)}})),
     ?assertMatch({error, #{code := expression_limit}}, tmux_filter:new(pane,

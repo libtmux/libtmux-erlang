@@ -33,11 +33,13 @@ prop_json_bytes() ->
         end).
 
 criteria() ->
-    ?LET({Width, Active, Commands, Negate},
-        {choose(0, 10000), boolean(), list(elements([<<"vim">>, <<"cat">>, <<"nvim">>])), boolean()},
+    ?LET({Width, Active, Commands, Pattern, Negate},
+        {choose(0, 10000), boolean(), list(elements([<<"vim">>, <<"cat">>, <<"nvim">>])),
+         elements([<<"^(vim|nvim)$">>, <<"^cat$">>, <<"c.t">>, <<"^.{0,8}$">>]), boolean()},
         begin
             Base = #{width => #{gte => Width}, active => Active,
-                     current_command => #{in => Commands}},
+                     current_command => #{in => Commands,
+                         regex => #{pattern => Pattern, dialect => portable_v1}}},
             case Negate of true -> #{'not' => Base}; false -> Base end
         end).
 

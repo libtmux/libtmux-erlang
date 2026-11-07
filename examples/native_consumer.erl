@@ -25,7 +25,7 @@ run() ->
     {ok, _} = application:ensure_all_started(libtmux_erlang),
     try
         {ok, Pane} = tmux_model:pane(#{id => <<"%1">>, active => true,
-                                      width => 120}),
+                                      width => 120, current_command => <<"vim">>}),
         [<<"%1">>] = pane_ids([Pane]),
         #pane{id = <<"%1">>, active = true, width = 120} = Pane,
         {ok, Pane} = tmux_model:validate(Pane),
@@ -33,6 +33,10 @@ run() ->
             tmux_model:validate(Pane#pane{model_version = 2}),
         Selection = tmux_select:from_list(pane, [Pane]),
         {ok, Pane} = tmux_select:one(#{width => #{gte => 120}}, Selection),
+        {ok, Regex} = tmux_filter:new(pane, #{current_command => #{regex => #{
+            pattern => <<"^(vim|nvim)$">>, dialect => portable_v1}}}),
+        {ok, Regex} = tmux_filter:from_wire(pane, tmux_filter:to_wire(Regex)),
+        {ok, Pane} = tmux_select:one(Regex, Selection),
         {error, #{code := duplicate_key}} =
             tmux_filter:decode_json(<<"{\"version\":1,\"version\":2}">>),
         ok = ct_doctest:module(?MODULE),

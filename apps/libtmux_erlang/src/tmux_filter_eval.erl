@@ -5,14 +5,19 @@
 -type context() :: {snapshot, tmux_snapshot:t()} | {rows, map()}.
 -opaque t() :: {prepared_filter, tmux_schema:entity(), 1, context(), fun((tmux_model:row()) -> boolean())}.
 
--spec prepare(tmux_schema:entity(), tmux_filter:expr(), context()) -> t().
+-spec prepare(tmux_schema:entity(), tmux_filter:expr(), context()) -> {ok, t()} | {error, map()}.
 prepare(Entity, Tree, Context) ->
-    {prepared_filter, Entity, 1, Context, compile(Entity, Tree, Context)}.
+    try {ok, {prepared_filter, Entity, 1, Context, compile(Entity, Tree, Context)}}
+    catch throw:{filter_preparation_failed, Detail} -> {error, Detail}
+    end.
 
 -spec matches(t(), tmux_model:row()) -> {ok, boolean()} | {error, map()}.
 matches({prepared_filter, Entity, 1, Context, Predicate}, Row) ->
     case belongs(Entity, Row, Context) of
-        true -> {ok, Predicate(Row)};
+        true ->
+            try {ok, Predicate(Row)}
+            catch throw:{filter_evaluation_failed, Detail} -> {error, Detail}
+            end;
         false -> {error, #{code => prepared_context_mismatch}}
     end.
 
@@ -40,6 +45,23 @@ compile(Entity, {any, Children}, Context) ->
 compile(Entity, {negate, Child}, Context) ->
     Predicate = compile(Entity, Child, Context),
     fun(Row) -> not Predicate(Row) end;
+compile(Entity, {field, Stable, regex, #{pattern := Pattern}}, _) ->
+    {Name, _} = metadata(Stable, tmux_schema_data:fields(Entity)),
+    case tmux_regex:compile(Pattern) of
+        {ok, Compiled} ->
+            fun(Row) ->
+                case tmux_model:get(Name, Row) of
+                    none -> false;
+                    Actual ->
+                        case tmux_regex:run(Compiled, Actual) of
+                            {ok, Boolean} -> Boolean;
+                            {error, Detail} ->
+                                throw({filter_evaluation_failed, Detail#{field => Stable}})
+                        end
+                end
+            end;
+        {error, Detail} -> throw({filter_preparation_failed, Detail#{field => Stable}})
+    end;
 compile(Entity, {field, Stable, Op, Value}, _) ->
     {Name, _} = metadata(Stable, tmux_schema_data:fields(Entity)),
     Predicate = scalar(Op, Value),

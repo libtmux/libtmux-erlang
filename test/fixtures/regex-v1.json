@@ -1,0 +1,5677 @@
+{
+  "version": 1,
+  "dialect": "portable_v1",
+  "semantics": {
+    "subjects": "ASCII bytes",
+    "anchors": "absolute start/end",
+    "dot": "all ASCII bytes except LF",
+    "repetition_max": 64
+  },
+  "patterns": [
+    {
+      "pattern": "",
+      "cases": [
+        {
+          "subject": "",
+          "expected": true
+        },
+        {
+          "subject": "a",
+          "expected": true
+        }
+      ]
+    },
+    {
+      "pattern": "^a$",
+      "cases": [
+        {
+          "subject": "a",
+          "expected": true
+        },
+        {
+          "subject": "a\n",
+          "expected": false
+        },
+        {
+          "subject": "ba",
+          "expected": false
+        },
+        {
+          "subject": "",
+          "expected": false
+        }
+      ]
+    },
+    {
+      "pattern": "^.$",
+      "cases": [
+        {
+          "subject": "\r",
+          "expected": true
+        },
+        {
+          "subject": "\n",
+          "expected": false
+        },
+        {
+          "subject": "\u0000",
+          "expected": true
+        },
+        {
+          "subject": "",
+          "expected": true
+        },
+        {
+          "subject": "ab",
+          "expected": false
+        }
+      ]
+    },
+    {
+      "pattern": "a$",
+      "cases": [
+        {
+          "subject": "ba",
+          "expected": true
+        },
+        {
+          "subject": "a\n",
+          "expected": false
+        },
+        {
+          "subject": "a\r",
+          "expected": false
+        }
+      ]
+    },
+    {
+      "pattern": "^a|b$",
+      "cases": [
+        {
+          "subject": "az",
+          "expected": true
+        },
+        {
+          "subject": "zb",
+          "expected": true
+        },
+        {
+          "subject": "zabz",
+          "expected": false
+        }
+      ]
+    },
+    {
+      "pattern": "^[a-z0-9_-]{1,4}$",
+      "cases": [
+        {
+          "subject": "a-2",
+          "expected": true
+        },
+        {
+          "subject": "_",
+          "expected": true
+        },
+        {
+          "subject": "",
+          "expected": false
+        },
+        {
+          "subject": "abcdz",
+          "expected": false
+        },
+        {
+          "subject": "A",
+          "expected": false
+        }
+      ]
+    },
+    {
+      "pattern": "^[^a-z]{1,2}$",
+      "cases": [
+        {
+          "subject": "1\n",
+          "expected": true
+        },
+        {
+          "subject": "\r",
+          "expected": true
+        },
+        {
+          "subject": "a",
+          "expected": false
+        },
+        {
+          "subject": "1a",
+          "expected": false
+        }
+      ]
+    },
+    {
+      "pattern": "^a{0,2}$",
+      "cases": [
+        {
+          "subject": "",
+          "expected": true
+        },
+        {
+          "subject": "a",
+          "expected": true
+        },
+        {
+          "subject": "aa",
+          "expected": true
+        },
+        {
+          "subject": "aaa",
+          "expected": false
+        }
+      ]
+    },
+    {
+      "pattern": "^a{64}$",
+      "cases": [
+        {
+          "subject": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "expected": true
+        },
+        {
+          "subject": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "expected": false
+        },
+        {
+          "subject": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "expected": false
+        }
+      ]
+    },
+    {
+      "pattern": "^(ab|c){1,2}$",
+      "cases": [
+        {
+          "subject": "ab",
+          "expected": true
+        },
+        {
+          "subject": "cc",
+          "expected": true
+        },
+        {
+          "subject": "abc",
+          "expected": true
+        },
+        {
+          "subject": "abab",
+          "expected": true
+        },
+        {
+          "subject": "",
+          "expected": false
+        },
+        {
+          "subject": "abcc",
+          "expected": false
+        }
+      ]
+    },
+    {
+      "pattern": "^(|a)b$",
+      "cases": [
+        {
+          "subject": "b",
+          "expected": true
+        },
+        {
+          "subject": "ab",
+          "expected": true
+        },
+        {
+          "subject": "aab",
+          "expected": false
+        }
+      ]
+    },
+    {
+      "pattern": "^(){2}$",
+      "cases": [
+        {
+          "subject": "",
+          "expected": true
+        },
+        {
+          "subject": "a",
+          "expected": false
+        }
+      ]
+    },
+    {
+      "pattern": "^[\\x00-\\x7f]$",
+      "cases": [
+        {
+          "subject": "\u0000",
+          "expected": true
+        },
+        {
+          "subject": "\n",
+          "expected": true
+        },
+        {
+          "subject": "",
+          "expected": true
+        },
+        {
+          "subject": "",
+          "expected": false
+        }
+      ]
+    },
+    {
+      "pattern": "^[^\\x00-\\x7f]$",
+      "cases": [
+        {
+          "subject": "",
+          "expected": false
+        },
+        {
+          "subject": "a",
+          "expected": false
+        }
+      ]
+    },
+    {
+      "pattern": "^\\.\\[\\]\\{\\}\\(\\)\\|\\^\\$\\\\$",
+      "cases": [
+        {
+          "subject": ".[]{}()|^$\\",
+          "expected": true
+        },
+        {
+          "subject": ".",
+          "expected": false
+        }
+      ]
+    },
+    {
+      "pattern": "^[\\]\\-\\^]{1,3}$",
+      "cases": [
+        {
+          "subject": "]-^",
+          "expected": true
+        },
+        {
+          "subject": "a",
+          "expected": false
+        }
+      ]
+    },
+    {
+      "pattern": "^[-a]{1,2}$",
+      "cases": [
+        {
+          "subject": "-",
+          "expected": true
+        },
+        {
+          "subject": "a-",
+          "expected": true
+        },
+        {
+          "subject": "b",
+          "expected": false
+        }
+      ]
+    },
+    {
+      "pattern": "^[a-]{1,2}$",
+      "cases": [
+        {
+          "subject": "-",
+          "expected": true
+        },
+        {
+          "subject": "-a",
+          "expected": true
+        },
+        {
+          "subject": "b",
+          "expected": false
+        }
+      ]
+    },
+    {
+      "pattern": "^\\n\\r\\t\\f\\v$",
+      "cases": [
+        {
+          "subject": "\n\r\t\f\u000b",
+          "expected": true
+        },
+        {
+          "subject": "\n\r\t\f",
+          "expected": false
+        }
+      ]
+    },
+    {
+      "pattern": "^\\*\\+\\?$",
+      "cases": [
+        {
+          "subject": "*+?",
+          "expected": true
+        },
+        {
+          "subject": "*+",
+          "expected": false
+        }
+      ]
+    },
+    {
+      "pattern": ".",
+      "cases": [
+        {
+          "subject": "é",
+          "expected": "unsupported_regex_subject"
+        }
+      ]
+    },
+    {
+      "pattern": "(\\x0a)",
+      "cases": [
+        {
+          "subject": "",
+          "expected": false
+        },
+        {
+          "subject": "a",
+          "expected": false
+        },
+        {
+          "subject": "b",
+          "expected": false
+        },
+        {
+          "subject": "ab",
+          "expected": false
+        },
+        {
+          "subject": "aa",
+          "expected": false
+        },
+        {
+          "subject": "ba",
+          "expected": false
+        },
+        {
+          "subject": "a\n",
+          "expected": true
+        },
+        {
+          "subject": "\n",
+          "expected": true
+        },
+        {
+          "subject": "\r",
+          "expected": false
+        },
+        {
+          "subject": "\u0000",
+          "expected": false
+        },
+        {
+          "subject": "",
+          "expected": false
+        },
+        {
+          "subject": "ab\r",
+          "expected": false
+        }
+      ]
+    },
+    {
+      "pattern": "(^(((.)([\\x61\\x62]){2,2})){0,2}$)",
+      "cases": [
+        {
+          "subject": "",
+          "expected": true
+        },
+        {
+          "subject": "a",
+          "expected": false
+        },
+        {
+          "subject": "b",
+          "expected": false
+        },
+        {
+          "subject": "ab",
+          "expected": false
+        },
+        {
+          "subject": "aa",
+          "expected": false
+        },
+        {
+          "subject": "ba",
+          "expected": false
+        },
+        {
+          "subject": "a\n",
+          "expected": false
+        },
+        {
+          "subject": "\n",
+          "expected": false
+        },
+        {
+          "subject": "\r",
+          "expected": false
+        },
+        {
+          "subject": "\u0000",
+          "expected": false
+        },
+        {
+          "subject": "",
+          "expected": false
+        },
+        {
+          "subject": "ab\r",
+          "expected": false
+        }
+      ]
+    },
+    {
+      "pattern": "(((\\x61)))",
+      "cases": [
+        {
+          "subject": "",
+          "expected": false
+        },
+        {
+          "subject": "a",
+          "expected": true
+        },
+        {
+          "subject": "b",
+          "expected": false
+        },
+        {
+          "subject": "ab",
+          "expected": true
+        },
+        {
+          "subject": "aa",
+          "expected": true
+        },
+        {
+          "subject": "ba",
+          "expected": true
+        },
+        {
+          "subject": "a\n",
+          "expected": true
+        },
+        {
+          "subject": "\n",
+          "expected": false
+        },
+        {
+          "subject": "\r",
+          "expected": false
+        },
+        {
+          "subject": "\u0000",
+          "expected": false
+        },
+        {
+          "subject": "",
+          "expected": false
+        },
+        {
+          "subject": "ab\r",
+          "expected": true
+        }
+      ]
+    },
+    {
+      "pattern": "((\\x0d[\\x61\\x62])){0,1}",
+      "cases": [
+        {
+          "subject": "",
+          "expected": true
+        },
+        {
+          "subject": "a",
+          "expected": true
+        },
+        {
+          "subject": "b",
+          "expected": true
+        },
+        {
+          "subject": "ab",
+          "expected": true
+        },
+        {
+          "subject": "aa",
+          "expected": true
+        },
+        {
+          "subject": "ba",
+          "expected": true
+        },
+        {
+          "subject": "a\n",
+          "expected": true
+        },
+        {
+          "subject": "\n",
+          "expected": true
+        },
+        {
+          "subject": "\r",
+          "expected": true
+        },
+        {
+          "subject": "\u0000",
+          "expected": true
+        },
+        {
+          "subject": "",
+          "expected": true
+        },
+        {
+          "subject": "ab\r",
+          "expected": true
+        }
+      ]
+    },
+    {
+      "pattern": "(((\\x09\\x0a\\x09)){1,1}\\x62((\\x09)()(\\x0a|[\\x61\\x62]|.)))",
+      "cases": [
+        {
+          "subject": "",
+          "expected": false
+        },
+        {
+          "subject": "a",
+          "expected": false
+        },
+        {
+          "subject": "b",
+          "expected": false
+        },
+        {
+          "subject": "ab",
+          "expected": false
+        },
+        {
+          "subject": "aa",
+          "expected": false
+        },
+        {
+          "subject": "ba",
+          "expected": false
+        },
+        {
+          "subject": "a\n",
+          "expected": false
+        },
+        {
+          "subject": "\n",
+          "expected": false
+        },
+        {
+          "subject": "\r",
+          "expected": false
+        },
+        {
+          "subject": "\u0000",
+          "expected": false
+        },
+        {
+          "subject": "",
+          "expected": false
+        },
+        {
+          "subject": "ab\r",
+          "expected": false
+        }
+      ]
+    },
+    {
+      "pattern": "(^(.)$)",
+      "cases": [
+        {
+          "subject": "",
+          "expected": false
+        },
+        {
+          "subject": "a",
+          "expected": true
+        },
+        {
+          "subject": "b",
+          "expected": true
+        },
+        {
+          "subject": "ab",
+          "expected": false
+        },
+        {
+          "subject": "aa",
+          "expected": false
+        },
+        {
+          "subject": "ba",
+          "expected": false
+        },
+        {
+          "subject": "a\n",
+          "expected": false
+        },
+        {
+          "subject": "\n",
+          "expected": false
+        },
+        {
+          "subject": "\r",
+          "expected": true
+        },
+        {
+          "subject": "\u0000",
+          "expected": true
+        },
+        {
+          "subject": "",
+          "expected": true
+        },
+        {
+          "subject": "ab\r",
+          "expected": false
+        }
+      ]
+    },
+    {
+      "pattern": "(^(((.)|.|[\\x61\\x62])|(()){1,1}|((().)(().)))$)",
+      "cases": [
+        {
+          "subject": "",
+          "expected": true
+        },
+        {
+          "subject": "a",
+          "expected": true
+        },
+        {
+          "subject": "b",
+          "expected": true
+        },
+        {
+          "subject": "ab",
+          "expected": true
+        },
+        {
+          "subject": "aa",
+          "expected": true
+        },
+        {
+          "subject": "ba",
+          "expected": true
+        },
+        {
+          "subject": "a\n",
+          "expected": false
+        },
+        {
+          "subject": "\n",
+          "expected": false
+        },
+        {
+          "subject": "\r",
+          "expected": true
+        },
+        {
+          "subject": "\u0000",
+          "expected": true
+        },
+        {
+          "subject": "",
+          "expected": true
+        },
+        {
+          "subject": "ab\r",
+          "expected": false
+        }
+      ]
+    },
+    {
+      "pattern": "(^[\\x61\\x62]$)",
+      "cases": [
+        {
+          "subject": "",
+          "expected": false
+        },
+        {
+          "subject": "a",
+          "expected": true
+        },
+        {
+          "subject": "b",
+          "expected": true
+        },
+        {
+          "subject": "ab",
+          "expected": false
+        },
+        {
+          "subject": "aa",
+          "expected": false
+        },
+        {
+          "subject": "ba",
+          "expected": false
+        },
+        {
+          "subject": "a\n",
+          "expected": false
+        },
+        {
+          "subject": "\n",
+          "expected": false
+        },
+        {
+          "subject": "\r",
+          "expected": false
+        },
+        {
+          "subject": "\u0000",
+          "expected": false
+        },
+        {
+          "subject": "",
+          "expected": false
+        },
+        {
+          "subject": "ab\r",
+          "expected": false
+        }
+      ]
+    },
+    {
+      "pattern": ".",
+      "cases": [
+        {
+          "subject": "",
+          "expected": false
+        },
+        {
+          "subject": "a",
+          "expected": true
+        },
+        {
+          "subject": "b",
+          "expected": true
+        },
+        {
+          "subject": "ab",
+          "expected": true
+        },
+        {
+          "subject": "aa",
+          "expected": true
+        },
+        {
+          "subject": "ba",
+          "expected": true
+        },
+        {
+          "subject": "a\n",
+          "expected": true
+        },
+        {
+          "subject": "\n",
+          "expected": false
+        },
+        {
+          "subject": "\r",
+          "expected": true
+        },
+        {
+          "subject": "\u0000",
+          "expected": true
+        },
+        {
+          "subject": "",
+          "expected": true
+        },
+        {
+          "subject": "ab\r",
+          "expected": true
+        }
+      ]
+    },
+    {
+      "pattern": ".",
+      "cases": [
+        {
+          "subject": "",
+          "expected": false
+        },
+        {
+          "subject": "a",
+          "expected": true
+        },
+        {
+          "subject": "b",
+          "expected": true
+        },
+        {
+          "subject": "ab",
+          "expected": true
+        },
+        {
+          "subject": "aa",
+          "expected": true
+        },
+        {
+          "subject": "ba",
+          "expected": true
+        },
+        {
+          "subject": "a\n",
+          "expected": true
+        },
+        {
+          "subject": "\n",
+          "expected": false
+        },
+        {
+          "subject": "\r",
+          "expected": true
+        },
+        {
+          "subject": "\u0000",
+          "expected": true
+        },
+        {
+          "subject": "",
+          "expected": true
+        },
+        {
+          "subject": "ab\r",
+          "expected": true
+        }
+      ]
+    },
+    {
+      "pattern": "(^(.){1,2}$)",
+      "cases": [
+        {
+          "subject": "",
+          "expected": false
+        },
+        {
+          "subject": "a",
+          "expected": true
+        },
+        {
+          "subject": "b",
+          "expected": true
+        },
+        {
+          "subject": "ab",
+          "expected": true
+        },
+        {
+          "subject": "aa",
+          "expected": true
+        },
+        {
+          "subject": "ba",
+          "expected": true
+        },
+        {
+          "subject": "a\n",
+          "expected": false
+        },
+        {
+          "subject": "\n",
+          "expected": false
+        },
+        {
+          "subject": "\r",
+          "expected": true
+        },
+        {
+          "subject": "\u0000",
+          "expected": true
+        },
+        {
+          "subject": "",
+          "expected": true
+        },
+        {
+          "subject": "ab\r",
+          "expected": false
+        }
+      ]
+    },
+    {
+      "pattern": "[\\x61\\x62]",
+      "cases": [
+        {
+          "subject": "",
+          "expected": false
+        },
+        {
+          "subject": "a",
+          "expected": true
+        },
+        {
+          "subject": "b",
+          "expected": true
+        },
+        {
+          "subject": "ab",
+          "expected": true
+        },
+        {
+          "subject": "aa",
+          "expected": true
+        },
+        {
+          "subject": "ba",
+          "expected": true
+        },
+        {
+          "subject": "a\n",
+          "expected": true
+        },
+        {
+          "subject": "\n",
+          "expected": false
+        },
+        {
+          "subject": "\r",
+          "expected": false
+        },
+        {
+          "subject": "\u0000",
+          "expected": false
+        },
+        {
+          "subject": "",
+          "expected": false
+        },
+        {
+          "subject": "ab\r",
+          "expected": true
+        }
+      ]
+    },
+    {
+      "pattern": "((([\\x61\\x62]|()|()))){0,2}",
+      "cases": [
+        {
+          "subject": "",
+          "expected": true
+        },
+        {
+          "subject": "a",
+          "expected": true
+        },
+        {
+          "subject": "b",
+          "expected": true
+        },
+        {
+          "subject": "ab",
+          "expected": true
+        },
+        {
+          "subject": "aa",
+          "expected": true
+        },
+        {
+          "subject": "ba",
+          "expected": true
+        },
+        {
+          "subject": "a\n",
+          "expected": true
+        },
+        {
+          "subject": "\n",
+          "expected": true
+        },
+        {
+          "subject": "\r",
+          "expected": true
+        },
+        {
+          "subject": "\u0000",
+          "expected": true
+        },
+        {
+          "subject": "",
+          "expected": true
+        },
+        {
+          "subject": "ab\r",
+          "expected": true
+        }
+      ]
+    },
+    {
+      "pattern": "[\\x61\\x62]",
+      "cases": [
+        {
+          "subject": "",
+          "expected": false
+        },
+        {
+          "subject": "a",
+          "expected": true
+        },
+        {
+          "subject": "b",
+          "expected": true
+        },
+        {
+          "subject": "ab",
+          "expected": true
+        },
+        {
+          "subject": "aa",
+          "expected": true
+        },
+        {
+          "subject": "ba",
+          "expected": true
+        },
+        {
+          "subject": "a\n",
+          "expected": true
+        },
+        {
+          "subject": "\n",
+          "expected": false
+        },
+        {
+          "subject": "\r",
+          "expected": false
+        },
+        {
+          "subject": "\u0000",
+          "expected": false
+        },
+        {
+          "subject": "",
+          "expected": false
+        },
+        {
+          "subject": "ab\r",
+          "expected": true
+        }
+      ]
+    },
+    {
+      "pattern": "(\\x0a){1,2}",
+      "cases": [
+        {
+          "subject": "",
+          "expected": false
+        },
+        {
+          "subject": "a",
+          "expected": false
+        },
+        {
+          "subject": "b",
+          "expected": false
+        },
+        {
+          "subject": "ab",
+          "expected": false
+        },
+        {
+          "subject": "aa",
+          "expected": false
+        },
+        {
+          "subject": "ba",
+          "expected": false
+        },
+        {
+          "subject": "a\n",
+          "expected": true
+        },
+        {
+          "subject": "\n",
+          "expected": true
+        },
+        {
+          "subject": "\r",
+          "expected": false
+        },
+        {
+          "subject": "\u0000",
+          "expected": false
+        },
+        {
+          "subject": "",
+          "expected": false
+        },
+        {
+          "subject": "ab\r",
+          "expected": false
+        }
+      ]
+    },
+    {
+      "pattern": "(\\x0d){0,2}",
+      "cases": [
+        {
+          "subject": "",
+          "expected": true
+        },
+        {
+          "subject": "a",
+          "expected": true
+        },
+        {
+          "subject": "b",
+          "expected": true
+        },
+        {
+          "subject": "ab",
+          "expected": true
+        },
+        {
+          "subject": "aa",
+          "expected": true
+        },
+        {
+          "subject": "ba",
+          "expected": true
+        },
+        {
+          "subject": "a\n",
+          "expected": true
+        },
+        {
+          "subject": "\n",
+          "expected": true
+        },
+        {
+          "subject": "\r",
+          "expected": true
+        },
+        {
+          "subject": "\u0000",
+          "expected": true
+        },
+        {
+          "subject": "",
+          "expected": true
+        },
+        {
+          "subject": "ab\r",
+          "expected": true
+        }
+      ]
+    },
+    {
+      "pattern": "(((.)){1,3}){0,3}",
+      "cases": [
+        {
+          "subject": "",
+          "expected": true
+        },
+        {
+          "subject": "a",
+          "expected": true
+        },
+        {
+          "subject": "b",
+          "expected": true
+        },
+        {
+          "subject": "ab",
+          "expected": true
+        },
+        {
+          "subject": "aa",
+          "expected": true
+        },
+        {
+          "subject": "ba",
+          "expected": true
+        },
+        {
+          "subject": "a\n",
+          "expected": true
+        },
+        {
+          "subject": "\n",
+          "expected": true
+        },
+        {
+          "subject": "\r",
+          "expected": true
+        },
+        {
+          "subject": "\u0000",
+          "expected": true
+        },
+        {
+          "subject": "",
+          "expected": true
+        },
+        {
+          "subject": "ab\r",
+          "expected": true
+        }
+      ]
+    },
+    {
+      "pattern": "(((\\x0d)|(.|[\\x61\\x62]|()))){2,2}",
+      "cases": [
+        {
+          "subject": "",
+          "expected": true
+        },
+        {
+          "subject": "a",
+          "expected": true
+        },
+        {
+          "subject": "b",
+          "expected": true
+        },
+        {
+          "subject": "ab",
+          "expected": true
+        },
+        {
+          "subject": "aa",
+          "expected": true
+        },
+        {
+          "subject": "ba",
+          "expected": true
+        },
+        {
+          "subject": "a\n",
+          "expected": true
+        },
+        {
+          "subject": "\n",
+          "expected": true
+        },
+        {
+          "subject": "\r",
+          "expected": true
+        },
+        {
+          "subject": "\u0000",
+          "expected": true
+        },
+        {
+          "subject": "",
+          "expected": true
+        },
+        {
+          "subject": "ab\r",
+          "expected": true
+        }
+      ]
+    },
+    {
+      "pattern": "(((.|\\x0a)|(..)|(()[\\x61\\x62]))){2,2}",
+      "cases": [
+        {
+          "subject": "",
+          "expected": false
+        },
+        {
+          "subject": "a",
+          "expected": false
+        },
+        {
+          "subject": "b",
+          "expected": false
+        },
+        {
+          "subject": "ab",
+          "expected": true
+        },
+        {
+          "subject": "aa",
+          "expected": true
+        },
+        {
+          "subject": "ba",
+          "expected": true
+        },
+        {
+          "subject": "a\n",
+          "expected": true
+        },
+        {
+          "subject": "\n",
+          "expected": false
+        },
+        {
+          "subject": "\r",
+          "expected": false
+        },
+        {
+          "subject": "\u0000",
+          "expected": false
+        },
+        {
+          "subject": "",
+          "expected": false
+        },
+        {
+          "subject": "ab\r",
+          "expected": true
+        }
+      ]
+    },
+    {
+      "pattern": "(^((([\\x61\\x62]|.|\\x61)|([\\x61\\x62]|.))){0,0}$)",
+      "cases": [
+        {
+          "subject": "",
+          "expected": true
+        },
+        {
+          "subject": "a",
+          "expected": false
+        },
+        {
+          "subject": "b",
+          "expected": false
+        },
+        {
+          "subject": "ab",
+          "expected": false
+        },
+        {
+          "subject": "aa",
+          "expected": false
+        },
+        {
+          "subject": "ba",
+          "expected": false
+        },
+        {
+          "subject": "a\n",
+          "expected": false
+        },
+        {
+          "subject": "\n",
+          "expected": false
+        },
+        {
+          "subject": "\r",
+          "expected": false
+        },
+        {
+          "subject": "\u0000",
+          "expected": false
+        },
+        {
+          "subject": "",
+          "expected": false
+        },
+        {
+          "subject": "ab\r",
+          "expected": false
+        }
+      ]
+    },
+    {
+      "pattern": "(())",
+      "cases": [
+        {
+          "subject": "",
+          "expected": true
+        },
+        {
+          "subject": "a",
+          "expected": true
+        },
+        {
+          "subject": "b",
+          "expected": true
+        },
+        {
+          "subject": "ab",
+          "expected": true
+        },
+        {
+          "subject": "aa",
+          "expected": true
+        },
+        {
+          "subject": "ba",
+          "expected": true
+        },
+        {
+          "subject": "a\n",
+          "expected": true
+        },
+        {
+          "subject": "\n",
+          "expected": true
+        },
+        {
+          "subject": "\r",
+          "expected": true
+        },
+        {
+          "subject": "\u0000",
+          "expected": true
+        },
+        {
+          "subject": "",
+          "expected": true
+        },
+        {
+          "subject": "ab\r",
+          "expected": true
+        }
+      ]
+    },
+    {
+      "pattern": "(^((([\\x61\\x62])))$)",
+      "cases": [
+        {
+          "subject": "",
+          "expected": false
+        },
+        {
+          "subject": "a",
+          "expected": true
+        },
+        {
+          "subject": "b",
+          "expected": true
+        },
+        {
+          "subject": "ab",
+          "expected": false
+        },
+        {
+          "subject": "aa",
+          "expected": false
+        },
+        {
+          "subject": "ba",
+          "expected": false
+        },
+        {
+          "subject": "a\n",
+          "expected": false
+        },
+        {
+          "subject": "\n",
+          "expected": false
+        },
+        {
+          "subject": "\r",
+          "expected": false
+        },
+        {
+          "subject": "\u0000",
+          "expected": false
+        },
+        {
+          "subject": "",
+          "expected": false
+        },
+        {
+          "subject": "ab\r",
+          "expected": false
+        }
+      ]
+    },
+    {
+      "pattern": "(.|((.)|[\\x61\\x62]|[\\x61\\x62]))",
+      "cases": [
+        {
+          "subject": "",
+          "expected": false
+        },
+        {
+          "subject": "a",
+          "expected": true
+        },
+        {
+          "subject": "b",
+          "expected": true
+        },
+        {
+          "subject": "ab",
+          "expected": true
+        },
+        {
+          "subject": "aa",
+          "expected": true
+        },
+        {
+          "subject": "ba",
+          "expected": true
+        },
+        {
+          "subject": "a\n",
+          "expected": true
+        },
+        {
+          "subject": "\n",
+          "expected": false
+        },
+        {
+          "subject": "\r",
+          "expected": true
+        },
+        {
+          "subject": "\u0000",
+          "expected": true
+        },
+        {
+          "subject": "",
+          "expected": true
+        },
+        {
+          "subject": "ab\r",
+          "expected": true
+        }
+      ]
+    },
+    {
+      "pattern": "(^((([\\x61\\x62]){2,3}){0,3}){0,0}$)",
+      "cases": [
+        {
+          "subject": "",
+          "expected": true
+        },
+        {
+          "subject": "a",
+          "expected": false
+        },
+        {
+          "subject": "b",
+          "expected": false
+        },
+        {
+          "subject": "ab",
+          "expected": false
+        },
+        {
+          "subject": "aa",
+          "expected": false
+        },
+        {
+          "subject": "ba",
+          "expected": false
+        },
+        {
+          "subject": "a\n",
+          "expected": false
+        },
+        {
+          "subject": "\n",
+          "expected": false
+        },
+        {
+          "subject": "\r",
+          "expected": false
+        },
+        {
+          "subject": "\u0000",
+          "expected": false
+        },
+        {
+          "subject": "",
+          "expected": false
+        },
+        {
+          "subject": "ab\r",
+          "expected": false
+        }
+      ]
+    },
+    {
+      "pattern": "(^()$)",
+      "cases": [
+        {
+          "subject": "",
+          "expected": true
+        },
+        {
+          "subject": "a",
+          "expected": false
+        },
+        {
+          "subject": "b",
+          "expected": false
+        },
+        {
+          "subject": "ab",
+          "expected": false
+        },
+        {
+          "subject": "aa",
+          "expected": false
+        },
+        {
+          "subject": "ba",
+          "expected": false
+        },
+        {
+          "subject": "a\n",
+          "expected": false
+        },
+        {
+          "subject": "\n",
+          "expected": false
+        },
+        {
+          "subject": "\r",
+          "expected": false
+        },
+        {
+          "subject": "\u0000",
+          "expected": false
+        },
+        {
+          "subject": "",
+          "expected": false
+        },
+        {
+          "subject": "ab\r",
+          "expected": false
+        }
+      ]
+    },
+    {
+      "pattern": "(^(((()|[\\x61\\x62])){0,1}|(())|.)$)",
+      "cases": [
+        {
+          "subject": "",
+          "expected": true
+        },
+        {
+          "subject": "a",
+          "expected": true
+        },
+        {
+          "subject": "b",
+          "expected": true
+        },
+        {
+          "subject": "ab",
+          "expected": false
+        },
+        {
+          "subject": "aa",
+          "expected": false
+        },
+        {
+          "subject": "ba",
+          "expected": false
+        },
+        {
+          "subject": "a\n",
+          "expected": false
+        },
+        {
+          "subject": "\n",
+          "expected": false
+        },
+        {
+          "subject": "\r",
+          "expected": true
+        },
+        {
+          "subject": "\u0000",
+          "expected": true
+        },
+        {
+          "subject": "",
+          "expected": true
+        },
+        {
+          "subject": "ab\r",
+          "expected": false
+        }
+      ]
+    },
+    {
+      "pattern": "(([\\x61\\x62]|(\\x62|\\x0a|[\\x61\\x62])|([\\x61\\x62]){0,3}))",
+      "cases": [
+        {
+          "subject": "",
+          "expected": true
+        },
+        {
+          "subject": "a",
+          "expected": true
+        },
+        {
+          "subject": "b",
+          "expected": true
+        },
+        {
+          "subject": "ab",
+          "expected": true
+        },
+        {
+          "subject": "aa",
+          "expected": true
+        },
+        {
+          "subject": "ba",
+          "expected": true
+        },
+        {
+          "subject": "a\n",
+          "expected": true
+        },
+        {
+          "subject": "\n",
+          "expected": true
+        },
+        {
+          "subject": "\r",
+          "expected": true
+        },
+        {
+          "subject": "\u0000",
+          "expected": true
+        },
+        {
+          "subject": "",
+          "expected": true
+        },
+        {
+          "subject": "ab\r",
+          "expected": true
+        }
+      ]
+    },
+    {
+      "pattern": "(^((()|([\\x61\\x62])))$)",
+      "cases": [
+        {
+          "subject": "",
+          "expected": true
+        },
+        {
+          "subject": "a",
+          "expected": true
+        },
+        {
+          "subject": "b",
+          "expected": true
+        },
+        {
+          "subject": "ab",
+          "expected": false
+        },
+        {
+          "subject": "aa",
+          "expected": false
+        },
+        {
+          "subject": "ba",
+          "expected": false
+        },
+        {
+          "subject": "a\n",
+          "expected": false
+        },
+        {
+          "subject": "\n",
+          "expected": false
+        },
+        {
+          "subject": "\r",
+          "expected": false
+        },
+        {
+          "subject": "\u0000",
+          "expected": false
+        },
+        {
+          "subject": "",
+          "expected": false
+        },
+        {
+          "subject": "ab\r",
+          "expected": false
+        }
+      ]
+    },
+    {
+      "pattern": "(^(((..).)((\\x0a){1,1}).)$)",
+      "cases": [
+        {
+          "subject": "",
+          "expected": false
+        },
+        {
+          "subject": "a",
+          "expected": false
+        },
+        {
+          "subject": "b",
+          "expected": false
+        },
+        {
+          "subject": "ab",
+          "expected": false
+        },
+        {
+          "subject": "aa",
+          "expected": false
+        },
+        {
+          "subject": "ba",
+          "expected": false
+        },
+        {
+          "subject": "a\n",
+          "expected": false
+        },
+        {
+          "subject": "\n",
+          "expected": false
+        },
+        {
+          "subject": "\r",
+          "expected": false
+        },
+        {
+          "subject": "\u0000",
+          "expected": false
+        },
+        {
+          "subject": "",
+          "expected": false
+        },
+        {
+          "subject": "ab\r",
+          "expected": false
+        }
+      ]
+    },
+    {
+      "pattern": "(^(())$)",
+      "cases": [
+        {
+          "subject": "",
+          "expected": true
+        },
+        {
+          "subject": "a",
+          "expected": false
+        },
+        {
+          "subject": "b",
+          "expected": false
+        },
+        {
+          "subject": "ab",
+          "expected": false
+        },
+        {
+          "subject": "aa",
+          "expected": false
+        },
+        {
+          "subject": "ba",
+          "expected": false
+        },
+        {
+          "subject": "a\n",
+          "expected": false
+        },
+        {
+          "subject": "\n",
+          "expected": false
+        },
+        {
+          "subject": "\r",
+          "expected": false
+        },
+        {
+          "subject": "\u0000",
+          "expected": false
+        },
+        {
+          "subject": "",
+          "expected": false
+        },
+        {
+          "subject": "ab\r",
+          "expected": false
+        }
+      ]
+    },
+    {
+      "pattern": "(^((([\\x61\\x62]){2,2})((\\x0a)|\\x62|(.))(()){1,3})$)",
+      "cases": [
+        {
+          "subject": "",
+          "expected": false
+        },
+        {
+          "subject": "a",
+          "expected": false
+        },
+        {
+          "subject": "b",
+          "expected": false
+        },
+        {
+          "subject": "ab",
+          "expected": false
+        },
+        {
+          "subject": "aa",
+          "expected": false
+        },
+        {
+          "subject": "ba",
+          "expected": false
+        },
+        {
+          "subject": "a\n",
+          "expected": false
+        },
+        {
+          "subject": "\n",
+          "expected": false
+        },
+        {
+          "subject": "\r",
+          "expected": false
+        },
+        {
+          "subject": "\u0000",
+          "expected": false
+        },
+        {
+          "subject": "",
+          "expected": false
+        },
+        {
+          "subject": "ab\r",
+          "expected": true
+        }
+      ]
+    },
+    {
+      "pattern": "(^.$)",
+      "cases": [
+        {
+          "subject": "",
+          "expected": false
+        },
+        {
+          "subject": "a",
+          "expected": true
+        },
+        {
+          "subject": "b",
+          "expected": true
+        },
+        {
+          "subject": "ab",
+          "expected": false
+        },
+        {
+          "subject": "aa",
+          "expected": false
+        },
+        {
+          "subject": "ba",
+          "expected": false
+        },
+        {
+          "subject": "a\n",
+          "expected": false
+        },
+        {
+          "subject": "\n",
+          "expected": false
+        },
+        {
+          "subject": "\r",
+          "expected": true
+        },
+        {
+          "subject": "\u0000",
+          "expected": true
+        },
+        {
+          "subject": "",
+          "expected": true
+        },
+        {
+          "subject": "ab\r",
+          "expected": false
+        }
+      ]
+    },
+    {
+      "pattern": "(^(((()){1,1}){0,3}){2,2}$)",
+      "cases": [
+        {
+          "subject": "",
+          "expected": true
+        },
+        {
+          "subject": "a",
+          "expected": false
+        },
+        {
+          "subject": "b",
+          "expected": false
+        },
+        {
+          "subject": "ab",
+          "expected": false
+        },
+        {
+          "subject": "aa",
+          "expected": false
+        },
+        {
+          "subject": "ba",
+          "expected": false
+        },
+        {
+          "subject": "a\n",
+          "expected": false
+        },
+        {
+          "subject": "\n",
+          "expected": false
+        },
+        {
+          "subject": "\r",
+          "expected": false
+        },
+        {
+          "subject": "\u0000",
+          "expected": false
+        },
+        {
+          "subject": "",
+          "expected": false
+        },
+        {
+          "subject": "ab\r",
+          "expected": false
+        }
+      ]
+    },
+    {
+      "pattern": "((()){0,0})",
+      "cases": [
+        {
+          "subject": "",
+          "expected": true
+        },
+        {
+          "subject": "a",
+          "expected": true
+        },
+        {
+          "subject": "b",
+          "expected": true
+        },
+        {
+          "subject": "ab",
+          "expected": true
+        },
+        {
+          "subject": "aa",
+          "expected": true
+        },
+        {
+          "subject": "ba",
+          "expected": true
+        },
+        {
+          "subject": "a\n",
+          "expected": true
+        },
+        {
+          "subject": "\n",
+          "expected": true
+        },
+        {
+          "subject": "\r",
+          "expected": true
+        },
+        {
+          "subject": "\u0000",
+          "expected": true
+        },
+        {
+          "subject": "",
+          "expected": true
+        },
+        {
+          "subject": "ab\r",
+          "expected": true
+        }
+      ]
+    },
+    {
+      "pattern": "(^((([\\x61\\x62])|.|[\\x61\\x62]))$)",
+      "cases": [
+        {
+          "subject": "",
+          "expected": false
+        },
+        {
+          "subject": "a",
+          "expected": true
+        },
+        {
+          "subject": "b",
+          "expected": true
+        },
+        {
+          "subject": "ab",
+          "expected": false
+        },
+        {
+          "subject": "aa",
+          "expected": false
+        },
+        {
+          "subject": "ba",
+          "expected": false
+        },
+        {
+          "subject": "a\n",
+          "expected": false
+        },
+        {
+          "subject": "\n",
+          "expected": false
+        },
+        {
+          "subject": "\r",
+          "expected": true
+        },
+        {
+          "subject": "\u0000",
+          "expected": true
+        },
+        {
+          "subject": "",
+          "expected": true
+        },
+        {
+          "subject": "ab\r",
+          "expected": false
+        }
+      ]
+    },
+    {
+      "pattern": "((\\x09){2,3}((.|\\x0a)){0,2}[\\x61\\x62])",
+      "cases": [
+        {
+          "subject": "",
+          "expected": false
+        },
+        {
+          "subject": "a",
+          "expected": false
+        },
+        {
+          "subject": "b",
+          "expected": false
+        },
+        {
+          "subject": "ab",
+          "expected": false
+        },
+        {
+          "subject": "aa",
+          "expected": false
+        },
+        {
+          "subject": "ba",
+          "expected": false
+        },
+        {
+          "subject": "a\n",
+          "expected": false
+        },
+        {
+          "subject": "\n",
+          "expected": false
+        },
+        {
+          "subject": "\r",
+          "expected": false
+        },
+        {
+          "subject": "\u0000",
+          "expected": false
+        },
+        {
+          "subject": "",
+          "expected": false
+        },
+        {
+          "subject": "ab\r",
+          "expected": false
+        }
+      ]
+    },
+    {
+      "pattern": "(()|\\x62)",
+      "cases": [
+        {
+          "subject": "",
+          "expected": true
+        },
+        {
+          "subject": "a",
+          "expected": true
+        },
+        {
+          "subject": "b",
+          "expected": true
+        },
+        {
+          "subject": "ab",
+          "expected": true
+        },
+        {
+          "subject": "aa",
+          "expected": true
+        },
+        {
+          "subject": "ba",
+          "expected": true
+        },
+        {
+          "subject": "a\n",
+          "expected": true
+        },
+        {
+          "subject": "\n",
+          "expected": true
+        },
+        {
+          "subject": "\r",
+          "expected": true
+        },
+        {
+          "subject": "\u0000",
+          "expected": true
+        },
+        {
+          "subject": "",
+          "expected": true
+        },
+        {
+          "subject": "ab\r",
+          "expected": true
+        }
+      ]
+    },
+    {
+      "pattern": "(^(((\\x0a.())){1,2})$)",
+      "cases": [
+        {
+          "subject": "",
+          "expected": false
+        },
+        {
+          "subject": "a",
+          "expected": false
+        },
+        {
+          "subject": "b",
+          "expected": false
+        },
+        {
+          "subject": "ab",
+          "expected": false
+        },
+        {
+          "subject": "aa",
+          "expected": false
+        },
+        {
+          "subject": "ba",
+          "expected": false
+        },
+        {
+          "subject": "a\n",
+          "expected": false
+        },
+        {
+          "subject": "\n",
+          "expected": false
+        },
+        {
+          "subject": "\r",
+          "expected": false
+        },
+        {
+          "subject": "\u0000",
+          "expected": false
+        },
+        {
+          "subject": "",
+          "expected": false
+        },
+        {
+          "subject": "ab\r",
+          "expected": false
+        }
+      ]
+    },
+    {
+      "pattern": "(^()$)",
+      "cases": [
+        {
+          "subject": "",
+          "expected": true
+        },
+        {
+          "subject": "a",
+          "expected": false
+        },
+        {
+          "subject": "b",
+          "expected": false
+        },
+        {
+          "subject": "ab",
+          "expected": false
+        },
+        {
+          "subject": "aa",
+          "expected": false
+        },
+        {
+          "subject": "ba",
+          "expected": false
+        },
+        {
+          "subject": "a\n",
+          "expected": false
+        },
+        {
+          "subject": "\n",
+          "expected": false
+        },
+        {
+          "subject": "\r",
+          "expected": false
+        },
+        {
+          "subject": "\u0000",
+          "expected": false
+        },
+        {
+          "subject": "",
+          "expected": false
+        },
+        {
+          "subject": "ab\r",
+          "expected": false
+        }
+      ]
+    },
+    {
+      "pattern": "(.){0,1}",
+      "cases": [
+        {
+          "subject": "",
+          "expected": true
+        },
+        {
+          "subject": "a",
+          "expected": true
+        },
+        {
+          "subject": "b",
+          "expected": true
+        },
+        {
+          "subject": "ab",
+          "expected": true
+        },
+        {
+          "subject": "aa",
+          "expected": true
+        },
+        {
+          "subject": "ba",
+          "expected": true
+        },
+        {
+          "subject": "a\n",
+          "expected": true
+        },
+        {
+          "subject": "\n",
+          "expected": true
+        },
+        {
+          "subject": "\r",
+          "expected": true
+        },
+        {
+          "subject": "\u0000",
+          "expected": true
+        },
+        {
+          "subject": "",
+          "expected": true
+        },
+        {
+          "subject": "ab\r",
+          "expected": true
+        }
+      ]
+    },
+    {
+      "pattern": "(^(((()){0,2}|(.){2,2})((\\x09){0,0}|([\\x61\\x62]())|(.))((\\x7f)){0,2})$)",
+      "cases": [
+        {
+          "subject": "",
+          "expected": true
+        },
+        {
+          "subject": "a",
+          "expected": true
+        },
+        {
+          "subject": "b",
+          "expected": true
+        },
+        {
+          "subject": "ab",
+          "expected": true
+        },
+        {
+          "subject": "aa",
+          "expected": true
+        },
+        {
+          "subject": "ba",
+          "expected": true
+        },
+        {
+          "subject": "a\n",
+          "expected": false
+        },
+        {
+          "subject": "\n",
+          "expected": false
+        },
+        {
+          "subject": "\r",
+          "expected": true
+        },
+        {
+          "subject": "\u0000",
+          "expected": true
+        },
+        {
+          "subject": "",
+          "expected": true
+        },
+        {
+          "subject": "ab\r",
+          "expected": true
+        }
+      ]
+    },
+    {
+      "pattern": "(^(\\x0a((\\x61|[\\x61\\x62]|.)))$)",
+      "cases": [
+        {
+          "subject": "",
+          "expected": false
+        },
+        {
+          "subject": "a",
+          "expected": false
+        },
+        {
+          "subject": "b",
+          "expected": false
+        },
+        {
+          "subject": "ab",
+          "expected": false
+        },
+        {
+          "subject": "aa",
+          "expected": false
+        },
+        {
+          "subject": "ba",
+          "expected": false
+        },
+        {
+          "subject": "a\n",
+          "expected": false
+        },
+        {
+          "subject": "\n",
+          "expected": false
+        },
+        {
+          "subject": "\r",
+          "expected": false
+        },
+        {
+          "subject": "\u0000",
+          "expected": false
+        },
+        {
+          "subject": "",
+          "expected": false
+        },
+        {
+          "subject": "ab\r",
+          "expected": false
+        }
+      ]
+    },
+    {
+      "pattern": "(^((([\\x61\\x62])|(.)|([\\x61\\x62]){1,2})\\x62((\\x09|[\\x61\\x62])|(\\x61)|\\x61))$)",
+      "cases": [
+        {
+          "subject": "",
+          "expected": false
+        },
+        {
+          "subject": "a",
+          "expected": false
+        },
+        {
+          "subject": "b",
+          "expected": false
+        },
+        {
+          "subject": "ab",
+          "expected": false
+        },
+        {
+          "subject": "aa",
+          "expected": false
+        },
+        {
+          "subject": "ba",
+          "expected": false
+        },
+        {
+          "subject": "a\n",
+          "expected": false
+        },
+        {
+          "subject": "\n",
+          "expected": false
+        },
+        {
+          "subject": "\r",
+          "expected": false
+        },
+        {
+          "subject": "\u0000",
+          "expected": false
+        },
+        {
+          "subject": "",
+          "expected": false
+        },
+        {
+          "subject": "ab\r",
+          "expected": false
+        }
+      ]
+    },
+    {
+      "pattern": "(((.){1,3}){1,3}|([\\x61\\x62]){0,2})",
+      "cases": [
+        {
+          "subject": "",
+          "expected": true
+        },
+        {
+          "subject": "a",
+          "expected": true
+        },
+        {
+          "subject": "b",
+          "expected": true
+        },
+        {
+          "subject": "ab",
+          "expected": true
+        },
+        {
+          "subject": "aa",
+          "expected": true
+        },
+        {
+          "subject": "ba",
+          "expected": true
+        },
+        {
+          "subject": "a\n",
+          "expected": true
+        },
+        {
+          "subject": "\n",
+          "expected": true
+        },
+        {
+          "subject": "\r",
+          "expected": true
+        },
+        {
+          "subject": "\u0000",
+          "expected": true
+        },
+        {
+          "subject": "",
+          "expected": true
+        },
+        {
+          "subject": "ab\r",
+          "expected": true
+        }
+      ]
+    },
+    {
+      "pattern": "(^((([\\x61\\x62]|.)){1,2})$)",
+      "cases": [
+        {
+          "subject": "",
+          "expected": false
+        },
+        {
+          "subject": "a",
+          "expected": true
+        },
+        {
+          "subject": "b",
+          "expected": true
+        },
+        {
+          "subject": "ab",
+          "expected": true
+        },
+        {
+          "subject": "aa",
+          "expected": true
+        },
+        {
+          "subject": "ba",
+          "expected": true
+        },
+        {
+          "subject": "a\n",
+          "expected": false
+        },
+        {
+          "subject": "\n",
+          "expected": false
+        },
+        {
+          "subject": "\r",
+          "expected": true
+        },
+        {
+          "subject": "\u0000",
+          "expected": true
+        },
+        {
+          "subject": "",
+          "expected": true
+        },
+        {
+          "subject": "ab\r",
+          "expected": false
+        }
+      ]
+    },
+    {
+      "pattern": "(^(((.){0,2}([\\x61\\x62]){0,2}.)|((\\x09|[\\x61\\x62]|\\x61)|\\x0d|(\\x61)))$)",
+      "cases": [
+        {
+          "subject": "",
+          "expected": false
+        },
+        {
+          "subject": "a",
+          "expected": true
+        },
+        {
+          "subject": "b",
+          "expected": true
+        },
+        {
+          "subject": "ab",
+          "expected": true
+        },
+        {
+          "subject": "aa",
+          "expected": true
+        },
+        {
+          "subject": "ba",
+          "expected": true
+        },
+        {
+          "subject": "a\n",
+          "expected": false
+        },
+        {
+          "subject": "\n",
+          "expected": false
+        },
+        {
+          "subject": "\r",
+          "expected": true
+        },
+        {
+          "subject": "\u0000",
+          "expected": true
+        },
+        {
+          "subject": "",
+          "expected": true
+        },
+        {
+          "subject": "ab\r",
+          "expected": true
+        }
+      ]
+    },
+    {
+      "pattern": "(^[\\x61\\x62]$)",
+      "cases": [
+        {
+          "subject": "",
+          "expected": false
+        },
+        {
+          "subject": "a",
+          "expected": true
+        },
+        {
+          "subject": "b",
+          "expected": true
+        },
+        {
+          "subject": "ab",
+          "expected": false
+        },
+        {
+          "subject": "aa",
+          "expected": false
+        },
+        {
+          "subject": "ba",
+          "expected": false
+        },
+        {
+          "subject": "a\n",
+          "expected": false
+        },
+        {
+          "subject": "\n",
+          "expected": false
+        },
+        {
+          "subject": "\r",
+          "expected": false
+        },
+        {
+          "subject": "\u0000",
+          "expected": false
+        },
+        {
+          "subject": "",
+          "expected": false
+        },
+        {
+          "subject": "ab\r",
+          "expected": false
+        }
+      ]
+    },
+    {
+      "pattern": "(()((()[\\x61\\x62])|(.){0,0}|([\\x61\\x62]\\x7f)))",
+      "cases": [
+        {
+          "subject": "",
+          "expected": true
+        },
+        {
+          "subject": "a",
+          "expected": true
+        },
+        {
+          "subject": "b",
+          "expected": true
+        },
+        {
+          "subject": "ab",
+          "expected": true
+        },
+        {
+          "subject": "aa",
+          "expected": true
+        },
+        {
+          "subject": "ba",
+          "expected": true
+        },
+        {
+          "subject": "a\n",
+          "expected": true
+        },
+        {
+          "subject": "\n",
+          "expected": true
+        },
+        {
+          "subject": "\r",
+          "expected": true
+        },
+        {
+          "subject": "\u0000",
+          "expected": true
+        },
+        {
+          "subject": "",
+          "expected": true
+        },
+        {
+          "subject": "ab\r",
+          "expected": true
+        }
+      ]
+    },
+    {
+      "pattern": "(())",
+      "cases": [
+        {
+          "subject": "",
+          "expected": true
+        },
+        {
+          "subject": "a",
+          "expected": true
+        },
+        {
+          "subject": "b",
+          "expected": true
+        },
+        {
+          "subject": "ab",
+          "expected": true
+        },
+        {
+          "subject": "aa",
+          "expected": true
+        },
+        {
+          "subject": "ba",
+          "expected": true
+        },
+        {
+          "subject": "a\n",
+          "expected": true
+        },
+        {
+          "subject": "\n",
+          "expected": true
+        },
+        {
+          "subject": "\r",
+          "expected": true
+        },
+        {
+          "subject": "\u0000",
+          "expected": true
+        },
+        {
+          "subject": "",
+          "expected": true
+        },
+        {
+          "subject": "ab\r",
+          "expected": true
+        }
+      ]
+    },
+    {
+      "pattern": "(^(((\\x09){2,3})(([\\x61\\x62]..)|(())|\\x0a)((.){0,1}){2,3})$)",
+      "cases": [
+        {
+          "subject": "",
+          "expected": false
+        },
+        {
+          "subject": "a",
+          "expected": false
+        },
+        {
+          "subject": "b",
+          "expected": false
+        },
+        {
+          "subject": "ab",
+          "expected": false
+        },
+        {
+          "subject": "aa",
+          "expected": false
+        },
+        {
+          "subject": "ba",
+          "expected": false
+        },
+        {
+          "subject": "a\n",
+          "expected": false
+        },
+        {
+          "subject": "\n",
+          "expected": false
+        },
+        {
+          "subject": "\r",
+          "expected": false
+        },
+        {
+          "subject": "\u0000",
+          "expected": false
+        },
+        {
+          "subject": "",
+          "expected": false
+        },
+        {
+          "subject": "ab\r",
+          "expected": false
+        }
+      ]
+    },
+    {
+      "pattern": "(^(((\\x0a|.|\\x00))){1,2}$)",
+      "cases": [
+        {
+          "subject": "",
+          "expected": false
+        },
+        {
+          "subject": "a",
+          "expected": true
+        },
+        {
+          "subject": "b",
+          "expected": true
+        },
+        {
+          "subject": "ab",
+          "expected": true
+        },
+        {
+          "subject": "aa",
+          "expected": true
+        },
+        {
+          "subject": "ba",
+          "expected": true
+        },
+        {
+          "subject": "a\n",
+          "expected": true
+        },
+        {
+          "subject": "\n",
+          "expected": true
+        },
+        {
+          "subject": "\r",
+          "expected": true
+        },
+        {
+          "subject": "\u0000",
+          "expected": true
+        },
+        {
+          "subject": "",
+          "expected": true
+        },
+        {
+          "subject": "ab\r",
+          "expected": false
+        }
+      ]
+    },
+    {
+      "pattern": "(((().)){2,2})",
+      "cases": [
+        {
+          "subject": "",
+          "expected": false
+        },
+        {
+          "subject": "a",
+          "expected": false
+        },
+        {
+          "subject": "b",
+          "expected": false
+        },
+        {
+          "subject": "ab",
+          "expected": true
+        },
+        {
+          "subject": "aa",
+          "expected": true
+        },
+        {
+          "subject": "ba",
+          "expected": true
+        },
+        {
+          "subject": "a\n",
+          "expected": false
+        },
+        {
+          "subject": "\n",
+          "expected": false
+        },
+        {
+          "subject": "\r",
+          "expected": false
+        },
+        {
+          "subject": "\u0000",
+          "expected": false
+        },
+        {
+          "subject": "",
+          "expected": false
+        },
+        {
+          "subject": "ab\r",
+          "expected": true
+        }
+      ]
+    },
+    {
+      "pattern": "(((.|[\\x61\\x62]|()))|(\\x7f\\x00)|((\\x61){0,3}(.)))",
+      "cases": [
+        {
+          "subject": "",
+          "expected": true
+        },
+        {
+          "subject": "a",
+          "expected": true
+        },
+        {
+          "subject": "b",
+          "expected": true
+        },
+        {
+          "subject": "ab",
+          "expected": true
+        },
+        {
+          "subject": "aa",
+          "expected": true
+        },
+        {
+          "subject": "ba",
+          "expected": true
+        },
+        {
+          "subject": "a\n",
+          "expected": true
+        },
+        {
+          "subject": "\n",
+          "expected": true
+        },
+        {
+          "subject": "\r",
+          "expected": true
+        },
+        {
+          "subject": "\u0000",
+          "expected": true
+        },
+        {
+          "subject": "",
+          "expected": true
+        },
+        {
+          "subject": "ab\r",
+          "expected": true
+        }
+      ]
+    },
+    {
+      "pattern": "(^(((()|[\\x61\\x62])([\\x61\\x62]|.)(()){0,0})|((\\x62){2,3}){0,3})$)",
+      "cases": [
+        {
+          "subject": "",
+          "expected": true
+        },
+        {
+          "subject": "a",
+          "expected": true
+        },
+        {
+          "subject": "b",
+          "expected": true
+        },
+        {
+          "subject": "ab",
+          "expected": true
+        },
+        {
+          "subject": "aa",
+          "expected": true
+        },
+        {
+          "subject": "ba",
+          "expected": true
+        },
+        {
+          "subject": "a\n",
+          "expected": false
+        },
+        {
+          "subject": "\n",
+          "expected": false
+        },
+        {
+          "subject": "\r",
+          "expected": true
+        },
+        {
+          "subject": "\u0000",
+          "expected": true
+        },
+        {
+          "subject": "",
+          "expected": true
+        },
+        {
+          "subject": "ab\r",
+          "expected": false
+        }
+      ]
+    },
+    {
+      "pattern": "(^(((()))|\\x09)$)",
+      "cases": [
+        {
+          "subject": "",
+          "expected": true
+        },
+        {
+          "subject": "a",
+          "expected": false
+        },
+        {
+          "subject": "b",
+          "expected": false
+        },
+        {
+          "subject": "ab",
+          "expected": false
+        },
+        {
+          "subject": "aa",
+          "expected": false
+        },
+        {
+          "subject": "ba",
+          "expected": false
+        },
+        {
+          "subject": "a\n",
+          "expected": false
+        },
+        {
+          "subject": "\n",
+          "expected": false
+        },
+        {
+          "subject": "\r",
+          "expected": false
+        },
+        {
+          "subject": "\u0000",
+          "expected": false
+        },
+        {
+          "subject": "",
+          "expected": false
+        },
+        {
+          "subject": "ab\r",
+          "expected": false
+        }
+      ]
+    },
+    {
+      "pattern": "(((.){2,2}|(\\x09){0,3}|())[\\x61\\x62])",
+      "cases": [
+        {
+          "subject": "",
+          "expected": false
+        },
+        {
+          "subject": "a",
+          "expected": true
+        },
+        {
+          "subject": "b",
+          "expected": true
+        },
+        {
+          "subject": "ab",
+          "expected": true
+        },
+        {
+          "subject": "aa",
+          "expected": true
+        },
+        {
+          "subject": "ba",
+          "expected": true
+        },
+        {
+          "subject": "a\n",
+          "expected": true
+        },
+        {
+          "subject": "\n",
+          "expected": false
+        },
+        {
+          "subject": "\r",
+          "expected": false
+        },
+        {
+          "subject": "\u0000",
+          "expected": false
+        },
+        {
+          "subject": "",
+          "expected": false
+        },
+        {
+          "subject": "ab\r",
+          "expected": true
+        }
+      ]
+    },
+    {
+      "pattern": "(^(((()){0,0}|(.){2,3})){0,2}$)",
+      "cases": [
+        {
+          "subject": "",
+          "expected": true
+        },
+        {
+          "subject": "a",
+          "expected": false
+        },
+        {
+          "subject": "b",
+          "expected": false
+        },
+        {
+          "subject": "ab",
+          "expected": true
+        },
+        {
+          "subject": "aa",
+          "expected": true
+        },
+        {
+          "subject": "ba",
+          "expected": true
+        },
+        {
+          "subject": "a\n",
+          "expected": false
+        },
+        {
+          "subject": "\n",
+          "expected": false
+        },
+        {
+          "subject": "\r",
+          "expected": false
+        },
+        {
+          "subject": "\u0000",
+          "expected": false
+        },
+        {
+          "subject": "",
+          "expected": false
+        },
+        {
+          "subject": "ab\r",
+          "expected": true
+        }
+      ]
+    },
+    {
+      "pattern": "(^(()|((()|())|())|(([\\x61\\x62])))$)",
+      "cases": [
+        {
+          "subject": "",
+          "expected": true
+        },
+        {
+          "subject": "a",
+          "expected": true
+        },
+        {
+          "subject": "b",
+          "expected": true
+        },
+        {
+          "subject": "ab",
+          "expected": false
+        },
+        {
+          "subject": "aa",
+          "expected": false
+        },
+        {
+          "subject": "ba",
+          "expected": false
+        },
+        {
+          "subject": "a\n",
+          "expected": false
+        },
+        {
+          "subject": "\n",
+          "expected": false
+        },
+        {
+          "subject": "\r",
+          "expected": false
+        },
+        {
+          "subject": "\u0000",
+          "expected": false
+        },
+        {
+          "subject": "",
+          "expected": false
+        },
+        {
+          "subject": "ab\r",
+          "expected": false
+        }
+      ]
+    },
+    {
+      "pattern": "\\x62",
+      "cases": [
+        {
+          "subject": "",
+          "expected": false
+        },
+        {
+          "subject": "a",
+          "expected": false
+        },
+        {
+          "subject": "b",
+          "expected": true
+        },
+        {
+          "subject": "ab",
+          "expected": true
+        },
+        {
+          "subject": "aa",
+          "expected": false
+        },
+        {
+          "subject": "ba",
+          "expected": true
+        },
+        {
+          "subject": "a\n",
+          "expected": false
+        },
+        {
+          "subject": "\n",
+          "expected": false
+        },
+        {
+          "subject": "\r",
+          "expected": false
+        },
+        {
+          "subject": "\u0000",
+          "expected": false
+        },
+        {
+          "subject": "",
+          "expected": false
+        },
+        {
+          "subject": "ab\r",
+          "expected": true
+        }
+      ]
+    },
+    {
+      "pattern": "(((\\x0d){2,3}(()){2,2}))",
+      "cases": [
+        {
+          "subject": "",
+          "expected": false
+        },
+        {
+          "subject": "a",
+          "expected": false
+        },
+        {
+          "subject": "b",
+          "expected": false
+        },
+        {
+          "subject": "ab",
+          "expected": false
+        },
+        {
+          "subject": "aa",
+          "expected": false
+        },
+        {
+          "subject": "ba",
+          "expected": false
+        },
+        {
+          "subject": "a\n",
+          "expected": false
+        },
+        {
+          "subject": "\n",
+          "expected": false
+        },
+        {
+          "subject": "\r",
+          "expected": false
+        },
+        {
+          "subject": "\u0000",
+          "expected": false
+        },
+        {
+          "subject": "",
+          "expected": false
+        },
+        {
+          "subject": "ab\r",
+          "expected": false
+        }
+      ]
+    },
+    {
+      "pattern": "(((()){2,3}){0,0}){0,1}",
+      "cases": [
+        {
+          "subject": "",
+          "expected": true
+        },
+        {
+          "subject": "a",
+          "expected": true
+        },
+        {
+          "subject": "b",
+          "expected": true
+        },
+        {
+          "subject": "ab",
+          "expected": true
+        },
+        {
+          "subject": "aa",
+          "expected": true
+        },
+        {
+          "subject": "ba",
+          "expected": true
+        },
+        {
+          "subject": "a\n",
+          "expected": true
+        },
+        {
+          "subject": "\n",
+          "expected": true
+        },
+        {
+          "subject": "\r",
+          "expected": true
+        },
+        {
+          "subject": "\u0000",
+          "expected": true
+        },
+        {
+          "subject": "",
+          "expected": true
+        },
+        {
+          "subject": "ab\r",
+          "expected": true
+        }
+      ]
+    },
+    {
+      "pattern": "(^\\x0d$)",
+      "cases": [
+        {
+          "subject": "",
+          "expected": false
+        },
+        {
+          "subject": "a",
+          "expected": false
+        },
+        {
+          "subject": "b",
+          "expected": false
+        },
+        {
+          "subject": "ab",
+          "expected": false
+        },
+        {
+          "subject": "aa",
+          "expected": false
+        },
+        {
+          "subject": "ba",
+          "expected": false
+        },
+        {
+          "subject": "a\n",
+          "expected": false
+        },
+        {
+          "subject": "\n",
+          "expected": false
+        },
+        {
+          "subject": "\r",
+          "expected": true
+        },
+        {
+          "subject": "\u0000",
+          "expected": false
+        },
+        {
+          "subject": "",
+          "expected": false
+        },
+        {
+          "subject": "ab\r",
+          "expected": false
+        }
+      ]
+    },
+    {
+      "pattern": "()",
+      "cases": [
+        {
+          "subject": "",
+          "expected": true
+        },
+        {
+          "subject": "a",
+          "expected": true
+        },
+        {
+          "subject": "b",
+          "expected": true
+        },
+        {
+          "subject": "ab",
+          "expected": true
+        },
+        {
+          "subject": "aa",
+          "expected": true
+        },
+        {
+          "subject": "ba",
+          "expected": true
+        },
+        {
+          "subject": "a\n",
+          "expected": true
+        },
+        {
+          "subject": "\n",
+          "expected": true
+        },
+        {
+          "subject": "\r",
+          "expected": true
+        },
+        {
+          "subject": "\u0000",
+          "expected": true
+        },
+        {
+          "subject": "",
+          "expected": true
+        },
+        {
+          "subject": "ab\r",
+          "expected": true
+        }
+      ]
+    },
+    {
+      "pattern": "(((.)){1,2}((.)){1,2}[\\x61\\x62])",
+      "cases": [
+        {
+          "subject": "",
+          "expected": false
+        },
+        {
+          "subject": "a",
+          "expected": false
+        },
+        {
+          "subject": "b",
+          "expected": false
+        },
+        {
+          "subject": "ab",
+          "expected": false
+        },
+        {
+          "subject": "aa",
+          "expected": false
+        },
+        {
+          "subject": "ba",
+          "expected": false
+        },
+        {
+          "subject": "a\n",
+          "expected": false
+        },
+        {
+          "subject": "\n",
+          "expected": false
+        },
+        {
+          "subject": "\r",
+          "expected": false
+        },
+        {
+          "subject": "\u0000",
+          "expected": false
+        },
+        {
+          "subject": "",
+          "expected": false
+        },
+        {
+          "subject": "ab\r",
+          "expected": false
+        }
+      ]
+    },
+    {
+      "pattern": "(^(((\\x7f..))){1,2}$)",
+      "cases": [
+        {
+          "subject": "",
+          "expected": false
+        },
+        {
+          "subject": "a",
+          "expected": false
+        },
+        {
+          "subject": "b",
+          "expected": false
+        },
+        {
+          "subject": "ab",
+          "expected": false
+        },
+        {
+          "subject": "aa",
+          "expected": false
+        },
+        {
+          "subject": "ba",
+          "expected": false
+        },
+        {
+          "subject": "a\n",
+          "expected": false
+        },
+        {
+          "subject": "\n",
+          "expected": false
+        },
+        {
+          "subject": "\r",
+          "expected": false
+        },
+        {
+          "subject": "\u0000",
+          "expected": false
+        },
+        {
+          "subject": "",
+          "expected": false
+        },
+        {
+          "subject": "ab\r",
+          "expected": false
+        }
+      ]
+    },
+    {
+      "pattern": "(^(()){2,3}$)",
+      "cases": [
+        {
+          "subject": "",
+          "expected": true
+        },
+        {
+          "subject": "a",
+          "expected": false
+        },
+        {
+          "subject": "b",
+          "expected": false
+        },
+        {
+          "subject": "ab",
+          "expected": false
+        },
+        {
+          "subject": "aa",
+          "expected": false
+        },
+        {
+          "subject": "ba",
+          "expected": false
+        },
+        {
+          "subject": "a\n",
+          "expected": false
+        },
+        {
+          "subject": "\n",
+          "expected": false
+        },
+        {
+          "subject": "\r",
+          "expected": false
+        },
+        {
+          "subject": "\u0000",
+          "expected": false
+        },
+        {
+          "subject": "",
+          "expected": false
+        },
+        {
+          "subject": "ab\r",
+          "expected": false
+        }
+      ]
+    },
+    {
+      "pattern": "(((..)){0,2}|((.\\x0a)\\x7f([\\x61\\x62]){1,3})|())",
+      "cases": [
+        {
+          "subject": "",
+          "expected": true
+        },
+        {
+          "subject": "a",
+          "expected": true
+        },
+        {
+          "subject": "b",
+          "expected": true
+        },
+        {
+          "subject": "ab",
+          "expected": true
+        },
+        {
+          "subject": "aa",
+          "expected": true
+        },
+        {
+          "subject": "ba",
+          "expected": true
+        },
+        {
+          "subject": "a\n",
+          "expected": true
+        },
+        {
+          "subject": "\n",
+          "expected": true
+        },
+        {
+          "subject": "\r",
+          "expected": true
+        },
+        {
+          "subject": "\u0000",
+          "expected": true
+        },
+        {
+          "subject": "",
+          "expected": true
+        },
+        {
+          "subject": "ab\r",
+          "expected": true
+        }
+      ]
+    },
+    {
+      "pattern": "(^\\x62$)",
+      "cases": [
+        {
+          "subject": "",
+          "expected": false
+        },
+        {
+          "subject": "a",
+          "expected": false
+        },
+        {
+          "subject": "b",
+          "expected": true
+        },
+        {
+          "subject": "ab",
+          "expected": false
+        },
+        {
+          "subject": "aa",
+          "expected": false
+        },
+        {
+          "subject": "ba",
+          "expected": false
+        },
+        {
+          "subject": "a\n",
+          "expected": false
+        },
+        {
+          "subject": "\n",
+          "expected": false
+        },
+        {
+          "subject": "\r",
+          "expected": false
+        },
+        {
+          "subject": "\u0000",
+          "expected": false
+        },
+        {
+          "subject": "",
+          "expected": false
+        },
+        {
+          "subject": "ab\r",
+          "expected": false
+        }
+      ]
+    },
+    {
+      "pattern": "(((()|[\\x61\\x62]|()))){2,2}",
+      "cases": [
+        {
+          "subject": "",
+          "expected": true
+        },
+        {
+          "subject": "a",
+          "expected": true
+        },
+        {
+          "subject": "b",
+          "expected": true
+        },
+        {
+          "subject": "ab",
+          "expected": true
+        },
+        {
+          "subject": "aa",
+          "expected": true
+        },
+        {
+          "subject": "ba",
+          "expected": true
+        },
+        {
+          "subject": "a\n",
+          "expected": true
+        },
+        {
+          "subject": "\n",
+          "expected": true
+        },
+        {
+          "subject": "\r",
+          "expected": true
+        },
+        {
+          "subject": "\u0000",
+          "expected": true
+        },
+        {
+          "subject": "",
+          "expected": true
+        },
+        {
+          "subject": "ab\r",
+          "expected": true
+        }
+      ]
+    },
+    {
+      "pattern": "()",
+      "cases": [
+        {
+          "subject": "",
+          "expected": true
+        },
+        {
+          "subject": "a",
+          "expected": true
+        },
+        {
+          "subject": "b",
+          "expected": true
+        },
+        {
+          "subject": "ab",
+          "expected": true
+        },
+        {
+          "subject": "aa",
+          "expected": true
+        },
+        {
+          "subject": "ba",
+          "expected": true
+        },
+        {
+          "subject": "a\n",
+          "expected": true
+        },
+        {
+          "subject": "\n",
+          "expected": true
+        },
+        {
+          "subject": "\r",
+          "expected": true
+        },
+        {
+          "subject": "\u0000",
+          "expected": true
+        },
+        {
+          "subject": "",
+          "expected": true
+        },
+        {
+          "subject": "ab\r",
+          "expected": true
+        }
+      ]
+    },
+    {
+      "pattern": "(^(((()){0,3}|(\\x7f){1,1}|(\\x00|.))((()|\\x62))((\\x0d){1,1}))$)",
+      "cases": [
+        {
+          "subject": "",
+          "expected": false
+        },
+        {
+          "subject": "a",
+          "expected": false
+        },
+        {
+          "subject": "b",
+          "expected": false
+        },
+        {
+          "subject": "ab",
+          "expected": false
+        },
+        {
+          "subject": "aa",
+          "expected": false
+        },
+        {
+          "subject": "ba",
+          "expected": false
+        },
+        {
+          "subject": "a\n",
+          "expected": false
+        },
+        {
+          "subject": "\n",
+          "expected": false
+        },
+        {
+          "subject": "\r",
+          "expected": true
+        },
+        {
+          "subject": "\u0000",
+          "expected": false
+        },
+        {
+          "subject": "",
+          "expected": false
+        },
+        {
+          "subject": "ab\r",
+          "expected": true
+        }
+      ]
+    },
+    {
+      "pattern": "(^((.){2,2}|(([\\x61\\x62]|()|[\\x61\\x62])\\x62)|((()){1,2}|([\\x61\\x62]|.|\\x0a)))$)",
+      "cases": [
+        {
+          "subject": "",
+          "expected": true
+        },
+        {
+          "subject": "a",
+          "expected": true
+        },
+        {
+          "subject": "b",
+          "expected": true
+        },
+        {
+          "subject": "ab",
+          "expected": true
+        },
+        {
+          "subject": "aa",
+          "expected": true
+        },
+        {
+          "subject": "ba",
+          "expected": true
+        },
+        {
+          "subject": "a\n",
+          "expected": false
+        },
+        {
+          "subject": "\n",
+          "expected": true
+        },
+        {
+          "subject": "\r",
+          "expected": true
+        },
+        {
+          "subject": "\u0000",
+          "expected": true
+        },
+        {
+          "subject": "",
+          "expected": true
+        },
+        {
+          "subject": "ab\r",
+          "expected": false
+        }
+      ]
+    },
+    {
+      "pattern": "(^(((.))|((..())))$)",
+      "cases": [
+        {
+          "subject": "",
+          "expected": false
+        },
+        {
+          "subject": "a",
+          "expected": true
+        },
+        {
+          "subject": "b",
+          "expected": true
+        },
+        {
+          "subject": "ab",
+          "expected": true
+        },
+        {
+          "subject": "aa",
+          "expected": true
+        },
+        {
+          "subject": "ba",
+          "expected": true
+        },
+        {
+          "subject": "a\n",
+          "expected": false
+        },
+        {
+          "subject": "\n",
+          "expected": false
+        },
+        {
+          "subject": "\r",
+          "expected": true
+        },
+        {
+          "subject": "\u0000",
+          "expected": true
+        },
+        {
+          "subject": "",
+          "expected": true
+        },
+        {
+          "subject": "ab\r",
+          "expected": false
+        }
+      ]
+    },
+    {
+      "pattern": "(((()){0,3}|(.)|([\\x61\\x62]){2,2})){2,2}",
+      "cases": [
+        {
+          "subject": "",
+          "expected": true
+        },
+        {
+          "subject": "a",
+          "expected": true
+        },
+        {
+          "subject": "b",
+          "expected": true
+        },
+        {
+          "subject": "ab",
+          "expected": true
+        },
+        {
+          "subject": "aa",
+          "expected": true
+        },
+        {
+          "subject": "ba",
+          "expected": true
+        },
+        {
+          "subject": "a\n",
+          "expected": true
+        },
+        {
+          "subject": "\n",
+          "expected": true
+        },
+        {
+          "subject": "\r",
+          "expected": true
+        },
+        {
+          "subject": "\u0000",
+          "expected": true
+        },
+        {
+          "subject": "",
+          "expected": true
+        },
+        {
+          "subject": "ab\r",
+          "expected": true
+        }
+      ]
+    },
+    {
+      "pattern": "(((.|())|(.))|(([\\x61\\x62]){1,3}(()){1,3}([\\x61\\x62]){0,1}))",
+      "cases": [
+        {
+          "subject": "",
+          "expected": true
+        },
+        {
+          "subject": "a",
+          "expected": true
+        },
+        {
+          "subject": "b",
+          "expected": true
+        },
+        {
+          "subject": "ab",
+          "expected": true
+        },
+        {
+          "subject": "aa",
+          "expected": true
+        },
+        {
+          "subject": "ba",
+          "expected": true
+        },
+        {
+          "subject": "a\n",
+          "expected": true
+        },
+        {
+          "subject": "\n",
+          "expected": true
+        },
+        {
+          "subject": "\r",
+          "expected": true
+        },
+        {
+          "subject": "\u0000",
+          "expected": true
+        },
+        {
+          "subject": "",
+          "expected": true
+        },
+        {
+          "subject": "ab\r",
+          "expected": true
+        }
+      ]
+    },
+    {
+      "pattern": "[\\x61\\x62]",
+      "cases": [
+        {
+          "subject": "",
+          "expected": false
+        },
+        {
+          "subject": "a",
+          "expected": true
+        },
+        {
+          "subject": "b",
+          "expected": true
+        },
+        {
+          "subject": "ab",
+          "expected": true
+        },
+        {
+          "subject": "aa",
+          "expected": true
+        },
+        {
+          "subject": "ba",
+          "expected": true
+        },
+        {
+          "subject": "a\n",
+          "expected": true
+        },
+        {
+          "subject": "\n",
+          "expected": false
+        },
+        {
+          "subject": "\r",
+          "expected": false
+        },
+        {
+          "subject": "\u0000",
+          "expected": false
+        },
+        {
+          "subject": "",
+          "expected": false
+        },
+        {
+          "subject": "ab\r",
+          "expected": true
+        }
+      ]
+    },
+    {
+      "pattern": "[\\x61\\x62]",
+      "cases": [
+        {
+          "subject": "",
+          "expected": false
+        },
+        {
+          "subject": "a",
+          "expected": true
+        },
+        {
+          "subject": "b",
+          "expected": true
+        },
+        {
+          "subject": "ab",
+          "expected": true
+        },
+        {
+          "subject": "aa",
+          "expected": true
+        },
+        {
+          "subject": "ba",
+          "expected": true
+        },
+        {
+          "subject": "a\n",
+          "expected": true
+        },
+        {
+          "subject": "\n",
+          "expected": false
+        },
+        {
+          "subject": "\r",
+          "expected": false
+        },
+        {
+          "subject": "\u0000",
+          "expected": false
+        },
+        {
+          "subject": "",
+          "expected": false
+        },
+        {
+          "subject": "ab\r",
+          "expected": true
+        }
+      ]
+    },
+    {
+      "pattern": "(^.$)",
+      "cases": [
+        {
+          "subject": "",
+          "expected": false
+        },
+        {
+          "subject": "a",
+          "expected": true
+        },
+        {
+          "subject": "b",
+          "expected": true
+        },
+        {
+          "subject": "ab",
+          "expected": false
+        },
+        {
+          "subject": "aa",
+          "expected": false
+        },
+        {
+          "subject": "ba",
+          "expected": false
+        },
+        {
+          "subject": "a\n",
+          "expected": false
+        },
+        {
+          "subject": "\n",
+          "expected": false
+        },
+        {
+          "subject": "\r",
+          "expected": true
+        },
+        {
+          "subject": "\u0000",
+          "expected": true
+        },
+        {
+          "subject": "",
+          "expected": true
+        },
+        {
+          "subject": "ab\r",
+          "expected": false
+        }
+      ]
+    },
+    {
+      "pattern": "(^(.(\\x00){1,2}((\\x00){2,3}){0,3})$)",
+      "cases": [
+        {
+          "subject": "",
+          "expected": false
+        },
+        {
+          "subject": "a",
+          "expected": false
+        },
+        {
+          "subject": "b",
+          "expected": false
+        },
+        {
+          "subject": "ab",
+          "expected": false
+        },
+        {
+          "subject": "aa",
+          "expected": false
+        },
+        {
+          "subject": "ba",
+          "expected": false
+        },
+        {
+          "subject": "a\n",
+          "expected": false
+        },
+        {
+          "subject": "\n",
+          "expected": false
+        },
+        {
+          "subject": "\r",
+          "expected": false
+        },
+        {
+          "subject": "\u0000",
+          "expected": false
+        },
+        {
+          "subject": "",
+          "expected": false
+        },
+        {
+          "subject": "ab\r",
+          "expected": false
+        }
+      ]
+    },
+    {
+      "pattern": "(^(((.|()))|((()()\\x7f)([\\x61\\x62])))$)",
+      "cases": [
+        {
+          "subject": "",
+          "expected": true
+        },
+        {
+          "subject": "a",
+          "expected": true
+        },
+        {
+          "subject": "b",
+          "expected": true
+        },
+        {
+          "subject": "ab",
+          "expected": false
+        },
+        {
+          "subject": "aa",
+          "expected": false
+        },
+        {
+          "subject": "ba",
+          "expected": false
+        },
+        {
+          "subject": "a\n",
+          "expected": false
+        },
+        {
+          "subject": "\n",
+          "expected": false
+        },
+        {
+          "subject": "\r",
+          "expected": true
+        },
+        {
+          "subject": "\u0000",
+          "expected": true
+        },
+        {
+          "subject": "",
+          "expected": true
+        },
+        {
+          "subject": "ab\r",
+          "expected": false
+        }
+      ]
+    },
+    {
+      "pattern": "(^(((\\x00))){2,3}$)",
+      "cases": [
+        {
+          "subject": "",
+          "expected": false
+        },
+        {
+          "subject": "a",
+          "expected": false
+        },
+        {
+          "subject": "b",
+          "expected": false
+        },
+        {
+          "subject": "ab",
+          "expected": false
+        },
+        {
+          "subject": "aa",
+          "expected": false
+        },
+        {
+          "subject": "ba",
+          "expected": false
+        },
+        {
+          "subject": "a\n",
+          "expected": false
+        },
+        {
+          "subject": "\n",
+          "expected": false
+        },
+        {
+          "subject": "\r",
+          "expected": false
+        },
+        {
+          "subject": "\u0000",
+          "expected": false
+        },
+        {
+          "subject": "",
+          "expected": false
+        },
+        {
+          "subject": "ab\r",
+          "expected": false
+        }
+      ]
+    },
+    {
+      "pattern": "(^((([\\x61\\x62][\\x61\\x62]())){1,2})$)",
+      "cases": [
+        {
+          "subject": "",
+          "expected": false
+        },
+        {
+          "subject": "a",
+          "expected": false
+        },
+        {
+          "subject": "b",
+          "expected": false
+        },
+        {
+          "subject": "ab",
+          "expected": true
+        },
+        {
+          "subject": "aa",
+          "expected": true
+        },
+        {
+          "subject": "ba",
+          "expected": true
+        },
+        {
+          "subject": "a\n",
+          "expected": false
+        },
+        {
+          "subject": "\n",
+          "expected": false
+        },
+        {
+          "subject": "\r",
+          "expected": false
+        },
+        {
+          "subject": "\u0000",
+          "expected": false
+        },
+        {
+          "subject": "",
+          "expected": false
+        },
+        {
+          "subject": "ab\r",
+          "expected": false
+        }
+      ]
+    },
+    {
+      "pattern": "(^\\x0a$)",
+      "cases": [
+        {
+          "subject": "",
+          "expected": false
+        },
+        {
+          "subject": "a",
+          "expected": false
+        },
+        {
+          "subject": "b",
+          "expected": false
+        },
+        {
+          "subject": "ab",
+          "expected": false
+        },
+        {
+          "subject": "aa",
+          "expected": false
+        },
+        {
+          "subject": "ba",
+          "expected": false
+        },
+        {
+          "subject": "a\n",
+          "expected": false
+        },
+        {
+          "subject": "\n",
+          "expected": true
+        },
+        {
+          "subject": "\r",
+          "expected": false
+        },
+        {
+          "subject": "\u0000",
+          "expected": false
+        },
+        {
+          "subject": "",
+          "expected": false
+        },
+        {
+          "subject": "ab\r",
+          "expected": false
+        }
+      ]
+    },
+    {
+      "pattern": "(^()$)",
+      "cases": [
+        {
+          "subject": "",
+          "expected": true
+        },
+        {
+          "subject": "a",
+          "expected": false
+        },
+        {
+          "subject": "b",
+          "expected": false
+        },
+        {
+          "subject": "ab",
+          "expected": false
+        },
+        {
+          "subject": "aa",
+          "expected": false
+        },
+        {
+          "subject": "ba",
+          "expected": false
+        },
+        {
+          "subject": "a\n",
+          "expected": false
+        },
+        {
+          "subject": "\n",
+          "expected": false
+        },
+        {
+          "subject": "\r",
+          "expected": false
+        },
+        {
+          "subject": "\u0000",
+          "expected": false
+        },
+        {
+          "subject": "",
+          "expected": false
+        },
+        {
+          "subject": "ab\r",
+          "expected": false
+        }
+      ]
+    },
+    {
+      "pattern": "(^(((.)|([\\x61\\x62])|(())))$)",
+      "cases": [
+        {
+          "subject": "",
+          "expected": true
+        },
+        {
+          "subject": "a",
+          "expected": true
+        },
+        {
+          "subject": "b",
+          "expected": true
+        },
+        {
+          "subject": "ab",
+          "expected": false
+        },
+        {
+          "subject": "aa",
+          "expected": false
+        },
+        {
+          "subject": "ba",
+          "expected": false
+        },
+        {
+          "subject": "a\n",
+          "expected": false
+        },
+        {
+          "subject": "\n",
+          "expected": false
+        },
+        {
+          "subject": "\r",
+          "expected": true
+        },
+        {
+          "subject": "\u0000",
+          "expected": true
+        },
+        {
+          "subject": "",
+          "expected": true
+        },
+        {
+          "subject": "ab\r",
+          "expected": false
+        }
+      ]
+    },
+    {
+      "pattern": "(((()){1,2}([\\x61\\x62]|\\x0d)))",
+      "cases": [
+        {
+          "subject": "",
+          "expected": false
+        },
+        {
+          "subject": "a",
+          "expected": true
+        },
+        {
+          "subject": "b",
+          "expected": true
+        },
+        {
+          "subject": "ab",
+          "expected": true
+        },
+        {
+          "subject": "aa",
+          "expected": true
+        },
+        {
+          "subject": "ba",
+          "expected": true
+        },
+        {
+          "subject": "a\n",
+          "expected": true
+        },
+        {
+          "subject": "\n",
+          "expected": false
+        },
+        {
+          "subject": "\r",
+          "expected": true
+        },
+        {
+          "subject": "\u0000",
+          "expected": false
+        },
+        {
+          "subject": "",
+          "expected": false
+        },
+        {
+          "subject": "ab\r",
+          "expected": true
+        }
+      ]
+    },
+    {
+      "pattern": "\\x61",
+      "cases": [
+        {
+          "subject": "",
+          "expected": false
+        },
+        {
+          "subject": "a",
+          "expected": true
+        },
+        {
+          "subject": "b",
+          "expected": false
+        },
+        {
+          "subject": "ab",
+          "expected": true
+        },
+        {
+          "subject": "aa",
+          "expected": true
+        },
+        {
+          "subject": "ba",
+          "expected": true
+        },
+        {
+          "subject": "a\n",
+          "expected": true
+        },
+        {
+          "subject": "\n",
+          "expected": false
+        },
+        {
+          "subject": "\r",
+          "expected": false
+        },
+        {
+          "subject": "\u0000",
+          "expected": false
+        },
+        {
+          "subject": "",
+          "expected": false
+        },
+        {
+          "subject": "ab\r",
+          "expected": true
+        }
+      ]
+    },
+    {
+      "pattern": "(^(()){1,2}$)",
+      "cases": [
+        {
+          "subject": "",
+          "expected": true
+        },
+        {
+          "subject": "a",
+          "expected": false
+        },
+        {
+          "subject": "b",
+          "expected": false
+        },
+        {
+          "subject": "ab",
+          "expected": false
+        },
+        {
+          "subject": "aa",
+          "expected": false
+        },
+        {
+          "subject": "ba",
+          "expected": false
+        },
+        {
+          "subject": "a\n",
+          "expected": false
+        },
+        {
+          "subject": "\n",
+          "expected": false
+        },
+        {
+          "subject": "\r",
+          "expected": false
+        },
+        {
+          "subject": "\u0000",
+          "expected": false
+        },
+        {
+          "subject": "",
+          "expected": false
+        },
+        {
+          "subject": "ab\r",
+          "expected": false
+        }
+      ]
+    },
+    {
+      "pattern": "((\\x7f){0,2}){2,2}",
+      "cases": [
+        {
+          "subject": "",
+          "expected": true
+        },
+        {
+          "subject": "a",
+          "expected": true
+        },
+        {
+          "subject": "b",
+          "expected": true
+        },
+        {
+          "subject": "ab",
+          "expected": true
+        },
+        {
+          "subject": "aa",
+          "expected": true
+        },
+        {
+          "subject": "ba",
+          "expected": true
+        },
+        {
+          "subject": "a\n",
+          "expected": true
+        },
+        {
+          "subject": "\n",
+          "expected": true
+        },
+        {
+          "subject": "\r",
+          "expected": true
+        },
+        {
+          "subject": "\u0000",
+          "expected": true
+        },
+        {
+          "subject": "",
+          "expected": true
+        },
+        {
+          "subject": "ab\r",
+          "expected": true
+        }
+      ]
+    },
+    {
+      "pattern": "(((.\\x62.)|(()){0,1}|([\\x61\\x62]|\\x09)))",
+      "cases": [
+        {
+          "subject": "",
+          "expected": true
+        },
+        {
+          "subject": "a",
+          "expected": true
+        },
+        {
+          "subject": "b",
+          "expected": true
+        },
+        {
+          "subject": "ab",
+          "expected": true
+        },
+        {
+          "subject": "aa",
+          "expected": true
+        },
+        {
+          "subject": "ba",
+          "expected": true
+        },
+        {
+          "subject": "a\n",
+          "expected": true
+        },
+        {
+          "subject": "\n",
+          "expected": true
+        },
+        {
+          "subject": "\r",
+          "expected": true
+        },
+        {
+          "subject": "\u0000",
+          "expected": true
+        },
+        {
+          "subject": "",
+          "expected": true
+        },
+        {
+          "subject": "ab\r",
+          "expected": true
+        }
+      ]
+    },
+    {
+      "pattern": "(^(\\x7f[\\x61\\x62]((.)|(.){2,3}))$)",
+      "cases": [
+        {
+          "subject": "",
+          "expected": false
+        },
+        {
+          "subject": "a",
+          "expected": false
+        },
+        {
+          "subject": "b",
+          "expected": false
+        },
+        {
+          "subject": "ab",
+          "expected": false
+        },
+        {
+          "subject": "aa",
+          "expected": false
+        },
+        {
+          "subject": "ba",
+          "expected": false
+        },
+        {
+          "subject": "a\n",
+          "expected": false
+        },
+        {
+          "subject": "\n",
+          "expected": false
+        },
+        {
+          "subject": "\r",
+          "expected": false
+        },
+        {
+          "subject": "\u0000",
+          "expected": false
+        },
+        {
+          "subject": "",
+          "expected": false
+        },
+        {
+          "subject": "ab\r",
+          "expected": false
+        }
+      ]
+    },
+    {
+      "pattern": "(((\\x09))((()|\\x7f|.)){0,2}((()()())))",
+      "cases": [
+        {
+          "subject": "",
+          "expected": false
+        },
+        {
+          "subject": "a",
+          "expected": false
+        },
+        {
+          "subject": "b",
+          "expected": false
+        },
+        {
+          "subject": "ab",
+          "expected": false
+        },
+        {
+          "subject": "aa",
+          "expected": false
+        },
+        {
+          "subject": "ba",
+          "expected": false
+        },
+        {
+          "subject": "a\n",
+          "expected": false
+        },
+        {
+          "subject": "\n",
+          "expected": false
+        },
+        {
+          "subject": "\r",
+          "expected": false
+        },
+        {
+          "subject": "\u0000",
+          "expected": false
+        },
+        {
+          "subject": "",
+          "expected": false
+        },
+        {
+          "subject": "ab\r",
+          "expected": false
+        }
+      ]
+    },
+    {
+      "pattern": "(\\x7f)",
+      "cases": [
+        {
+          "subject": "",
+          "expected": false
+        },
+        {
+          "subject": "a",
+          "expected": false
+        },
+        {
+          "subject": "b",
+          "expected": false
+        },
+        {
+          "subject": "ab",
+          "expected": false
+        },
+        {
+          "subject": "aa",
+          "expected": false
+        },
+        {
+          "subject": "ba",
+          "expected": false
+        },
+        {
+          "subject": "a\n",
+          "expected": false
+        },
+        {
+          "subject": "\n",
+          "expected": false
+        },
+        {
+          "subject": "\r",
+          "expected": false
+        },
+        {
+          "subject": "\u0000",
+          "expected": false
+        },
+        {
+          "subject": "",
+          "expected": true
+        },
+        {
+          "subject": "ab\r",
+          "expected": false
+        }
+      ]
+    },
+    {
+      "pattern": "(^.$)",
+      "cases": [
+        {
+          "subject": "",
+          "expected": false
+        },
+        {
+          "subject": "a",
+          "expected": true
+        },
+        {
+          "subject": "b",
+          "expected": true
+        },
+        {
+          "subject": "ab",
+          "expected": false
+        },
+        {
+          "subject": "aa",
+          "expected": false
+        },
+        {
+          "subject": "ba",
+          "expected": false
+        },
+        {
+          "subject": "a\n",
+          "expected": false
+        },
+        {
+          "subject": "\n",
+          "expected": false
+        },
+        {
+          "subject": "\r",
+          "expected": true
+        },
+        {
+          "subject": "\u0000",
+          "expected": true
+        },
+        {
+          "subject": "",
+          "expected": true
+        },
+        {
+          "subject": "ab\r",
+          "expected": false
+        }
+      ]
+    },
+    {
+      "pattern": "((\\x00){0,0}){1,1}",
+      "cases": [
+        {
+          "subject": "",
+          "expected": true
+        },
+        {
+          "subject": "a",
+          "expected": true
+        },
+        {
+          "subject": "b",
+          "expected": true
+        },
+        {
+          "subject": "ab",
+          "expected": true
+        },
+        {
+          "subject": "aa",
+          "expected": true
+        },
+        {
+          "subject": "ba",
+          "expected": true
+        },
+        {
+          "subject": "a\n",
+          "expected": true
+        },
+        {
+          "subject": "\n",
+          "expected": true
+        },
+        {
+          "subject": "\r",
+          "expected": true
+        },
+        {
+          "subject": "\u0000",
+          "expected": true
+        },
+        {
+          "subject": "",
+          "expected": true
+        },
+        {
+          "subject": "ab\r",
+          "expected": true
+        }
+      ]
+    },
+    {
+      "pattern": "(^((()){0,3})$)",
+      "cases": [
+        {
+          "subject": "",
+          "expected": true
+        },
+        {
+          "subject": "a",
+          "expected": false
+        },
+        {
+          "subject": "b",
+          "expected": false
+        },
+        {
+          "subject": "ab",
+          "expected": false
+        },
+        {
+          "subject": "aa",
+          "expected": false
+        },
+        {
+          "subject": "ba",
+          "expected": false
+        },
+        {
+          "subject": "a\n",
+          "expected": false
+        },
+        {
+          "subject": "\n",
+          "expected": false
+        },
+        {
+          "subject": "\r",
+          "expected": false
+        },
+        {
+          "subject": "\u0000",
+          "expected": false
+        },
+        {
+          "subject": "",
+          "expected": false
+        },
+        {
+          "subject": "ab\r",
+          "expected": false
+        }
+      ]
+    },
+    {
+      "pattern": "(((.){0,3}|(()|()|.)|(.))(()){1,2})",
+      "cases": [
+        {
+          "subject": "",
+          "expected": true
+        },
+        {
+          "subject": "a",
+          "expected": true
+        },
+        {
+          "subject": "b",
+          "expected": true
+        },
+        {
+          "subject": "ab",
+          "expected": true
+        },
+        {
+          "subject": "aa",
+          "expected": true
+        },
+        {
+          "subject": "ba",
+          "expected": true
+        },
+        {
+          "subject": "a\n",
+          "expected": true
+        },
+        {
+          "subject": "\n",
+          "expected": true
+        },
+        {
+          "subject": "\r",
+          "expected": true
+        },
+        {
+          "subject": "\u0000",
+          "expected": true
+        },
+        {
+          "subject": "",
+          "expected": true
+        },
+        {
+          "subject": "ab\r",
+          "expected": true
+        }
+      ]
+    },
+    {
+      "pattern": "(^\\x0d$)",
+      "cases": [
+        {
+          "subject": "",
+          "expected": false
+        },
+        {
+          "subject": "a",
+          "expected": false
+        },
+        {
+          "subject": "b",
+          "expected": false
+        },
+        {
+          "subject": "ab",
+          "expected": false
+        },
+        {
+          "subject": "aa",
+          "expected": false
+        },
+        {
+          "subject": "ba",
+          "expected": false
+        },
+        {
+          "subject": "a\n",
+          "expected": false
+        },
+        {
+          "subject": "\n",
+          "expected": false
+        },
+        {
+          "subject": "\r",
+          "expected": true
+        },
+        {
+          "subject": "\u0000",
+          "expected": false
+        },
+        {
+          "subject": "",
+          "expected": false
+        },
+        {
+          "subject": "ab\r",
+          "expected": false
+        }
+      ]
+    },
+    {
+      "pattern": "(((()){2,2}){2,2}){1,2}",
+      "cases": [
+        {
+          "subject": "",
+          "expected": true
+        },
+        {
+          "subject": "a",
+          "expected": true
+        },
+        {
+          "subject": "b",
+          "expected": true
+        },
+        {
+          "subject": "ab",
+          "expected": true
+        },
+        {
+          "subject": "aa",
+          "expected": true
+        },
+        {
+          "subject": "ba",
+          "expected": true
+        },
+        {
+          "subject": "a\n",
+          "expected": true
+        },
+        {
+          "subject": "\n",
+          "expected": true
+        },
+        {
+          "subject": "\r",
+          "expected": true
+        },
+        {
+          "subject": "\u0000",
+          "expected": true
+        },
+        {
+          "subject": "",
+          "expected": true
+        },
+        {
+          "subject": "ab\r",
+          "expected": true
+        }
+      ]
+    },
+    {
+      "pattern": "(.)",
+      "cases": [
+        {
+          "subject": "",
+          "expected": false
+        },
+        {
+          "subject": "a",
+          "expected": true
+        },
+        {
+          "subject": "b",
+          "expected": true
+        },
+        {
+          "subject": "ab",
+          "expected": true
+        },
+        {
+          "subject": "aa",
+          "expected": true
+        },
+        {
+          "subject": "ba",
+          "expected": true
+        },
+        {
+          "subject": "a\n",
+          "expected": true
+        },
+        {
+          "subject": "\n",
+          "expected": false
+        },
+        {
+          "subject": "\r",
+          "expected": true
+        },
+        {
+          "subject": "\u0000",
+          "expected": true
+        },
+        {
+          "subject": "",
+          "expected": true
+        },
+        {
+          "subject": "ab\r",
+          "expected": true
+        }
+      ]
+    }
+  ]
+}

@@ -7,10 +7,22 @@ operators conjoin. Boolean branches use 'and', 'or' and 'not'; relationships
 use some/every/none/count or is/is_not. Validation examines the entire input
 before evaluation. No function here performs tmux I/O.
 
+```erlang
+1> {ok, P} = tmux_model:pane(#{id => <<"%1">>, current_command => <<"vim">>}), ok.
+ok
+2> S = tmux_select:from_list(pane, [P]), ok.
+ok
+3> R = #{pattern => <<"^(vim|nvim)$">>, dialect => portable_v1}, ok.
+ok
+4> tmux_select:size(tmux_select:where(#{current_command => #{regex => R}}, S)).
+1
+```
+
 Wire version 1 uses generated camelCase field names, snake_case operators,
 JSON null for known absence and {"base64": "..."} for byte operands. Byte
-values never become text implicitly. Regex returns unsupported_dialect until
-the portable dialect passes its differential qualification.
+values never become text implicitly. Regex uses the restricted ASCII
+portable_v1 dialect, absolute anchors and no flags. Preparation compiles each
+pattern once. Non-ASCII subjects and exhausted match limits return errors.
 
 Both input criteria and their normalized wire document must fit the grammar,
 depth and byte limits. Resource errors can refer to the canonical wire path.
@@ -107,7 +119,7 @@ ok
 prepare({tmux_filter, 1, Entity, Tree} = Filter, Snapshot) ->
     maybe
         ok ?= tmux_snapshot:require(requirements(Filter), Snapshot),
-        {ok, tmux_filter_eval:prepare(Entity, Tree, {snapshot, Snapshot})}
+        tmux_filter_eval:prepare(Entity, Tree, {snapshot, Snapshot})
     end.
 
 %% Selection construction validates rows and retains its original coverage.
@@ -119,15 +131,16 @@ prepare_rows({tmux_filter, 1, Entity, Tree} = Filter, Rows, Coverage) ->
                || R <- requirements(Filter),
                   not lists:member(coverage_state(R, Entity, Coverage), [complete, loaded])],
     case Missing of
-        [] -> {ok, tmux_filter_eval:prepare(Entity, Tree, {rows, maps:from_keys(Rows, true)})};
+        [] -> tmux_filter_eval:prepare(Entity, Tree, {rows, maps:from_keys(Rows, true)});
         _ -> {error, #{code => incomplete_snapshot, requirements => Missing}}
     end.
 
 -doc """
 Return a Boolean function bound to the prepared observation context.
 
-Rows outside that context raise {prepared_context_mismatch, Detail}. Use
-matches/2 when the caller needs tagged errors. This does not run callbacks.
+Rows outside that context raise {prepared_context_mismatch, Detail}. Regex
+evaluation errors raise {filter_evaluation_failed, Detail}. Use matches/2 for
+tagged errors. This does not run callbacks.
 """.
 -spec predicate(prepared()) -> fun((tmux_model:row()) -> boolean()).
 predicate(Prepared) ->
@@ -135,7 +148,8 @@ predicate(Prepared) ->
         case matches(Prepared, Row) of
             {ok, Boolean} -> Boolean;
             {error, #{code := prepared_context_mismatch} = Detail} ->
-                error({prepared_context_mismatch, Detail})
+                error({prepared_context_mismatch, Detail});
+            {error, Detail} -> error({filter_evaluation_failed, Detail})
         end
     end.
 
@@ -228,19 +242,37 @@ scalar_ops([{Key, Value} | Rest], Meta, Mode, Path, Depth, Count, Acc) ->
         present -> fail(expected_boolean, Here);
         in -> members(Value, Meta, Mode, Here, 0, []);
         not_in -> members(Value, Meta, Mode, Here, 0, []);
-        regex ->
-            case Value of
-                #{pattern := Pattern} when is_binary(Pattern), byte_size(Pattern) > 1024 ->
-                    fail(pattern_limit, Here);
-                #{<<"pattern">> := Pattern} when is_binary(Pattern), byte_size(Pattern) > 1024 ->
-                    fail(pattern_limit, Here);
-                _ -> fail(unsupported_dialect, Here)
-            end;
+        regex -> regex(Value, Mode, Here);
         equals -> scalar(Meta, Value, Mode, Here);
         'not' -> scalar(Meta, Value, Mode, Here);
         _ -> scalar(Meta#{nullable => false}, Value, Mode, Here)
     end,
     scalar_ops(Rest, Meta, Mode, Path, Depth, Next, [{Op, Normalized} | Acc]).
+
+regex(Input, Mode, Path) ->
+    object(Input, Path),
+    Key = fun(Name) -> case Mode of local -> Name; wire -> atom_to_binary(Name) end end,
+    PatternKey = Key(pattern),
+    DialectKey = Key(dialect),
+    FlagsKey = Key(flags),
+    only_keys(Input, [PatternKey, DialectKey, FlagsKey], Path),
+    Dialect = case Mode of local -> portable_v1; wire -> <<"portable_v1">> end,
+    case maps:get(DialectKey, Input, missing) of
+        Dialect -> ok;
+        _ -> fail(unsupported_dialect, Path ++ [DialectKey])
+    end,
+    case maps:get(FlagsKey, Input, []) of
+        [] -> ok;
+        _ -> fail(unsupported_regex_flags, Path ++ [FlagsKey])
+    end,
+    Pattern = case maps:find(PatternKey, Input) of
+        {ok, Value} -> Value;
+        error -> fail(required_field, Path ++ [PatternKey])
+    end,
+    case tmux_regex:validate(Pattern) of
+        {ok, _} -> #{pattern => Pattern, dialect => portable_v1, flags => []};
+        {error, Detail} -> fail(Detail#{path => Path ++ [PatternKey]})
+    end.
 
 members([], _, _, _, _, Acc) -> lists:usort(Acc);
 members([_ | _], _, _, Path, ?MAX_MEMBERS, _) -> fail(membership_limit, Path);
@@ -366,6 +398,8 @@ wire_node(Entity, {count, Stable, Ops}) ->
 wire_value(Op, Values, Meta) when Op =:= in; Op =:= not_in ->
     [wire_scalar(Value, Meta) || Value <- Values];
 wire_value(present, Value, _) -> Value;
+wire_value(regex, #{pattern := Pattern, dialect := portable_v1, flags := []}, _) ->
+    #{<<"pattern">> => Pattern, <<"dialect">> => <<"portable_v1">>, <<"flags">> => []};
 wire_value(_, Value, Meta) -> wire_scalar(Value, Meta).
 wire_scalar(none, _) -> null;
 wire_scalar(Value, #{type := bytes}) -> #{<<"base64">> => base64:encode(Value)};
