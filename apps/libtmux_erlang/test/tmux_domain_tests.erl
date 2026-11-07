@@ -63,3 +63,18 @@ respawn_validation_before_dispatch_test() ->
         tmux_pane:respawn(invalid_row, #{launch => default_shell})),
     ?assertMatch({error, #{code := invalid_launch}},
         tmux_window:respawn(invalid_row, #{launch => #{argv => []}})).
+
+topology_validation_before_dispatch_test() ->
+    ?assertMatch({error, #{code := missing_option, path := [index]}},
+        tmux_pane:break(invalid_row, invalid_row, invalid_row, #{})),
+    ?assertMatch({error, #{code := invalid_option, path := [index]}},
+        tmux_pane:break(invalid_row, invalid_row, invalid_row, #{index => -1})),
+    ?assertMatch({error, #{code := invalid_value, path := [name]}},
+        tmux_pane:break(invalid_row, invalid_row, invalid_row,
+            #{index => 2, name => <<255>>})),
+    ?assertMatch({error, #{code := invalid_option, path := [size]}},
+        tmux_pane:join(invalid_row, invalid_row, #{size => {percent, 101}})),
+    ?assertMatch({error, #{code := unknown_option, path := [zoom]}},
+        tmux_pane:move(invalid_row, invalid_row, #{zoom => true})),
+    ?assertMatch({error, #{code := invalid_option, path := [detach]}},
+        tmux_pane:swap(invalid_row, invalid_row, #{detach => yes})).

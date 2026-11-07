@@ -36,6 +36,7 @@ source-extraction path rejects native-record attributes.
 | --- | --- |
 | Open, inspect and close an endpoint | `m:tmux_server` |
 | Create and act on terminal objects | `m:tmux_session`, `m:tmux_window`, `m:tmux_pane` |
+| Break, join, move and swap running panes | `tmux_pane:break/4`, `tmux_pane:join/3`, `tmux_pane:move/3`, `tmux_pane:swap/3` |
 | Act on session-relative window memberships | `m:tmux_window_link` |
 | Read local or inherited options and change explicit tables | `m:tmux_option` |
 | Store byte buffers and paste into a pane | `m:tmux_buffer` |

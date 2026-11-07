@@ -1,6 +1,6 @@
 -module(tmux_args).
 -moduledoc false.
--export([options/2, launch_options/2, respawn_options/1]).
+-export([options/2, options/3, launch_options/2, respawn_options/1]).
 -type schema() :: [{atom(), atom(), binary()}].
 
 -spec options(map(), schema()) -> {ok, [binary()]} | {error, map()}.
@@ -11,6 +11,11 @@ options(Options, Schema) when is_map(Options) ->
         Unknown -> {error, #{code => unknown_option, path => [hd(lists:sort(Unknown))]}}
     end;
 options(_, _) -> {error, #{code => invalid_options, path => []}}.
+
+-spec options(map(), schema(), map()) -> {ok, [binary()]} | {error, map()}.
+options(Options, Schema, Defaults) when is_map(Options) ->
+    options(maps:merge(Defaults, Options), Schema);
+options(_, _, _) -> {error, #{code => invalid_options, path => []}}.
 
 -spec launch_options(map(), schema()) -> {ok, [binary()], [binary()]} | {error, map()}.
 launch_options(Options, Extra) when is_map(Options) ->
@@ -55,6 +60,11 @@ encode(bytes, Flag, Value) when is_binary(Value), byte_size(Value) =< 32768 ->
     case binary:match(Value, <<0>>) of
         nomatch -> {ok, [Flag, Value]};
         _ -> {error, #{code => invalid_option}}
+    end;
+encode(text, Flag, Value) ->
+    maybe
+        {ok, _} ?= tmux_schema:value(#{type => text}, Value),
+        encode(bytes, Flag, Value)
     end;
 encode(text_format, Flag, Value) ->
     maybe

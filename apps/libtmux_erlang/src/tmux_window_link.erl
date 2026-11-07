@@ -108,8 +108,8 @@ stale. Performs I/O, with the documented gap between preflight and action.
     {ok, tmux_operation:completed()} | {error, tmux_operation:failure()}.
 swap(Source, Destination, Options) ->
     maybe
-        {ok, Flags} ?= flags(Options, [{detach, flag, <<"-d">>}], #{detach => true}),
-        {ok, Server} ?= same_owner(Source, window_link, Destination),
+        {ok, Flags} ?= tmux_args:options(Options, [{detach, flag, <<"-d">>}], #{detach => true}),
+        {ok, Server} ?= tmux_target:same_owner(window_link, Source, window_link, Destination),
         {ok, _, From} ?= check(Server, Source),
         {ok, _, To} ?= check(Server, Destination),
         tmux_target:run(Server, <<"swap-window">>,
@@ -127,7 +127,7 @@ rules. Performs I/O and returns the command result without refreshing rows.
     {ok, tmux_operation:completed()} | {error, tmux_operation:failure()}.
 unlink(Link, Options) ->
     maybe
-        {ok, Flags} ?= flags(Options, [{force, flag, <<"-k">>}], #{}),
+        {ok, Flags} ?= tmux_args:options(Options, [{force, flag, <<"-k">>}], #{}),
         {ok, Server} ?= tmux_target:owner(window_link, Link),
         {ok, _, Target} ?= check(Server, Link),
         tmux_target:run(Server, <<"unlink-window">>, Flags ++ [<<"-t">>, Target])
@@ -136,7 +136,7 @@ unlink(Link, Options) ->
 place(Command, Link, Session, Options) ->
     maybe
         {ok, Index, Flags} ?= placement(Options),
-        {ok, Server} ?= same_owner(Link, session, Session),
+        {ok, Server} ?= tmux_target:same_owner(window_link, Link, session, Session),
         {ok, _, Source} ?= check(Server, Link),
         {ok, SessionTarget} ?= tmux_target:selector(session, tmux_model:get(id, Session)),
         Target = <<SessionTarget/binary, Index/binary>>,
@@ -145,7 +145,7 @@ place(Command, Link, Session, Options) ->
 
 placement(Options) when is_map(Options) ->
     maybe
-        {ok, Flags} ?= flags(maps:remove(index, Options),
+        {ok, Flags} ?= tmux_args:options(maps:remove(index, Options),
             [{detach, flag, <<"-d">>}, {replace, flag, <<"-k">>}], #{detach => true}),
         {ok, Index} ?= case maps:find(index, Options) of
             {ok, Value} -> index(Value);
@@ -155,22 +155,8 @@ placement(Options) when is_map(Options) ->
     end;
 placement(_) -> {error, #{code => invalid_options, path => []}}.
 
-flags(Options, Schema, Defaults) when is_map(Options) ->
-    tmux_args:options(maps:merge(Defaults, Options), Schema);
-flags(_, _, _) -> {error, #{code => invalid_options, path => []}}.
-
 index(Value) when is_integer(Value, 0, 2147483647) -> {ok, integer_to_binary(Value)};
 index(_) -> {error, #{code => invalid_option, path => [index]}}.
-
-same_owner(Source, Kind, Destination) ->
-    maybe
-        {ok, Server} ?= tmux_target:owner(window_link, Source),
-        {ok, Other} ?= tmux_target:owner(Kind, Destination),
-        case Server =:= Other of
-            true -> {ok, Server};
-            false -> {error, #{code => different_owner}}
-        end
-    end.
 
 -doc false.
 -spec check(tmux_server:t(), tmux_model:window_link()) ->

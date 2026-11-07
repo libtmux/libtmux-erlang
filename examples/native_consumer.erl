@@ -115,6 +115,10 @@ run_endpoint(Socket, Executable) ->
             {ok, Source} = tmux_select:one(
                 #{window_id => tmux_model:get(id, Window)},
                 tmux_select:window_links(Snapshot)),
+            {ok, _} = tmux_pane:break(Pane, Source, Session, #{index => 20}),
+            {ok, _} = tmux_pane:join(Pane, CatPane, #{}),
+            {ok, _} = tmux_pane:move(Pane, CatPane, #{before => true}),
+            {ok, _} = tmux_pane:swap(Pane, CatPane, #{}),
             {ok, _} = tmux_window_link:link(Source, Session, #{index => 9}),
             SessionId = tmux_model:get(id, Session),
             {ok, Duplicate} = tmux_window_link:get(Server, SessionId, 9),

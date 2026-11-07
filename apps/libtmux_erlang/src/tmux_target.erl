@@ -1,6 +1,6 @@
 -module(tmux_target).
 -moduledoc false.
--export([owner/2, resolve/2, selector/2, run/3, run/4, act/4]).
+-export([owner/2, same_owner/4, resolve/2, selector/2, run/3, run/4, act/4]).
 
 -spec resolve(atom() | [atom()], term()) ->
     {ok, tmux_server:t(), binary()} | {error, map()}.
@@ -27,6 +27,18 @@ owner(Expected, Row) ->
             Ref -> {ok, Ref}
         end,
         tmux_server:from_origin(Origin)
+    end.
+
+-spec same_owner(atom(), tmux_model:row(), atom(), tmux_model:row()) ->
+    {ok, tmux_server:t()} | {error, map()}.
+same_owner(SourceKind, Source, DestinationKind, Destination) ->
+    maybe
+        {ok, Server} ?= owner(SourceKind, Source),
+        {ok, Other} ?= owner(DestinationKind, Destination),
+        case Server =:= Other of
+            true -> {ok, Server};
+            false -> {error, #{code => different_owner}}
+        end
     end.
 
 -spec selector(atom(), binary()) -> {ok, binary()} | {error, map()}.

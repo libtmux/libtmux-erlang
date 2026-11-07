@@ -1,6 +1,6 @@
 -module(tmux_pane).
 -moduledoc """
-Split and observe panes using explicit I/O and registered physical IDs.
+Create, observe and rearrange panes using registered physical IDs.
 
 `split/2` accepts a pane or a window; a window means its active pane
 at execution. Options (`t:split_options/0`) are direction
@@ -32,11 +32,36 @@ integers or all), join_lines, escape_sequences, escape_control,
 retain_trailing_spaces, alternate, pending and quiet. Defaults are tmux's
 current-screen capture without escapes, joined wraps or padding. The
 endpoint's output limit applies; an oversized capture returns an error.
+
+Use `join/3`, `move/3` and `swap/3` to rearrange existing panes without
+respawning their processes. `break/4` takes an explicit source window link:
+breaking a window's only pane moves that membership, while breaking one of
+several panes creates a new physical window. The [topology guide](panes.md)
+shows the distinction. Use `get/2` or a new snapshot for updated parents and
+indexes; actions leave captured values unchanged.
 """.
--export([split/2, get/2, kill/1, resize/2, respawn/2, send_text/2, send_keys/2, capture/2]).
+-export([split/2, get/2, kill/1, resize/2, respawn/2, send_text/2, send_keys/2,
+         capture/2, break/4, join/3, move/3, swap/3]).
 
 -export_type([split_options/0, capture_options/0, resize_options/0, respawn_options/0,
-              coordinate/0, key/0]).
+              coordinate/0, key/0, break_options/0, join_options/0, swap_options/0]).
+-doc """
+Break placement: explicit destination index, optional literal window name.
+detach defaults true.
+""".
+-type break_options() :: #{index := tmux_window_link:index(), name => binary(),
+    detach => boolean()}.
+-doc """
+Join/move geometry: detach true, vertical split by default. before and
+full_size follow tmux layout rules.
+""".
+-type join_options() :: #{direction => horizontal | vertical,
+    size => {cells,1..2147483647} | {percent,1..100}, detach => boolean(),
+    before => boolean(), full_size => boolean()}.
+-doc """
+Swap controls: detach defaults true; zoom maps to tmux -Z to retain zoom.
+""".
+-type swap_options() :: #{detach => boolean(), zoom => boolean()}.
 -doc "Split geometry, placement and explicit launch options. Defaults to a detached vertical split.".
 -type split_options() :: #{direction => horizontal | vertical,
     size => {cells,1..2147483647} | {percent,1..100}, before => boolean(),
@@ -93,6 +118,131 @@ stable ID; it never falls back to a positional target.
 """.
 -spec kill(tmux_model:pane()) -> {ok, map()} | {error, map()}.
 kill(Pane) -> tmux_target:act(pane, Pane, <<"kill-pane">>, []).
+
+-doc """
+Break a physical pane through its explicit source membership into a destination
+session/index. Source, link and session must have the same registered owner.
+The source link's expected window and the pane's observed parent are checked
+before dispatch. The source selector also includes the stable pane ID, never
+its positional index. Preflight and action are not atomic.
+
+With multiple panes, tmux creates a new physical window. With only one pane,
+it moves the selected source membership, preserving the existing window and
+its other links. Moving the final membership out can remove the source session.
+Pane IDs and processes remain; indexes and option inheritance can change.
+name is a literal UTF-8 argument, subject to native name cleaning.
+An occupied destination index is refused. detach defaults true; false selects
+the destination membership. Session groups retain native synchronization.
+
+Returns the command result consistently for both cases. Use `get/2` or
+`tmux_window_link:get/3` for fresh observations. Even an eventual native error
+can unzoom a window; this is not a transaction and is never retried.
+""".
+-spec break(tmux_model:pane(), tmux_model:window_link(), tmux_model:session(),
+    break_options()) -> {ok, tmux_operation:completed()} | {error, map()}.
+break(Pane, SourceLink, Session, Options) ->
+    maybe
+        {ok, Index, Flags} ?= break_options(Options),
+        {ok, Server} ?= tmux_target:same_owner(pane, Pane, window_link, SourceLink),
+        {ok, Server} ?= tmux_target:same_owner(pane, Pane, session, Session),
+        {ok, Source} ?= break_source(Server, Pane, SourceLink),
+        {ok, SessionTarget} ?= tmux_target:selector(session, tmux_model:get(id, Session)),
+        Target = <<SessionTarget/binary, Index/binary>>,
+        tmux_target:run(Server, <<"break-pane">>, Flags ++ [<<"-s">>, Source, <<"-t">>, Target])
+    end.
+
+-doc """
+Move a source pane into a split beside the destination pane. Both physical IDs
+must belong to the same registered owner and must differ. Geometry follows
+`t:join_options/0`. Existing processes and pane IDs survive; dimensions,
+indexes and inherited window options can change. Removing a window's last
+pane destroys that physical window and its links, and can remove sessions.
+
+Default detach true avoids selecting the resolved destination session; false
+uses tmux's resolved session context for the destination pane. Shared physical
+windows affect all their memberships. Returns the command result without
+refreshing either row. Use `get/2` for current fields. No retry is performed.
+""".
+-spec join(tmux_model:pane(), tmux_model:pane(), join_options()) ->
+    {ok, tmux_operation:completed()} | {error, map()}.
+join(Source, Destination, Options) -> relocate(<<"join-pane">>, Source, Destination, Options).
+
+-doc """
+Rearrange a source pane beside the destination, including within one window.
+Uses native move-pane, whose placement and lifetime behavior follow `join/3`.
+Both calls use explicit physical IDs and leave captured rows unchanged.
+""".
+-spec move(tmux_model:pane(), tmux_model:pane(), join_options()) ->
+    {ok, tmux_operation:completed()} | {error, map()}.
+move(Source, Destination, Options) -> relocate(<<"move-pane">>, Source, Destination, Options).
+
+-doc """
+Exchange two panes' layout positions within or across physical windows.
+Preserves their IDs and processes; parent windows, dimensions, indexes and
+inherited options can change. Both rows require the same registered owner.
+detach defaults true; active positions can still receive different panes.
+zoom maps to native -Z. Identical IDs do not exchange panes, but native zoom
+handling still runs; the default can unzoom even a same-pane swap.
+Returns the command result; `get/2` observes the resulting values explicitly.
+""".
+-spec swap(tmux_model:pane(), tmux_model:pane(), swap_options()) ->
+    {ok, tmux_operation:completed()} | {error, map()}.
+swap(Source, Destination, Options) ->
+    maybe
+        {ok, Flags} ?= tmux_args:options(Options,
+            [{detach, flag, <<"-d">>}, {zoom, flag, <<"-Z">>}], #{detach => true}),
+        {ok, Server, From, To} ?= pane_targets(Source, Destination),
+        tmux_target:run(Server, <<"swap-pane">>, Flags ++ [<<"-s">>, From, <<"-t">>, To])
+    end.
+
+relocate(Command, Source, Destination, Options) ->
+    maybe
+        {ok, Flags} ?= tmux_args:options(Options,
+            [{detach, flag, <<"-d">>}, {direction, direction, <<>>},
+             {size, size, <<"-l">>}, {before, flag, <<"-b">>},
+             {full_size, flag, <<"-f">>}], #{detach => true}),
+        {ok, Server, From, To} ?= pane_targets(Source, Destination),
+        ok ?= case From =:= To of true -> {error, #{code => same_pane}}; false -> ok end,
+        tmux_target:run(Server, Command, Flags ++ [<<"-s">>, From, <<"-t">>, To])
+    end.
+
+pane_targets(Source, Destination) ->
+    maybe
+        {ok, Server} ?= tmux_target:same_owner(pane, Source, pane, Destination),
+        {ok, From} ?= tmux_target:selector(pane, tmux_model:get(id, Source)),
+        {ok, To} ?= tmux_target:selector(pane, tmux_model:get(id, Destination)),
+        {ok, Server, From, To}
+    end.
+
+break_options(Options) when is_map(Options) ->
+    maybe
+        {ok, Index} ?= case maps:find(index, Options) of
+            {ok, Value} when is_integer(Value, 0, 2147483647) ->
+                {ok, integer_to_binary(Value)};
+            {ok, _} -> {error, #{code => invalid_option, path => [index]}};
+            error -> {error, #{code => missing_option, path => [index]}}
+        end,
+        {ok, Flags} ?= tmux_args:options(maps:remove(index, Options),
+            [{detach, flag, <<"-d">>}, {name, text, <<"-n">>}], #{detach => true}),
+        {ok, Index, Flags}
+    end;
+break_options(_) -> {error, #{code => invalid_options, path => []}}.
+
+break_source(Server, Pane, Link) ->
+    maybe
+        {ok, _, Target} ?= tmux_window_link:check(Server, Link),
+        Id = tmux_model:get(id, Pane),
+        Expected = tmux_model:get(window_id, Link),
+        {ok, #{stdout := Output}} ?= tmux_target:run(Server, <<"display-message">>,
+            [<<"-p">>, <<"-t">>, Id, <<"-F">>, <<"#{pane_id}\t#{window_id}">>],
+            #{max_stdout => 128}),
+        case binary:split(Output, [<<"\t">>, <<"\n">>], [global]) of
+            [Id, Expected, <<>>] -> {ok, <<Target/binary, $., Id/binary>>};
+            [Id, Actual, <<>>] -> {error, #{code => pane_link_mismatch,
+                expected => Expected, actual => Actual}};
+            _ -> {error, #{code => target_gone}}
+        end
+    end.
 
 -doc """
 Request an absolute width, height or both for this registered physical pane.
