@@ -12,7 +12,7 @@ import shutil
 import subprocess
 import time
 import urllib.request
-from urllib.parse import unquote
+from urllib.parse import quote, unquote, urlsplit
 
 
 def main():
@@ -66,7 +66,33 @@ def main():
     if output.exists():
         shutil.rmtree(output)
     output.mkdir(parents=True)
-    sources = {}
+    sources, media = {}, {}
+
+    def image_url(target, page):
+        url = urlsplit(html.unescape(target))
+        if url.scheme or url.netloc or not url.path:
+            return html.unescape(target)
+        path = (page.parent / unquote(url.path)).resolve()
+        if not path.is_relative_to(root) or not path.is_file():
+            raise RuntimeError("Missing documentation image: " + str(page) + " -> " + target)
+        relative = path.relative_to(root).as_posix()
+        destination = "media/" + relative
+        media[destination] = {"source": relative,
+                              "sha256": hashlib.sha256(path.read_bytes()).hexdigest()}
+        return quote(destination, safe="/") + ("?" + url.query if url.query else "") + (
+            "#" + url.fragment if url.fragment else "")
+
+    def image_tag(match, page):
+        def attribute(found):
+            name, delimiter, value = found.groups()
+            if name == "srcset" and not value.lstrip().startswith("data:"):
+                candidates = [part.strip().split() for part in value.split(",")]
+                rendered = ", ".join(" ".join([image_url(parts[0], page), *parts[1:]])
+                                     for parts in candidates if parts)
+            else:
+                rendered = image_url(value, page)
+            return name + "=" + delimiter + html.escape(rendered, quote=True) + delimiter
+        return re.sub(r'''\b(src|srcset)\s*=\s*(['"])(.*?)\2''', attribute, match[0])
 
     def source_page(path):
         path = path.resolve()
@@ -128,6 +154,8 @@ def main():
             return "[" + label + "](" + url + ")"
 
         content = re.sub(r"(?<!!)\[([^\]]+)\]\(([^)]+)\)", rewrite, path.read_text())
+        content = re.sub(r"<(?:img|source)\b[^>]*>",
+                         lambda match: image_tag(match, path), content)
         destination = Path("_build/docs/pages") / path
         destination.parent.mkdir(parents=True, exist_ok=True)
         destination.write_text(content)
@@ -143,6 +171,10 @@ def main():
                "--config", str(config), "--formatter", "html", "--output", str(output),
                "--source-ref", head, "--warnings-as-errors"]
     subprocess.run(command, check=True, env=env, timeout=60)
+    for destination, info in media.items():
+        target = output / destination
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(root / info["source"], target)
     # ExDoc requests this optional configuration even when no overrides exist.
     (output / "docs_config.js").write_text("// No runtime documentation overrides.\n")
     for page in output.glob("*.html"):
@@ -158,7 +190,7 @@ def main():
     receipt = {"result": "PASS", "head": head, "ex_doc": manifest,
                "working_tree": "dirty preview" if dirty else "clean commit",
                "status": status.splitlines(), "diff_sha256": hashlib.sha256(diff).hexdigest(),
-               "source_files": sources,
+               "source_files": sources, "media": media,
                "input_files": input_files,
                "beams": {p.name: hashlib.sha256(p.read_bytes()).hexdigest() for p in sorted(ebin.glob("*.beam"))},
                "seconds": round(time.monotonic() - started, 6), "output": output.as_posix(),
