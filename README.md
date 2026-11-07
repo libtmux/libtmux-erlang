@@ -1,4 +1,17 @@
+<!-- libtmux-logo -->
+<div align="center">
+  <picture>
+    <source srcset="docs/assets/logo.svg" type="image/svg+xml">
+    <img src="docs/assets/logo-512.png" width="128" height="128" alt="libtmux for Erlang">
+  </picture>
+</div>
+<!-- /libtmux-logo -->
+
+<div align="center">
+
 # libtmux for Erlang
+
+</div>
 
 Create tmux sessions, windows and panes from Erlang. Capture their object graph,
 filter it as immutable data, and execute source queries and owned operations
@@ -161,3 +174,5 @@ The outer check owns its tmux fixtures and tests installed consumers. See
 [contributor setup](.github/CONTRIBUTING.md) for prerequisites and test budgets,
 [CI](https://github.com/libtmux/libtmux-erlang/actions/workflows/ci.yml) for
 individual release/architecture results, and the [MIT license](LICENSE).
+
+[Branding assets](docs/branding.md) include the logo, icons, and social cards.

@@ -16,7 +16,7 @@ from check_example_width import columns
 class PageLinks(HTMLParser):
     def __init__(self, text):
         super().__init__()
-        self.links, self.anchors = [], set()
+        self.links, self.resources, self.anchors = [], [], set()
         self.feed(text)
 
     def handle_starttag(self, tag, attrs):
@@ -25,13 +25,21 @@ class PageLinks(HTMLParser):
             self.anchors.add(attrs["id"])
         if tag == "a" and attrs.get("href"):
             self.links.append(attrs["href"])
+        if tag in {"img", "script"} and attrs.get("src"):
+            self.resources.append(attrs["src"])
+        if tag == "link" and attrs.get("href"):
+            self.resources.append(attrs["href"])
+        if tag in {"img", "source"} and attrs.get("srcset"):
+            if not attrs["srcset"].startswith("data:"):
+                self.resources.extend(part.strip().split()[0]
+                    for part in attrs["srcset"].split(",") if part.strip())
 
 
 def check_html(directory, root):
     pages = {p.resolve(): PageLinks(p.read_text()) for p in directory.rglob("*.html")}
     checked = 0
     for path, page in pages.items():
-        for target in page.links:
+        for target in page.links + page.resources:
             url = urlsplit(target)
             if url.netloc == "github.com" and url.path.startswith("/libtmux/libtmux-erlang/blob/"):
                 revision, _, source = url.path.removeprefix("/libtmux/libtmux-erlang/blob/").partition("/")
@@ -45,7 +53,8 @@ def check_html(directory, root):
                 if url.fragment and resolved in pages:
                     assert unquote(url.fragment) in pages[resolved].anchors, (path.name, target, "missing anchor")
                 checked += 1
-    return {"pages": len(pages), "links": checked}
+    return {"pages": len(pages), "links": checked,
+            "resources": sum(len(page.resources) for page in pages.values())}
 
 
 def main():
