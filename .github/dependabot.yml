@@ -4,4 +4,5 @@ updates:
     directory: /
     schedule:
       interval: weekly
-    open-pull-requests-limit: 5
+    # Disable routine version PRs; security PRs have a separate limit.
+    open-pull-requests-limit: 0
