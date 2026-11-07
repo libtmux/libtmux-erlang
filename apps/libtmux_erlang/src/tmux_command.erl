@@ -47,8 +47,8 @@ The [job guide](jobs.md) shows submission, completion and cancellation.
 `wait_for/2` builds native channel signals, waits and advisory locks.
 `source_file/2` builds configuration loading from stdin or a literal absolute
 path. Both return command values without opening an endpoint or doing I/O.
-`to_config/1` renders a command for native configuration input, preserving its
-argument bytes through tmux's lexer.
+`to_config/1` renders a command or bounded command list for native
+configuration input, preserving argument bytes through tmux's lexer.
 """.
 -export([raw/2, validate/1, argv/1, literal_format/1, literal_format/2, launch/1,
          wait_for/2, source_file/2, to_config/1]).
@@ -203,9 +203,12 @@ argv(Command) ->
     end.
 
 -doc """
-Render one validated command as native configuration text, without I/O.
-Returns an ASCII binary of at most 32 KiB, without a final newline. Validation
-uses `validate/1`; escaping growth can additionally return `command_limit`.
+Render validated commands as native configuration text, without I/O. Accepts
+one command or a nonempty flat list of at most 256 commands. Returns an ASCII
+binary of at most 32 KiB, without a final newline. Validation uses `validate/1`;
+escaping growth, command count and aggregate size can return `command_limit`.
+Lists use native command separators between independently quoted commands.
+Rendering does not execute them or provide atomic execution or rollback.
 
 Each argument is doublequoted. Quote, backslash, dollar, tilde, control and
 non-ASCII bytes use three-digit octal escapes. Empty arguments, semicolons,
@@ -225,8 +228,11 @@ literal format values are required. Load the text explicitly with
 text. The [configuration guide](configuration.md) uses this renderer with
 explicit execution and completion signals.
 """.
--spec to_config(t()) -> {ok, binary()} | {error, map()}.
-to_config(Command) ->
+-spec to_config(t() | [t(), ...]) -> {ok, binary()} | {error, map()}.
+to_config([_ | _] = Commands) -> config_commands(Commands, 256, 0, []);
+to_config(Command) -> config_command(Command).
+
+config_command(Command) ->
     maybe
         {ok, {tmux_command, Name, Arguments}} ?= validate(Command),
         Words = [Name | [config_word(Word) || Word <- Arguments]],
@@ -236,6 +242,22 @@ to_config(Command) ->
             false -> {error, #{code => command_limit}}
         end
     end.
+
+
+config_commands([], _, _, Acc) ->
+    {ok, iolist_to_binary(lists:join(<<" ; ">>, lists:reverse(Acc)))};
+config_commands([_ | _], 0, _, _) -> {error, #{code => command_limit}};
+config_commands([Command | Rest], Remaining, Bytes, Acc) ->
+    maybe
+        {ok, Text} ?= config_command(Command),
+        Size = Bytes + byte_size(Text) + case Acc of [] -> 0; _ -> 3 end,
+        case Size =< 32768 of
+            true -> config_commands(Rest, Remaining - 1, Size, [Text | Acc]);
+            false -> {error, #{code => command_limit}}
+        end
+    end;
+config_commands(_, _, _, _) ->
+    {error, #{code => invalid_command, reason => invalid_command_list}}.
 
 config_word(Word) -> [<<$">>, [config_byte(Byte) || <<Byte>> <= Word], <<$">>].
 

@@ -42,9 +42,7 @@ run(Socket, Executable) ->
             {ok, Settings} = tmux_command:raw(<<"set-option">>,
                 Scope ++ [<<"configured">>]),
             {ok, Signal} = tmux_command:wait_for(Channel, signal),
-            {ok, SetText} = tmux_command:to_config(Settings),
-            {ok, SignalText} = tmux_command:to_config(Signal),
-            Text = <<SetText/binary, "\n", SignalText/binary, "\n">>,
+            {ok, Text} = tmux_command:to_config([Settings, Signal]),
             {ok, _} = tmux_server:command(Server, Source, #{stdin => Text}),
             {ok, #{cleanup := complete}} =
                 tmux_operation:await(Operation, 900),
@@ -83,14 +81,17 @@ application-level completion events.
 
 ## Choose input and execution separately
 
-`tmux_command:to_config/1` renders a validated command value as native
-configuration text. Argument quoting preserves literal bytes through the
-lexer, including variables, semicolons, newline indentation and non-UTF-8 byte
-values. It returns ASCII text without performing I/O. Escaping growth is
-bounded by a 32 KiB rendered limit. This covers one lexer pass; native commands
-that accept command strings can parse those strings again. Render each inner
-command separately for its own boundary. Native commands still interpret their
-arguments and formats normally; this renderer does not quote shell code.
+`tmux_command:to_config/1` renders one validated command value or a nonempty
+flat list as native configuration text. Lists contain at most 256 commands and
+share the 32 KiB rendered limit, including native separators. Rendering a list
+does not provide atomic execution or rollback. Argument quoting preserves
+literal bytes through the lexer, including variables, semicolons, newline
+indentation and non-UTF-8 byte values. It returns ASCII text without
+performing I/O. Escaping growth is bounded by a 32 KiB rendered limit. This
+covers one lexer pass; native commands that accept command strings can parse
+those strings again. Render each inner command separately for its own
+boundary. Native commands still interpret their arguments and formats
+normally; this renderer does not quote shell code.
 
 `tmux_command:source_file/2` builds a command value without I/O. The source is
 `stdin` or one absolute POSIX byte path. Path glob characters and backslashes

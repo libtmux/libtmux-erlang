@@ -21,9 +21,7 @@ run(Socket, Executable) ->
             {ok, Settings} = tmux_command:raw(<<"set-option">>,
                 Scope ++ [<<"configured">>]),
             {ok, Signal} = tmux_command:wait_for(Channel, signal),
-            {ok, SetText} = tmux_command:to_config(Settings),
-            {ok, SignalText} = tmux_command:to_config(Signal),
-            Text = <<SetText/binary, "\n", SignalText/binary, "\n">>,
+            {ok, Text} = tmux_command:to_config([Settings, Signal]),
             {ok, _} = tmux_server:command(Server, Source, #{stdin => Text}),
             {ok, #{cleanup := complete}} =
                 tmux_operation:await(Operation, 900),

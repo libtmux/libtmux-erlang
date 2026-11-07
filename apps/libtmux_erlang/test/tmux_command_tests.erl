@@ -72,3 +72,18 @@ config_render_validation_test() ->
     {ok, Large} = tmux_command:raw(<<"set-option">>,
         [<<"-g">>, <<"@bytes">>, binary:copy(<<255>>, 10000)]),
     ?assertMatch({error, #{code := command_limit}}, tmux_command:to_config(Large)).
+
+config_sequence_boundaries_test() ->
+    {ok, Command} = tmux_command:raw(<<"display-message">>, []),
+    ?assertMatch({ok, _}, tmux_command:to_config(lists:duplicate(256, Command))),
+    ?assertMatch({error, #{code := command_limit}},
+        tmux_command:to_config(lists:duplicate(257, Command))),
+    ?assertMatch({error, #{code := invalid_command}}, tmux_command:to_config([])),
+    ?assertMatch({error, #{code := invalid_command}},
+        tmux_command:to_config([[Command]])),
+    ?assertMatch({error, #{code := invalid_command, reason := invalid_command_list}},
+        tmux_command:to_config([Command | invalid])),
+    {ok, Large} = tmux_command:raw(<<"display-message">>,
+        [binary:copy(<<$a>>, 17000)]),
+    ?assertMatch({error, #{code := command_limit}},
+        tmux_command:to_config([Large, Large])).

@@ -202,21 +202,12 @@ name(Name) when is_binary(Name) ->
 name(_) -> {error, #{code => invalid_hook_name}}.
 
 body([]) -> {error, #{code => invalid_hook_commands}};
-body([_ | _] = Commands) -> bodies(Commands, 256, 0, []);
-body(Command) -> bodies([Command], 1, 0, []).
-
-bodies([], _, _, Acc) -> {ok, iolist_to_binary(lists:join(<<" ; ">>, lists:reverse(Acc)))};
-bodies([_ | _], 0, _, _) -> {error, #{code => command_limit}};
-bodies([Command | Rest], Remaining, Bytes, Acc) ->
-    maybe
-        {ok, Text} ?= tmux_command:to_config(Command),
-        Size = Bytes + byte_size(Text) + case Acc of [] -> 0; _ -> 3 end,
-        case Size =< 32768 of
-            true -> bodies(Rest, Remaining - 1, Size, [Text | Acc]);
-            false -> {error, #{code => command_limit}}
-        end
-    end;
-bodies(_, _, _, _) -> {error, #{code => invalid_hook_commands}}.
+body(Commands) ->
+    case tmux_command:to_config(Commands) of
+        {error, #{code := invalid_command, reason := invalid_command_list}} ->
+            {error, #{code => invalid_hook_commands}};
+        Result -> Result
+    end.
 
 context({pane, Pane, Link}) ->
     maybe
