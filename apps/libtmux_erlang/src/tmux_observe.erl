@@ -2,8 +2,8 @@
 -moduledoc false.
 -export([get/3, created/3, snapshot/2, query/3, plan/2]).
 
-%% Each arbitrary text field has its own output, prefixed by a checked ID.
-%% Only the generated final newline is removed. Reads are not an atomic capture.
+%% Each arbitrary text field uses reversible q: quoting and a checked ID.
+%% Remove only the generated final newline before decoding. Reads are not atomic.
 -spec get(tmux_server:t(), atom(), binary()) -> {ok, tmux_model:row()} | {error, map()}.
 get(Server, Entity, Id) ->
     maybe
@@ -64,8 +64,8 @@ capture(Server, Options, Query) ->
 plan(Entity, Candidate) ->
     Scans = [scan_spec(Kind) || Kind <- [session, window, pane]],
     Hydration = [#{entity => E, field => Field, command => <<"display-message">>,
-        target => observed_id, format => <<"#{", Id/binary, "}\n#{", F/binary, "}">>,
-        transport => one_shot, codec => id_prefixed_single_field}
+        target => observed_id, format => <<"#{", Id/binary, "}\n#{q:", F/binary, "}">>,
+        transport => one_shot, codec => id_prefixed_quoted_field}
         || E <- [session, window, pane],
            #{format := Id} <- [maps:get(id, tmux_schema_data:fields(E))],
            {Field, #{format := F, type := Type}} <- lists:sort(maps:to_list(tmux_schema_data:fields(E))),
@@ -193,9 +193,16 @@ scalar_values(_, _, _) -> {error, #{code => invalid_scalar_observation}}.
 fields([], _, _, _, Acc, State) -> {ok, Acc, State};
 fields([{Key, #{format := Format} = Metadata} | Rest], Target, Id, IdFormat, Acc, State) ->
     maybe
-        {ok, Bytes, Next} ?= field_bytes(<<"#{", Format/binary, "}">>, Target, Id, IdFormat, State),
-        {ok, Value} ?= decode_field(Key, Metadata, Bytes),
-        fields(Rest, Target, Id, IdFormat, Acc#{Key => Value}, Next)
+        {ok, Quoted, Next} ?= field_bytes(<<"#{q:", Format/binary, "}">>,
+            Target, Id, IdFormat, State),
+        case tmux_text_codec:format(Quoted, maps:get(version, State)) of
+            {ok, Bytes} ->
+                maybe
+                    {ok, Value} ?= decode_field(Key, Metadata, Bytes),
+                    fields(Rest, Target, Id, IdFormat, Acc#{Key => Value}, Next)
+                end;
+            {error, Detail} -> {error, Detail#{path => [Key]}}
+        end
     end.
 
 field_bytes(Format, Target, Id, IdFormat, State) ->
@@ -227,8 +234,12 @@ read_state(Server, Options) when is_map(Options) ->
     case {Consistency, Valid} of
         {observed, true} ->
             Started = now_us(),
-            {ok, #{server => Server, started => Started, deadline => Started + Deadline * 1000,
-                   max_rows => Rows, max_bytes => Bytes, bytes => 0, calls => []}};
+            maybe
+                {ok, Version} ?= tmux_server:version(Server),
+                {ok, #{server => Server, version => Version, started => Started,
+                       deadline => Started + Deadline * 1000,
+                       max_rows => Rows, max_bytes => Bytes, bytes => 0, calls => []}}
+            end;
         {observed, false} -> {error, #{code => invalid_capture_options}};
         _ -> {error, #{code => unsupported_consistency}}
     end;

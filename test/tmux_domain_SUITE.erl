@@ -51,7 +51,8 @@ creation_and_identity(Config) ->
 launch_and_input(Config) ->
     with_server(Config, fun(Server, Fixture) ->
         #{directory := Directory} = tmux_test_fixture:info(Fixture),
-        Cwd = list_to_binary(filename:join(Directory, "cwd #{pane_id};\n%end")),
+        Cwd = list_to_binary(filename:join(Directory,
+            "cwd #{pane_id};\n%end\r $HOME \\n")),
         ok = file:make_dir(Cwd),
         Ready = filename:join(Directory, "input-ready"),
         {ok, Listener} = gen_tcp:listen(0, [local, {ifaddr, {local, Ready}}, binary,
@@ -310,7 +311,7 @@ linked_snapshot(Config) ->
                 [<<"link-window">>, <<"-d">>, <<"-s">>, WindowId, <<"-t">>, Target])
         end, [<<SessionId/binary, ":7">>, <<SessionId/binary, ":11">>,
               <<OtherId/binary, ":4">>]),
-        Title = <<"line one %end 1 2 3 #{pid}">>,
+        Title = <<"line one %end 1 2 3 #{pid} $HOME ${literal}">>,
         {ok, LiteralTitle} = tmux_command:literal_format(Title),
         {ok, SetTitle} = tmux_command:raw(<<"select-pane">>,
             [<<"-t">>, tmux_model:get(id, Pane), <<"-T">>, LiteralTitle]),

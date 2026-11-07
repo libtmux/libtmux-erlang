@@ -9,8 +9,7 @@ decode(Name, Output, #{array := Array, type := Type}, Version) ->
     %% tmux 3.4/3.5 print -v values through a lossy VIS_NOSLASH layer.
     %% Request named/quoted values instead. Its printable payload survives
     %% that layer; 3.4 additionally inserts a slash before dollar variables.
-    Mode = print_mode(Version),
-    Normalized = case Mode of dollars -> undo_dollars(Output, []); _ -> Output end,
+    {Mode, Normalized} = tmux_text_codec:print_layer(Output, Version),
     case Array of
         true -> array(Name, Normalized);
         false ->
@@ -27,16 +26,6 @@ decode(Name, Output, #{array := Array, type := Type}, Version) ->
 
 scalar_value(string, Value) -> value(Value);
 scalar_value(_, Value) -> {ok, binary:copy(Value)}.
-
-print_mode(#{major := 3, minor := 4}) -> dollars;
-print_mode(#{major := 3, minor := 5}) -> vis;
-print_mode(_) -> raw.
-
-undo_dollars(<<>>, Acc) -> list_to_binary(lists:reverse(Acc));
-undo_dollars(<<$\\, $$, Next, Rest/binary>>, Acc)
-  when Next >= $a, Next =< $z; Next >= $A, Next =< $Z; Next =:= $_; Next =:= ${ ->
-    undo_dollars(<<Next, Rest/binary>>, [$$ | Acc]);
-undo_dollars(<<C, Rest/binary>>, Acc) -> undo_dollars(Rest, [C | Acc]).
 
 %% Match only the requested name's bytes. Legacy tmux builds can differ in
 %% which UTF-8 sequences they copy; accept raw or VIS bytes without inventing
@@ -116,40 +105,10 @@ index(Digits, Value) when byte_size(Digits) > 0, byte_size(Digits) =< 10 ->
     end;
 index(_, _) -> invalid().
 
-%% Invert args_escape/utf8_stravis as bytes. Never pass output to a parser,
-%% shell, format expander or environment interpolator.
-value(<<Quote, Rest/binary>>) when Quote =:= $'; Quote =:= $" ->
-    case byte_size(Rest) > 0 andalso binary:last(Rest) =:= Quote of
-        true -> unescape(binary:part(Rest, 0, byte_size(Rest) - 1), []);
-        false -> invalid()
-    end;
-value(<<>>) -> invalid();
-value(Bytes) -> unescape(Bytes, []).
-
-unescape(<<>>, Acc) -> {ok, list_to_binary(lists:reverse(Acc))};
-unescape(<<$\\, A, B, C, Rest/binary>>, Acc)
-  when A >= $0, A =< $3, B >= $0, B =< $7, C >= $0, C =< $7 ->
-    Byte = (A - $0) * 64 + (B - $0) * 8 + C - $0,
-    case Byte of 0 -> invalid(); _ -> unescape(Rest, [Byte | Acc]) end;
-unescape(<<$\\, C, Rest/binary>>, Acc) ->
-    case escaped(C) of
-        invalid -> invalid();
-        Byte -> unescape(Rest, [Byte | Acc])
-    end;
-unescape(<<$\\>>, _) -> invalid();
-unescape(<<0, _/binary>>, _) -> invalid();
-unescape(<<C, Rest/binary>>, Acc) -> unescape(Rest, [C | Acc]).
-
-escaped($a) -> 7;
-escaped($b) -> 8;
-escaped($f) -> 12;
-escaped($n) -> 10;
-escaped($r) -> 13;
-escaped($s) -> 32;
-escaped($t) -> 9;
-escaped($v) -> 11;
-escaped(C) when C =:= $\\; C =:= $"; C =:= $'; C =:= $~; C =:= $\s;
-                C =:= $#; C =:= $;; C =:= $$; C =:= ${; C =:= $}; C =:= $% -> C;
-escaped(_) -> invalid.
+value(Bytes) ->
+    case tmux_text_codec:argument(Bytes) of
+        {error, _} -> invalid();
+        Decoded -> Decoded
+    end.
 
 invalid() -> {error, #{code => invalid_observation, entity => option}}.

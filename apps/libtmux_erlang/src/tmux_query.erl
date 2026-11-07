@@ -56,8 +56,9 @@ conversion, and is omitted for disabled/oversized fallback plans.
 -doc """
 Diagnostic command template, not executable argv. Scan templates carry kind
 and args; text/byte hydration uses target = observed_id, resolved only while
-capturing. codec states how returned data is framed. This value grants no
-atomicity or persistent-connection guarantee.
+capturing. Its format quotes the field to preserve literal backslashes and
+control bytes across tmux print encodings. codec states how returned data is
+framed. This value grants no atomicity or persistent-connection guarantee.
 """.
 -type source_command() ::
     #{entity := tmux_schema:entity(), command := binary(), format := binary(),
@@ -65,7 +66,7 @@ atomicity or persistent-connection guarantee.
       kind := tmux_schema:entity(), args := [binary()], filter => binary()} |
     #{entity := tmux_schema:entity(), field := atom(), command := binary(),
       format := binary(), transport := one_shot,
-      codec := id_prefixed_single_field, target := observed_id}.
+      codec := id_prefixed_quoted_field, target := observed_id}.
 -doc """
 Capture phases: initial identity/scalar scans, optional candidate scans,
 complete text/byte hydration and final identity/scalar scans. An empty server
