@@ -10,6 +10,7 @@ Native Erlang/OTP 29 library for explicit tmux operations and captured graph que
 - [Scoped options](docs/options.md): local ownership, explicit inheritance and sparse arrays.
 - [Buffers and paste](docs/buffers.md): exact binary payloads, names and pane delivery.
 - [Pane topology](docs/panes.md): explicit membership, stable processes and changed parents.
+- [Configuration](docs/configuration.md): stdin or literal file loading and native wait channels.
 - [Option catalogue](docs/options-reference.md): canonical names and version-specific scopes.
 - [API browser](docs/api.md): build the native reference locally.
 - [Project policy](docs/project-policy.md): core/workspace boundaries and OTP runtime dependencies.

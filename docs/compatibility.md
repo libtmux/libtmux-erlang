@@ -29,6 +29,7 @@ macOS, native Windows and psmux are not advertised as qualified platforms.
 | Domain commands | Initial create/read/rename/kill calls, explicit client/session selection, checked window memberships, pane split/break/join/move/swap/resize, pane/window respawn, window layouts, literal/key input and capture |
 | Options | Explicit local/global tables, local or inherited reads, indexed writes/unsets and generated source metadata; hooks remain outside the option API |
 | Buffers | Named or automatic binary load, exact show, metadata lists, delete/rename and paste; native version differences are explicit |
+| Server utilities | Command values for literal source-file/stdin configuration and native wait-for signals, waits and explicit advisory locks |
 
 The [examples](../examples) exercise the current public API. Real integration
 checks use private sockets and verify owned process retirement. A captured row

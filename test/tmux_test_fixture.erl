@@ -61,7 +61,12 @@ with_client(Fixture, Session, Environment, Function) ->
         case erlang:port_info(Port) of
             undefined -> ok;
             _ ->
-                true = erlang:port_command(Port, <<"detach-client\n">>),
+                %% A wait may block this client's command queue. Detach
+                %% through a separate client so cleanup cannot queue behind it.
+                ClientName = <<"client-", (integer_to_binary(Pid))/binary>>,
+                {ok, _} = tmux_transport:run(Executable,
+                    [<<"-N">>, <<"-S">>, Socket, <<"detach-client">>,
+                     <<"-t">>, ClientName], #{timeout_ms => 900, max_stdout => 0}),
                 client_exit(Port, erlang:monotonic_time(millisecond) + 900, 65536)
         end,
         false = same_process(Pid, Identity)

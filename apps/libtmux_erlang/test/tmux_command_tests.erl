@@ -34,3 +34,24 @@ bounded_binary_ownership_test() ->
     {ok, Command} = tmux_command:raw(<<"display-message">>, [Slice]),
     [_, Argument] = tmux_command:argv(Command),
     ?assertEqual(100, binary:referenced_byte_size(Argument)).
+
+server_utility_commands_test() ->
+    {ok, Signal} = tmux_command:wait_for(<<"ready;">>, signal),
+    ?assertEqual([<<"wait-for">>, <<"-S">>, <<"--">>, <<"ready\\;">>],
+        tmux_command:argv(Signal)),
+    {ok, Wait} = tmux_command:wait_for(<<"ready">>, wait),
+    ?assertEqual([<<"wait-for">>, <<"--">>, <<"ready">>], tmux_command:argv(Wait)),
+    ?assertMatch({error, #{code := invalid_channel}}, tmux_command:wait_for(<<>>, wait)),
+    ?assertMatch({error, #{code := invalid_wait_action}},
+        tmux_command:wait_for(<<"ready">>, unknown)),
+    ?assertMatch({error, #{code := invalid_argument}},
+        tmux_command:wait_for(<<0>>, signal)),
+    {ok, Source} = tmux_command:source_file(stdin, #{parse_only => true, quiet => true}),
+    ?assertEqual([<<"source-file">>, <<"-n">>, <<"-q">>, <<"--">>, <<"-">>],
+        tmux_command:argv(Source)),
+    ?assertMatch({error, #{code := invalid_source_path}},
+        tmux_command:source_file(<<"relative.conf">>, #{})),
+    ?assertMatch({error, #{code := invalid_option, path := [parse_only]}},
+        tmux_command:source_file(stdin, #{parse_only => yes})),
+    ?assertMatch({error, #{code := unknown_option, path := [expand_formats]}},
+        tmux_command:source_file(stdin, #{expand_formats => true})).

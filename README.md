@@ -151,6 +151,8 @@ session/index membership.
   names and control terminal delivery.
 - [Rearrange panes](docs/panes.md): isolate a running job in a window and join
   it back, preserving its process and the original snapshot.
+- [Apply configuration and await a signal](docs/configuration.md): load settings
+  from stdin, observe the event and verify parse-only behavior.
 - [API browser and source docs](docs/api.md): build searchable native reference
   pages with specs, types and links to the exact source revision.
 

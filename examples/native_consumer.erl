@@ -54,7 +54,7 @@ run_endpoint(Socket, Executable) ->
                                         [<<"-p">>, <<"archive consumer">>]),
         {ok, #{stdout := <<"archive consumer\n">>, cleanup := complete}} =
             tmux_server:command(Server, Message, #{}),
-        {ok, Wait} = tmux_command:raw(<<"wait-for">>, [<<"archive-consumer">>]),
+        {ok, Wait} = tmux_command:wait_for(<<"archive-consumer">>, wait),
         {ok, Operation} = tmux_operation:start(Server, Wait, #{}),
         {ok, _} = tmux_operation:await_started(Operation, 900),
         {error, #{code := await_timeout}} = tmux_operation:await(Operation, 0),

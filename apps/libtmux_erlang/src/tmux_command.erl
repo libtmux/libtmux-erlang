@@ -41,9 +41,22 @@ that must remain available across supported versions.
 
 Submit commands through `tmux_server:command/3` or `tmux_operation:start/3`.
 The [job guide](jobs.md) shows submission, completion and cancellation.
+
+`wait_for/2` builds native channel signals, waits and advisory locks.
+`source_file/2` builds configuration loading from stdin or a literal absolute
+path. Both return command values without opening an endpoint or doing I/O.
 """.
--export([raw/2, validate/1, argv/1, literal_format/1, literal_format/2, launch/1]).
+-export([raw/2, validate/1, argv/1, literal_format/1, literal_format/2, launch/1,
+         wait_for/2, source_file/2]).
 -export_type([t/0]).
+-export_type([wait_action/0, source/0, source_options/0]).
+
+-doc "Native wait channel action. lock/unlock are explicit advisory operations, not owned leases.".
+-type wait_action() :: wait | signal | lock | unlock.
+-doc "Standard input, or one literal absolute POSIX byte path with no NUL.".
+-type source() :: stdin | binary().
+-doc "Native parse-only and quiet-missing-file flags; both default to false.".
+-type source_options() :: #{parse_only => boolean(), quiet => boolean()}.
 
 -export_type([launch_spec/0]).
 -doc "Explicit executable argv, an explicitly requested shell command, or tmux's configured default shell.".
@@ -78,6 +91,92 @@ raw(Name, Arguments) ->
                 {ok, {tmux_command, compact(Name), [compact(A) || A <- Arguments]}}
             end
     end.
+
+-doc """
+Build a native `wait-for` command without I/O. Channels are nonempty NUL-free
+binary names, subject to the command reservation in `raw/2`; neither shell nor
+format expansion occurs. Submit through `tmux_operation:start/3` for a wait
+that leaves the caller free, or through `tmux_server:command/3` to await it.
+
+`signal` wakes current waiters. On an unlocked channel with no waiters or
+pending wakeup, it retains one wakeup for a later wait. Signaling that channel
+again before a wait can clear the pending state. Signals are neither counted
+nor reliably coalesced events; send once per expected wait. Channel names are
+shared by all clients of the server. Use separate names for signaling and
+locking. `lock` acquires an advisory channel lock or waits
+for an explicit `unlock`; a completed command client's exit does not release
+its acquired lock. Unlocking an unlocked channel is a native command error.
+
+Cancellation retires the library client. It does not undo a signal or release
+a lock that may already have been acquired; an uncertain lock outcome needs
+application coordination before another unlock. This is not an owned mutex.
+
+```erlang
+1> {ok, Signal} = tmux_command:wait_for(<<"build-ready">>, signal), ok.
+ok
+2> tmux_command:argv(Signal).
+[<<"wait-for">>,<<"-S">>,<<"--">>,<<"build-ready">>]
+```
+""".
+-spec wait_for(binary(), wait_action()) -> {ok, t()} | {error, map()}.
+wait_for(Channel, Action) ->
+    maybe
+        {ok, Flags} ?= case Action of
+            wait -> {ok, []};
+            signal -> {ok, [<<"-S">>]};
+            lock -> {ok, [<<"-L">>]};
+            unlock -> {ok, [<<"-U">>]};
+            _ -> {error, #{code => invalid_wait_action}}
+        end,
+        ok ?= case Channel of <<>> -> {error, #{code => invalid_channel}}; _ -> word(Channel) end,
+        raw(<<"wait-for">>, Flags ++ [<<"--">>, Channel])
+    end.
+
+-doc """
+Build configuration loading from stdin or one literal absolute path, without
+I/O. `stdin` renders `source-file -`; supply configuration bytes in the
+`stdin` option of `tmux_server:command/3` or `tmux_operation:start/3`. Those
+APIs bound input to 256 KiB including their argument reservation.
+
+Paths are NUL-free POSIX byte binaries. Glob metacharacters and backslashes
+are escaped so only that filename is selected; format expansion is disabled.
+The combined encoded path and flags must fit `raw/2` limits. The file is read
+by tmux at execution time; this builder does not open it or bound its size.
+
+`parse_only` requests native `-n` parsing without executing the configuration's
+command list. `quiet` requests native `-q` missing-file suppression; it does
+not suppress syntax or execution errors. Both default to false. Configuration
+is trusted tmux code, with its own variable, directive and command semantics.
+Parse-only is not a sandbox. Execution can partially change server state before
+an error; cancellation cannot undo those effects. Completion does not prove
+that background jobs launched by the configuration have finished.
+
+```erlang
+1> {ok, Source} = tmux_command:source_file(stdin, #{parse_only => true}), ok.
+ok
+2> tmux_command:argv(Source).
+[<<"source-file">>,<<"-n">>,<<"--">>,<<"-">>]
+```
+""".
+-spec source_file(source(), source_options()) -> {ok, t()} | {error, map()}.
+source_file(Source, Options) ->
+    maybe
+        {ok, Flags} ?= tmux_args:options(Options,
+            [{parse_only, flag, <<"-n">>}, {quiet, flag, <<"-q">>}]),
+        {ok, Path} ?= source_path(Source),
+        raw(<<"source-file">>, Flags ++ [<<"--">>, Path])
+    end.
+
+source_path(stdin) -> {ok, <<"-">>};
+source_path(<<$/, _/binary>> = Path) ->
+    maybe
+        ok ?= word(Path),
+        {ok, << <<(glob_byte(C))/binary>> || <<C>> <= Path >>}
+    end;
+source_path(_) -> {error, #{code => invalid_source_path}}.
+
+glob_byte(C) when C =:= $*; C =:= $?; C =:= $[; C =:= $]; C =:= $\\ -> <<$\\, C>>;
+glob_byte(C) -> <<C>>.
 
 -doc """
 Revalidate a command value at a submission boundary. Returns a compact
