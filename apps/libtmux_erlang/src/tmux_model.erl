@@ -6,8 +6,9 @@ Validated native domain records. Constructors perform no tmux I/O.
 Missing optional observations remain not_loaded; required identity fields
 must be supplied. Unavailable capabilities remain
 unavailable. Neither state means an empty relation or known absence.
-Rows created here are detached. Only a registered server owner can
-authorize an action after validating its origin and generation.
+Rows created by `new/2` and the entity constructors are detached.
+Use `tmux_server:bind/2` to register a fresh observed row for actions;
+use `m:tmux_snapshot` for captured graph relationships.
 """.
 -export_record([session, window, window_link, pane]).
 -export([new/2, validate/1, entity/1, get/2, to_map/1, origin/1,

@@ -2,15 +2,17 @@
 -moduledoc """
 Parse the output of tmux -V without invoking tmux.
 
-Version comparisons use numeric components. Support starts at plain 3.3;
-patch letters do not turn an older minor release into a supported version.
-Runtime acceptance does not establish that a version passed the CI matrix.
+Version comparisons use numeric components. Support starts at plain 3.3; patch
+letters do not turn an older minor release into a supported version. Runtime
+acceptance does not establish that a version passed the CI matrix. Use
+`tmux_server:version/1` for the daemon version observed by an endpoint.
 """.
 -export([parse/1, require/1, at_least/2]).
 -export_type([t/0]).
 
 -doc """
-Parsed numeric daemon version plus patch, tracking and original-output metadata.
+Parsed numeric daemon version plus patch, tracking and original-output
+metadata.
 """.
 -type t() :: #{major := non_neg_integer(), minor := non_neg_integer(),
                patch := binary(), tracking := boolean(), raw := binary()}.
@@ -63,8 +65,8 @@ require(Raw) ->
     end.
 
 -doc """
-Compare numeric major/minor components with a required floor. Patch letters
-do not promote an older minor release. Performs no I/O.
+Compare numeric major/minor components with a required floor. Patch letters do
+not promote an older minor release. Performs no I/O.
 """.
 -spec at_least(t(), {non_neg_integer(), non_neg_integer()}) -> boolean().
 at_least(#{major := Major, minor := Minor}, {RequiredMajor, RequiredMinor}) ->

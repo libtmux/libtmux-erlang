@@ -2,32 +2,36 @@
 -moduledoc """
 Split and observe panes using explicit I/O and registered physical IDs.
 
-split accepts a pane or a window; a window means its active pane at execution.
-Options are direction (horizontal or vertical), size ({cells, N} or
-{percent, N}), before, full_size, zoom, cwd, env, launch and detach. It defaults
-to a detached vertical split. get returns newly observed fields; existing rows
+`split/2` accepts a pane or a window; a window means its active pane
+at execution. Options (`t:split_options/0`) are direction
+(horizontal or vertical), size ({cells, N} or {percent, N}), before,
+full_size, zoom, cwd, env, launch and detach. It defaults to a detached
+vertical split. `get/2` returns newly observed fields; existing rows
 remain unchanged. Reads span several commands and do not claim atomicity.
-Launch and environment options follow `tmux_session:create/2`.
-An absent or zero tmux pane_pid is represented as none. A captured positive
-PID is an observation, not a guarantee that the process remains alive.
+Launch and environment options follow `tmux_session:create/2`. An absent or
+zero tmux pane_pid is represented as none. A captured positive PID is an
+observation, not a guarantee that the process remains alive.
 
 A successful split followed by a failed observation retains the completed
-mutation and command result in its error. kill returns the command result.
-Detached or stale references cannot act. All calls perform I/O after validation.
+mutation and command result in its error. `kill/1` returns the
+command result. Detached or stale references cannot act. All calls perform I/O
+after validation.
 
-send_text sends up to 2,000 literal bytes, including NUL, in one command using
-tmux's hexadecimal key form. It adds no Enter key and never splits a large
-input into partially applied commands. send_keys accepts up to 256 named keys,
-single UTF-8 characters, {function, 1..12} and {control, <<Letter>>}. Named keys
-are enter, tab, escape, backspace, space, up, down, left, right, home, 'end',
-insert, delete, page_up, page_down and back_tab. Terminal modes still govern
-how input is consumed; command completion does not mean a program processed it.
+`send_text/2` sends up to 2,000 literal bytes, including NUL, in one
+command using tmux's hexadecimal key form. It adds no Enter key and never
+splits a large input into partially applied commands. `send_keys/2`
+accepts up to 256 named keys, single UTF-8 characters, {function, 1..12} and
+{control, <<Letter>>}. Named keys are enter, tab, escape, backspace, space,
+up, down, left, right, home, 'end', insert, delete, page_up, page_down and
+back_tab. Terminal modes still govern how input is consumed; command
+completion does not mean a program processed it.
 
-capture returns stdout bytes unchanged, including final newlines. Options are
-start and 'end' (line integers or all), join_lines, escape_sequences,
-escape_control, retain_trailing_spaces, alternate, pending and quiet. Defaults
-are tmux's current-screen capture without escapes, joined wraps or padding.
-The endpoint's output limit applies; an oversized capture returns an error.
+`capture/2` returns stdout bytes unchanged, including final
+newlines. Options (`t:capture_options/0`) are start and 'end' (line
+integers or all), join_lines, escape_sequences, escape_control,
+retain_trailing_spaces, alternate, pending and quiet. Defaults are tmux's
+current-screen capture without escapes, joined wraps or padding. The
+endpoint's output limit applies; an oversized capture returns an error.
 """.
 -export([split/2, get/2, kill/1, resize/2, respawn/2, send_text/2, send_keys/2, capture/2]).
 
@@ -92,11 +96,12 @@ kill(Pane) -> tmux_target:act(pane, Pane, <<"kill-pane">>, []).
 
 -doc """
 Request an absolute width, height or both for this registered physical pane.
-Performs I/O after validating dimensions and origin. tmux can clamp the request
-to its layout constraints and can resize neighboring panes. Resizing a tiled
-pane unzooms its window. Use `get/2` for actual dimensions; the input row is unchanged.
-The accepted library range is not a promise that every server accepts every
-dimension: tmux versions can impose tighter limits and return a command error.
+Performs I/O after validating dimensions and origin. tmux can clamp the
+request to its layout constraints and can resize neighboring panes. Resizing a
+tiled pane unzooms its window. Use `get/2` for actual dimensions; the input
+row is unchanged. The accepted library range is not a promise that every
+server accepts every dimension: tmux versions can impose tighter limits and
+return a command error.
 
 An empty request is rejected before dispatch:
 
@@ -133,8 +138,8 @@ not automatically reapplied. Other launch rules follow
 `tmux_session:create/2`.
 
 Performs I/O after validation. Existing rows retain their observations; use
-`get/2` and an application readiness condition to inspect the new process.
-An uncertain result is not permission to replay this mutation automatically.
+`get/2` and an application readiness condition to inspect the new process. An
+uncertain result is not permission to replay this mutation automatically.
 
 Unsupported launch modes fail before dispatch:
 
@@ -169,7 +174,8 @@ send_text(_, _) -> {error, #{code => invalid_text}}.
 -doc """
 Send at most 256 validated key tokens. Named keys, single UTF-8 characters,
 function keys and control-letter tuples are supported. Performs I/O; terminal
-modes determine the resulting input bytes. Use `send_text/2` for arbitrary bytes.
+modes determine the resulting input bytes. Use `send_text/2` for arbitrary
+bytes.
 """.
 -spec send_keys(tmux_model:pane(), [key()]) -> {ok, map()} | {error, map()}.
 send_keys(Pane, Keys) ->

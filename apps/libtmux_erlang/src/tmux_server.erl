@@ -2,20 +2,25 @@
 -moduledoc """
 Open a borrowed tmux endpoint and execute explicit command values.
 
-open validates an absolute socket path and the executable/server versions.
-It never creates a tmux server or attaches a control client. Each command
-rechecks the observed Linux process incarnation before dispatch. Replacement
-between that observation and a later client connection remains possible;
-same_connection requests are rejected until persistent dispatch qualifies.
+`open/1` validates an absolute socket path and the
+executable/server versions. It never creates a tmux server or attaches a
+control client. Each command rechecks the observed Linux process incarnation
+before dispatch. Replacement between that observation and a later client
+connection remains possible; same_connection requests are rejected until
+persistent dispatch qualifies.
 
-The calling process owns the endpoint. close cancels queued work, retires its
-clients and preserves the borrowed server. A cleanup failure remains explicit
-and keeps the supervised owner alive. Successful close is idempotent during
-the 60-second handle retention period. Command results preserve stdout,
-stderr and status; cancellation after dispatch cannot undo remote effects.
-Clients explicitly select tmux's UTF-8 mode so Unicode and the identity probe's
-tab do not depend on the caller's locale. Command-specific escaping still
-applies to raw command output.
+The calling process owns the endpoint. `close/1` cancels queued
+work, retires its clients and preserves the borrowed server. A cleanup failure
+remains explicit and keeps the supervised owner alive. Successful close is
+idempotent during the 60-second handle retention period. Command results
+preserve stdout, stderr and status; cancellation after dispatch cannot undo
+remote effects. Clients explicitly select tmux's UTF-8 mode so Unicode and the
+identity probe's tab do not depend on the caller's locale. Command-specific
+escaping still applies to raw command output.
+
+Use `snapshot/1` to capture a graph for `m:tmux_snapshot` and
+`m:tmux_select`. Use `m:tmux_operation` for non-blocking submission and
+explicit waits; the [job guide](jobs.md) explains ownership and cleanup.
 """.
 -behaviour(gen_server).
 -export([open/1, command/3, close/1, status/1, origin/1, version/1, from_origin/1, bind/2,
@@ -27,11 +32,11 @@ applies to raw command output.
 -doc "An explicit absolute socket endpoint and optional absolute tmux executable path.".
 -type open_options() :: #{socket_path := binary(), executable => binary()}.
 -doc """
-Command options: deadline_ms defaults to 2500, max_stdout to 1 MiB,
-max_stderr to 64 KiB, stdin to an empty binary and identity to observed.
-The deadline includes admission, preflight and execution. stdin is limited to
-256 KiB; stdin plus the rendered argument reservation must also fit 256 KiB.
-Each endpoint admits at most 64 operations and 256 KiB of command payload;
+Command options: deadline_ms defaults to 2500, max_stdout to 1 MiB, max_stderr
+to 64 KiB, stdin to an empty binary and identity to observed. The deadline
+includes admission, preflight and execution. stdin is limited to 256 KiB;
+stdin plus the rendered argument reservation must also fit 256 KiB. Each
+endpoint admits at most 64 operations and 256 KiB of command payload;
 exhaustion returns busy. same_connection is recognized but unsupported.
 """.
 -type command_options() :: #{deadline_ms => 1..600000, max_stdout => 0..1048576,
@@ -52,15 +57,16 @@ measurements. generation identifies this endpoint handle's lifetime.
     result_bytes := non_neg_integer()}.
 
 -doc """
-A supervised borrowed-endpoint handle bound to an owner generation and admission state.
+A supervised borrowed-endpoint handle bound to an owner generation and
+admission state.
 """.
 -opaque t() :: {server, pid(), reference(), tmux_admission:t()}.
 %% Reserve two copies of the 256 KiB ingress limit while validating/rendering.
 -define(PAYLOAD_BUDGET, 7864320).
 
 -doc """
-Open a borrowed socket endpoint and start its supervised library owner.
-The caller owns that handle. This probes the executable, daemon version and
+Open a borrowed socket endpoint and start its supervised library owner. The
+caller owns that handle. This probes the executable, daemon version and
 observed Linux process incarnation; it never starts a tmux server or attaches
 a control client. Pass an absolute socket_path and optionally an executable.
 """.
@@ -86,9 +92,9 @@ open(Options) ->
     end.
 
 -doc """
-Execute one validated command and await its result. Performs I/O.
-The result preserves stdout, stderr, exit status and cleanup certainty.
-Use `tmux_operation:start/3` to submit without blocking this caller. A timeout or
+Execute one validated command and await its result. Performs I/O. The result
+preserves stdout, stderr, exit status and cleanup certainty. Use
+`tmux_operation:start/3` to submit without blocking this caller. A timeout or
 cancellation cannot reverse effects that may already have reached tmux.
 """.
 -spec command(t(), tmux_command:t(), command_options()) ->
@@ -116,17 +122,17 @@ library owner, not tmux, and does not refresh captured rows.
 status(Server) -> server_request(Server, status, 900).
 
 -doc """
-Return the registered opaque origin for this open endpoint. The token
-provides library provenance and generation checks, not authorization against
-trusted Erlang code. It is not a portable identifier.
+Return the registered opaque origin for this open endpoint. The token provides
+library provenance and generation checks, not authorization against trusted
+Erlang code. It is not a portable identifier.
 """.
 -spec origin(t()) -> {ok, reference()} | {error, map()}.
 origin(Server) -> server_request(Server, origin, 900).
 
 -doc """
-Return the daemon version observed when the endpoint opened. This reads
-owner state and does not execute a fresh version command or qualify another
-tmux release.
+Return the daemon version observed when the endpoint opened. This reads owner
+state and does not execute a fresh version command or qualify another tmux
+release.
 """.
 -spec version(t()) -> {ok, tmux_version:t()} | {error, map()}.
 version(Server) -> server_request(Server, version, 900).
@@ -148,9 +154,10 @@ including changes followed by a reversal. Atomic capture is unsupported.
 
 Options are consistency (observed only), deadline_ms (default 2500, maximum
 600000), max_rows (4096, maximum 65536 identity observations per scan) and
-max_bytes (8 MiB, maximum 64 MiB total stdout across capture commands). A field
-or scan is additionally limited to 1 MiB. These are data limits, not a VM heap
-limit. Capturing performs no retry. Local reads of the resulting value do no I/O.
+max_bytes (8 MiB, maximum 64 MiB total stdout across capture commands). A
+field or scan is additionally limited to 1 MiB. These are data limits, not a
+VM heap limit. Capturing performs no retry. Local reads of the resulting value
+do no I/O.
 
 Unsupported consistency is rejected before contacting a server:
 
@@ -169,10 +176,10 @@ observation_context(Server) -> server_request(Server, observation_context, 900).
 -doc """
 Explicitly read current fields from this server and register the new value.
 For sessions, physical windows and panes, the read uses the stable ID and
-discards the supplied field observations. It provides no atomic identity check.
-Window-link binding checks its session/index and expected physical window.
-A replaced or missing membership returns stale_link. This observed preflight
-does not make a later action atomic.
+discards the supplied field observations. It provides no atomic identity
+check. Window-link binding checks its session/index and expected physical
+window. A replaced or missing membership returns stale_link. This observed
+preflight does not make a later action atomic.
 
 Invalid rows are rejected before I/O:
 

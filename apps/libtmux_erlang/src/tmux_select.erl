@@ -2,15 +2,18 @@
 -moduledoc """
 Filter ordered captured rows without tmux I/O.
 
-Use panes/windows/window_links/sessions with a snapshot to retain graph
-coverage. from_list preserves supplied order, duplicates and row origins;
-it establishes only fields present in every row and loads no relationships.
-Filtering and take retain the original coverage even if no rows remain.
+Use `panes/1`, `windows/1`,
+`window_links/1` or `sessions/1` with a
+`m:tmux_snapshot` to retain graph coverage. `from_list/2`
+preserves supplied order, duplicates and row origins; it establishes only
+fields present in every row and loads no relationships. Filtering and
+`take/2` retain the original coverage even if no rows remain.
 
-where accepts map criteria or a portable filter. filter accepts a unary
-Boolean function, whose exceptions propagate. Cardinality criteria validate
-the whole expression and its coverage before stopping at sufficient evidence.
-Selections are opaque values; use to_list for ordinary list functions.
+`where/2` accepts map criteria or a `t:tmux_filter:t/0` portable
+filter. `filter/2` accepts a unary Boolean function, whose
+exceptions propagate. Cardinality criteria validate the whole expression and
+its coverage before stopping at sufficient evidence. Selections are opaque
+values; use `to_list/1` for functions in `m:lists`.
 """.
 -export([panes/1, windows/1, window_links/1, sessions/1, from_list/2,
          where/2, try_where/2, filter/2, matching/2, to_list/1, fold/3,
@@ -23,7 +26,8 @@ Selections are opaque values; use to_list for ordinary list functions.
                     size :: non_neg_integer(),
                     context :: {snapshot, tmux_snapshot:t()} | {local, map()}}).
 -doc """
-Ordered captured rows with observation and coverage context, not an extensible list protocol.
+Ordered captured rows with observation and coverage context, not an extensible
+list protocol.
 """.
 -opaque t(Row) :: #selection{rows :: [Row]}.
 -doc """
@@ -131,9 +135,10 @@ filter(Predicate, #selection{rows = Rows} = Selection) when is_function(Predicat
 -doc """
 Prepare a trusted behaviour once, then apply its Boolean predicate.
 
-Returns {error, Detail} on matcher preparation failure. Exceptions in either
-callback propagate. A matcher requires a captured snapshot; a from_list
-selection returns matcher_requires_snapshot. The application chooses Module.
+Uses `c:tmux_matcher:prepare/2`; preparation failure returns {error, Detail}.
+Exceptions in either callback propagate. A matcher requires a captured
+snapshot; a `from_list/2` selection returns matcher_requires_snapshot. The
+application chooses Module.
 """.
 -spec matching({module(), term()}, t(Row)) -> {ok, t(Row)} | {error, term()} when Row :: tmux_model:row().
 matching({Module, State}, #selection{context = {snapshot, Snapshot}} = Selection)
@@ -147,8 +152,8 @@ matching({Module, _}, #selection{}) when is_atom(Module) ->
     {error, #{code => matcher_requires_snapshot}}.
 
 -doc """
-Return the current ordered rows as an ordinary Erlang list without I/O.
-Use list functions or comprehensions for transformations to other value types.
+Return the current ordered rows as an ordinary Erlang list without I/O. Use
+list functions or comprehensions for transformations to other value types.
 """.
 -spec to_list(t(Row)) -> [Row] when Row :: tmux_model:row().
 to_list(#selection{rows = Rows}) -> Rows.
@@ -193,22 +198,22 @@ summary(#selection{entity = Entity, size = Size, context = Context}) ->
     end.
 
 -doc """
-Return the first current row or none. Additional matches are allowed.
-Performs no I/O.
+Return the first current row or none. Additional matches are allowed. Performs
+no I/O.
 """.
 -spec first(t(Row)) -> {ok, Row} | none when Row :: tmux_model:row().
 first(#selection{rows = []}) -> none;
 first(#selection{rows = [Row | _]}) -> {ok, Row}.
 -doc """
-Validate criteria and coverage, then stop at the first local match.
-Returns none when no row matches; performs no I/O.
+Validate criteria and coverage, then stop at the first local match. Returns
+none when no row matches; performs no I/O.
 """.
 -spec first(criteria(), t(Row)) -> {ok, Row} | none when Row :: tmux_model:row().
 first(Criteria, Selection) -> first(matching_prefix(Criteria, Selection, 1)).
 
 -doc """
-Return the sole current row or a no_match/multiple_matches error.
-Ambiguity reports at_least = 2 rather than computing a needless exact count.
+Return the sole current row or a no_match/multiple_matches error. Ambiguity
+reports at_least = 2 rather than computing a needless exact count.
 """.
 -spec one(t(Row)) -> {ok, Row} | cardinality_error() when Row :: tmux_model:row().
 one(#selection{rows = []}) -> {error, no_match};
@@ -222,22 +227,22 @@ establish cardinality. Returns a tagged cardinality result; performs no I/O.
 one(Criteria, Selection) -> one(matching_prefix(Criteria, Selection, 2)).
 
 -doc """
-Return the sole current row, {ok, none} on absence, or a multiple-match
-error. Performs no I/O.
+Return the sole current row, {ok, none} on absence, or a multiple-match error.
+Performs no I/O.
 """.
 -spec one_or_none(t(Row)) -> {ok, Row | none} | cardinality_error() when Row :: tmux_model:row().
 one_or_none(Selection) ->
     case one(Selection) of {error, no_match} -> {ok, none}; Result -> Result end.
 -doc """
-Validate local criteria and return one row or known absence. A second
-match is an explicit ambiguity error; performs no I/O.
+Validate local criteria and return one row or known absence. A second match is
+an explicit ambiguity error; performs no I/O.
 """.
 -spec one_or_none(criteria(), t(Row)) -> {ok, Row | none} | cardinality_error() when Row :: tmux_model:row().
 one_or_none(Criteria, Selection) -> one_or_none(matching_prefix(Criteria, Selection, 2)).
 
 -doc """
-Return the sole row directly, raising on zero or multiple matches.
-Use `one/1` for tagged cardinality errors.
+Return the sole row directly, raising on zero or multiple matches. Use `one/1`
+for tagged cardinality errors.
 """.
 -spec one_or_error(t(Row)) -> Row when Row :: tmux_model:row().
 one_or_error(Selection) ->

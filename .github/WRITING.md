@@ -121,6 +121,40 @@ errors, side effects, process and resource ownership, and cleanup. State
 whether a call performs I/O. Use typespecs to describe contracts without
 presenting them as runtime validation.
 
+### Interlinking
+
+Link API symbols at their first useful mention in each documentation block.
+Use native Erlang Markdown references so ExDoc, the shell and editor tooling
+share the same names. Qualify references across modules; short local
+references must belong to the current module.
+
+Keep the opening module paragraph a short purpose statement. Put member links
+in the following paragraphs: ExDoc can shorten even qualified self-links to
+page-local anchors before reusing the summary on the API index.
+
+| Target | Inline reference |
+| --- | --- |
+| Module | `m:tmux_snapshot` |
+| Local function | `fetch/1` |
+| Remote function | `tmux_server:snapshot/1` |
+| Type | `t:tmux_model:pane/0` or local `t:t/0` |
+| Behaviour callback | `c:tmux_matcher:prepare/2` |
+| Reader guide | A relative Markdown link to the guide's extra page |
+
+Link related calls when the distinction affects behavior, such as local data
+versus I/O, waiting versus cancellation, or a physical window versus one
+membership. Keep option keys, error atoms and tmux command names as literal
+code. Do not turn every repeated word into a link or hand-code API HTML URLs.
+
+Use `-moduledoc` for navigation and workflows, `-doc` for call contracts, and
+document exported types and callbacks beside their definitions. Keep code
+examples executable. Change generated documentation through its generator.
+
+Build the native browser with warnings treated as errors and check the
+rendered links and anchors. A source reference is not verified until its
+rendered target resolves. Follow the
+[OTP documentation reference rules](https://www.erlang.org/doc/system/documentation.html#links-in-markdown).
+
 Comments explain constraints, invariants, and non-obvious choices. Remove
 comments that repeat names or narrate the next expression. Preserve tooling
 directives and explanations of protocol or platform workarounds.

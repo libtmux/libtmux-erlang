@@ -5,26 +5,31 @@ Read an immutable captured graph without performing tmux I/O.
 Server-wide lists use numeric ID order. Window links retain every membership,
 including multiple indexes for the same window in one session. Session windows
 are unique in first-link order; panes within a window use pane index order.
-related accepts a row from this snapshot and returns a tagged result. A row
-from another observation cannot silently select a relationship in this one.
+`related/3` accepts a row from this snapshot and returns a
+tagged result. A row from another observation cannot silently select a
+relationship in this one.
 
-metadata records source calls, the capture interval, endpoint generation and
-the observed server incarnation. Captures span commands and are not atomic.
-Values remain readable after their endpoint closes; actions still validate
-the row's registered origin. Coverage distinguishes unloaded data from an
-empty collection and unavailable fields from known absence.
+`metadata/1` records source calls, the capture interval,
+endpoint generation and the observed server incarnation. Captures span
+commands and are not atomic. Values remain readable after their endpoint
+closes; actions still validate the row's registered origin. Coverage
+distinguishes unloaded data from an empty collection and unavailable fields
+from known absence. See the [graph guide](graph.md) for physical windows and
+session memberships.
 """.
 -export([sessions/1, windows/1, window_links/1, panes/1, rows/2, get/3,
          related/3, metadata/1, coverage/1, require/2, build/2]).
 -export_type([t/0, requirement/0, metadata/0, source_call/0,
               entity_coverage/0, coverage/0, query_metadata/0]).
 -doc """
-An immutable captured graph with identity, indexes, coverage and source intervals.
+An immutable captured graph with identity, indexes, coverage and source
+intervals.
 """.
 -opaque t() :: #{rows := map(), indexes := map(), edges := map(),
                  metadata := metadata(), coverage := coverage()}.
 -doc """
-A collection, field or complete relationship needed for faithful local evaluation.
+A collection, field or complete relationship needed for faithful local
+evaluation.
 """.
 -type requirement() :: {collection, tmux_schema:entity()} |
     {field | relation, tmux_schema:entity(), atom()}.
@@ -36,8 +41,8 @@ includes identity preflight and command completion; it is not an atomic read.
 -type source_call() :: #{command := binary(), args := [binary()],
     started := integer(), finished := integer(), stdout_bytes := non_neg_integer()}.
 -doc """
-Collection completeness, field availability and relationship completeness.
-A loaded field can hold a known value or known absence; inspect the row to
+Collection completeness, field availability and relationship completeness. A
+loaded field can hold a known value or known absence; inspect the row to
 distinguish them. not_loaded never means empty, and unavailable never means
 known absence. Completeness is relative to the captured source collection.
 """.
@@ -47,12 +52,12 @@ known absence. Completeness is relative to the captured source collection.
 -doc "Per-entity coverage. Use `require/2` to check requirements before evaluation.".
 -type coverage() :: #{tmux_schema:entity() => entity_coverage()}.
 -doc """
-Source-query capture diagnostics. candidate_count is the deduplicated candidate
-identity count before local residuals and limits. pushed_down records a
-nontrivial native condition in the plan, not proof that its command ran:
-empty collections can skip it. source_calls records actual capture commands.
-The flag does not mean the full predicate was translated. attempt starts at
-one and increases only for an explicitly requested retry.
+Source-query capture diagnostics. candidate_count is the deduplicated
+candidate identity count before local residuals and limits. pushed_down
+records a nontrivial native condition in the plan, not proof that its command
+ran: empty collections can skip it. source_calls records actual capture
+commands. The flag does not mean the full predicate was translated. attempt
+starts at one and increases only for an explicitly requested retry.
 """.
 -type query_metadata() :: #{candidate_count := non_neg_integer(),
     pushed_down := boolean(), attempt := 1 | 2, consistency := observed}.
@@ -175,7 +180,8 @@ coverage(#{coverage := Coverage}) -> Coverage.
 -doc """
 Check every declared collection/field/relationship requirement before local
 evaluation. Returns an incomplete_snapshot error with missing requirements
-when the capture cannot answer faithfully. Performs no I/O, even on empty data.
+when the capture cannot answer faithfully. Performs no I/O, even on empty
+data.
 """.
 -spec require([requirement()], t()) -> ok | {error, map()}.
 require(Requirements, #{coverage := Coverage}) when is_list(Requirements) ->

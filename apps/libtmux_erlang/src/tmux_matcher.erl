@@ -2,10 +2,11 @@
 -moduledoc """
 Prepare a trusted local predicate once for a captured snapshot.
 
-Use tmux_select:matching({Module, State}, Selection). The application chooses
-Module; external filter documents cannot select callbacks. Preparation returns
-a unary Boolean function or a tagged error. Callback exceptions propagate.
-The adapter does not make executable predicates portable or push them to tmux.
+Use `tmux_select:matching/2` with `{Module, State}`. The application chooses
+Module; external filter documents cannot select the `c:prepare/2`
+callback. Preparation returns a unary Boolean function or a tagged error.
+Callback exceptions propagate. The adapter does not make executable predicates
+portable or push them to tmux.
 """.
 -doc """
 Prepare a local Boolean predicate once for this captured snapshot. Return a

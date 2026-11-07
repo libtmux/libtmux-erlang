@@ -1,17 +1,20 @@
 -module(tmux_query).
 -moduledoc """
-Describe a future tmux observation and execute it explicitly with fetch.
+Build and execute explicit queries over the tmux graph.
 
-Constructors, where, limit, pushdown and explain perform no tmux I/O. where
-validates trusted criteria and conjoins repeated calls. fetch returns an
-ordered selection backed by a complete captured graph. Native filtering is a
+Use `fetch/1` to execute a query. Constructors,
+`where/2`, `limit/2`, `pushdown/2` and
+`explain/1` perform no tmux I/O. Criteria are validated when added,
+and repeated conditions conjoin. Fetching returns an ordered `m:tmux_select`
+selection backed by a complete `m:tmux_snapshot` graph. Native filtering is a
 necessary condition; the full filter always runs locally before the limit.
 
 Captures span commands and are not atomic. Candidate IDs excluded at one
-observation cannot be recovered by later local filtering. pushdown(false, Q)
-evaluates the complete captured view without an earlier candidate exclusion.
-Numeric candidate fields come from the restricted scalar codec and must agree
-with the capture's scalar observations. Text and relationships remain local.
+observation cannot be recovered by later local filtering. Disabling
+`pushdown/2` evaluates the complete captured view without an
+earlier candidate exclusion. Numeric candidate fields come from the restricted
+scalar codec and must agree with the capture's scalar observations. Text and
+relationships remain local.
 
 ```erlang
 1> Q0 = tmux_query:panes(unopened), ok.
@@ -66,7 +69,8 @@ atomicity or persistent-connection guarantee.
 -doc """
 Capture phases: initial identity/scalar scans, optional candidate scans,
 complete text/byte hydration and final identity/scalar scans. An empty server
-skips window/pane scans. Execution still validates capture bounds and can fail.
+skips window/pane scans. Execution still validates capture bounds and can
+fail.
 """.
 -type command_plan() :: #{initial_spine := [source_command()],
     candidate := [source_command()], hydration := [source_command()],
@@ -98,8 +102,8 @@ An immutable description of future tmux reads. Only fetch executes it.
 -opaque t() :: #query{}.
 
 -doc """
-Describe a future server-wide physical pane query. Performs no I/O;
-`fetch/1` is the execution boundary.
+Describe a future server-wide physical pane query. Performs no I/O; `fetch/1`
+is the execution boundary.
 """.
 -spec panes(tmux_server:t()) -> t().
 panes(Server) -> #query{server = Server, entity = pane}.
@@ -109,8 +113,8 @@ Describe a future query over unique physical windows. Performs no I/O.
 -spec windows(tmux_server:t()) -> t().
 windows(Server) -> #query{server = Server, entity = window}.
 -doc """
-Describe a future query over session-relative window memberships.
-Repeated physical windows retain distinct membership identity. Performs no I/O.
+Describe a future query over session-relative window memberships. Repeated
+physical windows retain distinct membership identity. Performs no I/O.
 """.
 -spec window_links(tmux_server:t()) -> t().
 window_links(Server) -> #query{server = Server, entity = window_link}.
@@ -122,8 +126,8 @@ sessions(Server) -> #query{server = Server, entity = session}.
 
 -doc """
 Validate trusted criteria for this entity and conjoin them with prior
-conditions. Returns a new immutable query; malformed criteria raise bad_filter.
-This performs no I/O.
+conditions. Returns a new immutable query; malformed criteria raise
+bad_filter. This performs no I/O.
 """.
 -spec where(map() | tmux_filter:t(), t()) -> t().
 where(Criteria, #query{entity = Entity, filter = Previous} = Query) ->
@@ -142,18 +146,18 @@ where(Criteria, #query{entity = Entity, filter = Previous} = Query) ->
     Query#query{filter = Combined}.
 
 -doc """
-Set a final result limit from 0 through 65536, applied after residual filtering and
-identity handling. It is not a candidate-fetch limit. Performs no I/O; invalid
-counts raise bad_query_limit.
+Set a final result limit from 0 through 65536, applied after residual
+filtering and identity handling. It is not a candidate-fetch limit. Performs
+no I/O; invalid counts raise bad_query_limit.
 """.
 -spec limit(0..65536, t()) -> t().
 limit(Count, Query) when is_integer(Count, 0, 65536) -> Query#query{limit = Count};
 limit(Count, _) -> error({bad_query_limit, Count}).
 
 -doc """
-Enable or disable native candidate exclusion, returning a new query.
-Disabling pushdown evaluates the full captured view locally; neither mode
-promises an atomic graph. Performs no I/O.
+Enable or disable native candidate exclusion, returning a new query. Disabling
+pushdown evaluates the full captured view locally; neither mode promises an
+atomic graph. Performs no I/O.
 """.
 -spec pushdown(boolean(), t()) -> t().
 pushdown(Enabled, Query) when is_boolean(Enabled) -> Query#query{pushdown = Enabled}.
@@ -183,9 +187,9 @@ explain(#query{entity = Entity, limit = Limit, pushdown = Enabled} = Query) ->
       temporal_limit => excluded_rows_cannot_be_recovered}.
 
 -doc """
-Execute with default capture bounds and no retry. Returns an ordered
-selection whose complete graph remains locally readable. See `fetch/2` for
-resource limits, requested retries and operational errors.
+Execute with default capture bounds and no retry. Returns an ordered selection
+whose complete graph remains locally readable. See `fetch/2` for resource
+limits, requested retries and operational errors.
 """.
 -spec fetch(t()) -> {ok, tmux_select:t()} | {error, map()}.
 fetch(Query) -> fetch(Query, #{}).

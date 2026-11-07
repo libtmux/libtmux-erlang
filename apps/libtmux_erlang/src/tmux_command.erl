@@ -18,25 +18,29 @@ ok
 {ok,[<<"/bin/printf">>,<<"hello">>]}
 ```
 
-Use literal_format only for a whole argument that tmux expands as a format,
-such as a new name or cwd. It does not encode a value nested in a format
-expression. tmux's stored-name escaping and session-name substitutions still
-apply. Use literal_format(Value, time) for commands such as display-message
-that also expand strftime percent directives. No renderer reverses stored-name
-semantics.
+Use `literal_format/1` only for a whole argument that tmux
+expands as a format, such as a new name or cwd. It does not encode a value
+nested in a format expression. tmux's stored-name escaping and session-name
+substitutions still apply. Use `literal_format/2` with mode time
+for commands such as display-message that also expand strftime percent
+directives. No renderer reverses stored-name semantics.
 
-launch distinguishes executable argv from an explicitly requested shell
-command. A singleton argv uses the installed helper's exec-only mode because
-tmux otherwise passes one argument to its default shell. Empty argv is invalid;
-default_shell explicitly requests tmux's configured default command/shell.
-The internal helper uses an absolute path so a child's cwd does not change
-helper resolution. Relative executable arguments retain their native meaning.
+`launch/1` distinguishes executable argv from an explicitly
+requested shell command. A singleton argv uses the installed helper's
+exec-only mode because tmux otherwise passes one argument to its default
+shell. Empty argv is invalid; default_shell explicitly requests tmux's
+configured default command/shell. The internal helper uses an absolute path so
+a child's cwd does not change helper resolution. Relative executable arguments
+retain their native meaning.
 
 Empty shell commands have command-specific lifetime. split-window creates a
 process-free pane. new-session executes an empty shell command and can remove
 the new object immediately. new-window does likewise before tmux 3.8; tmux 3.8
 creates a process-free pane. Use a persistent job for parent sessions/windows
 that must remain available across supported versions.
+
+Submit commands through `tmux_server:command/3` or `tmux_operation:start/3`.
+The [job guide](jobs.md) shows submission, completion and cancellation.
 """.
 -export([raw/2, validate/1, argv/1, literal_format/1, literal_format/2, launch/1]).
 -export_type([t/0]).
@@ -46,7 +50,10 @@ that must remain available across supported versions.
 -type launch_spec() :: default_shell | #{argv := nonempty_list(binary())} | #{shell := binary()}.
 
 -export_type([respawn_spec/0]).
--doc "Reuse tmux's saved command/shell, or explicitly replace it with argv or a shell command. Used by pane/window respawn, not launch/1.".
+-doc """
+Reuse tmux's saved command/shell, or replace it with argv or a shell command.
+Used by `tmux_pane:respawn/2` and `tmux_window:respawn/2`.
+""".
 -type respawn_spec() :: previous | #{argv := nonempty_list(binary())} | #{shell := binary()}.
 
 -doc """
@@ -57,9 +64,9 @@ A validated single-command value. Rendering and execution remain separate.
 -doc """
 Validate one trusted command name and binary argv, without I/O. The renderer
 protects tmux separators; it does not provide shell or nested-format quoting.
-External services still need their own allowlists and write policy.
-Names are at most 128 bytes. NUL bytes are rejected, and at most 2,040
-arguments fit within a 32 KiB command reservation including framing overhead.
+External services still need their own allowlists and write policy. Names are
+at most 128 bytes. NUL bytes are rejected, and at most 2,040 arguments fit
+within a 32 KiB command reservation including framing overhead.
 """.
 -spec raw(binary(), [binary()]) -> {ok, t()} | {error, map()}.
 raw(Name, Arguments) ->

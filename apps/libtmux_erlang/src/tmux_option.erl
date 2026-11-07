@@ -2,31 +2,35 @@
 -moduledoc """
 Read and change explicit tmux option tables through registered references.
 
-A session, physical window or pane selects its own local table. Global tables
-use {server, Server}, {session_defaults, Server} or {window_defaults, Server}.
-Built-in canonical names and scopes are checked against pinned source metadata;
-tmux otherwise lets a name override the supplied scope flags. Hooks require a
-separate command API and are rejected here. Prefixes and aliases are rejected.
+Session, physical window and pane records from `m:tmux_model` select their
+local tables. Global tables use {server, Server}, {session_defaults, Server}
+or {window_defaults, Server}. Built-in canonical names and scopes are checked
+against pinned source metadata; tmux otherwise lets a name override the
+supplied scope flags. Hooks require a separate command API and are rejected
+here. Prefixes and aliases are rejected.
 
-get requires an explicit options map. Local-only reads are the default;
-inherit = true follows tmux's table parents (pane -> window -> window defaults,
-or session -> session defaults). Server options have no parent. A missing local
-value or array entry returns none; an empty binary or empty array is a value.
-Arrays return maps of indexes to binary values, preserving sparse indexes.
-There is no hidden capture refresh or cache of option values.
+`get/3` requires an explicit options map. Local-only reads are the
+default; inherit = true follows tmux's table parents (pane -> window -> window
+defaults, or session -> session defaults). Server options have no parent. A
+missing local value or array entry returns none; an empty binary or empty
+array is a value. Arrays return maps of indexes to binary values, preserving
+sparse indexes. There is no hidden capture refresh or cache of option values.
 
-Values are NUL-free binary tmux text bytes, including non-UTF-8 bytes. No shell
-or format expansion is applied by this API. tmux still interprets a built-in
-option according to its type: formats, shell commands and command options may
-execute later when tmux uses them. This API is for trusted application code.
-Numeric and flag values are canonical binary text on reads, not Erlang numbers.
+Values are NUL-free binary tmux text bytes, including non-UTF-8 bytes. No
+shell or format expansion is applied by this API. tmux still interprets a
+built-in option according to its type: formats, shell commands and command
+options may execute later when tmux uses them. This API is for trusted
+application code. Numeric and flag values are canonical binary text on reads,
+not Erlang numbers.
 
-Only the seven catalogue versions listed by `catalogue/1` are accepted for
-built-ins, including exact patch letters; tracking and unknown versions fail
-closed. User options beginning @ do not need a built-in catalogue. The raw
-command API remains available for deliberate newer-server integration.
-All mutations are one-shot I/O with observed identity checks, not transactions.
-Timeouts can leave an unknown remote outcome; mutations are never retried here.
+Only the seven catalogue versions listed by `catalogue/1` are
+accepted for built-ins, including exact patch letters; tracking and unknown
+versions fail closed. User options beginning @ do not need a built-in
+catalogue. The raw `tmux_command:raw/2` remains available for deliberate
+newer-server integration. All mutations are one-shot I/O with observed
+identity checks, not transactions. Timeouts can leave an unknown remote
+outcome; mutations are never retried here. See the [scoped options
+guide](options.md) for ownership and inheritance.
 """.
 -export([get/3, set/3, set/4, unset/2, describe/2, catalogue/1]).
 -export_type([scope/0, key/0, metadata/0, read_options/0, write_options/0, value/0]).
@@ -48,10 +52,11 @@ Timeouts can leave an unknown remote outcome; mutations are never retried here.
 -type value() :: binary() | #{non_neg_integer() => binary()}.
 
 -doc """
-Return source metadata for a canonical built-in name and a parsed daemon version,
-without I/O. Unknown names, unavailable names, tracking builds and uncatalogued
-versions have distinct errors. The catalogue describes scopes and parser types;
-it does not qualify runtime behavior or authorize hook execution.
+Return source metadata for a canonical built-in name and a parsed daemon
+version, without I/O. Unknown names, unavailable names, tracking builds and
+uncatalogued versions have distinct errors. The catalogue describes scopes and
+parser types; it does not qualify runtime behavior or authorize hook
+execution.
 
 ```erlang
 1> {ok, V} = tmux_version:parse(<<"tmux 3.3">>), ok.
@@ -86,10 +91,12 @@ catalogue(Version) ->
     end.
 
 -doc """
-Read one option or array, performing I/O after validation. Missing local values
-and array entries return none; known empty strings and arrays return {ok, Value}.
-inherit = true reads through tmux's parent tables. Unknown fields are rejected.
-Errors retain backend diagnostics; a missing target never becomes absence.
+Read one option or array, performing I/O after validation. Missing local
+values and array entries return none; known empty strings and arrays return
+{ok, Value}. inherit = true reads through tmux's parent tables. Unknown fields
+are rejected. Errors retain backend diagnostics; a missing target never
+becomes absence. Use `set/4` to write a value and `unset/2` to restore
+inheritance.
 """.
 -spec get(scope(), key(), read_options()) -> {ok, value()} | none | {error, map()}.
 get(Scope, Key, Options) ->
@@ -104,8 +111,9 @@ get(Scope, Key, Options) ->
     end.
 
 -doc """
-Set one scalar or indexed array entry with default write options. Performs I/O;
-see `set/4` for append, only-if-unset, parsing and unknown-outcome semantics.
+Set one scalar or indexed array entry with default write options. Performs
+I/O; see `set/4` for append, only-if-unset, parsing and unknown-outcome
+semantics.
 """.
 -spec set(scope(), key(), binary()) ->
     {ok, tmux_operation:completed()} | {error, tmux_operation:failure()}.
@@ -113,12 +121,13 @@ set(Scope, Key, Value) -> set(Scope, Key, Value, #{}).
 
 -doc """
 Set a literal binary value, after scope/version/owner validation. Array writes
-require {Name, Index}; this avoids tmux's whole-array separator grammar. append
-uses tmux's type-specific -a semantics. only_if_unset checks the local table;
-already-set is a backend error, with no suppressed errors or compare-and-swap
-guarantee. Values must be supplied explicitly; an empty flag value retains
-tmux's native toggle behavior. A successful result proves command completion,
-not later effects of a stored command or format. Performs I/O; never retries.
+require {Name, Index}; this avoids tmux's whole-array separator grammar.
+append uses tmux's type-specific -a semantics. only_if_unset checks the local
+table; already-set is a backend error, with no suppressed errors or
+compare-and-swap guarantee. Values must be supplied explicitly; an empty flag
+value retains tmux's native toggle behavior. A successful result proves
+command completion, not later effects of a stored command or format. Performs
+I/O; never retries.
 """.
 -spec set(scope(), key(), binary(), write_options()) ->
     {ok, tmux_operation:completed()} | {error, tmux_operation:failure()}.

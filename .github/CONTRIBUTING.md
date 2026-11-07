@@ -58,8 +58,9 @@ $ time python3 tools/check.py mid
 
 The mid loop also checks public EEP-48 documentation/spec coverage, generated
 field references, guide links and exact example excerpts. Write contracts in
-`-moduledoc` and `-doc`; link functions with backticked `module:function/arity`
-and types with `t:module:type/arity`. Use `ct_doctest` shell transcripts for
+`-moduledoc` and `-doc`; follow the native
+[interlinking rules](WRITING.md#interlinking) for modules, functions, types and
+callbacks. Use `ct_doctest` shell transcripts for
 native code blocks. Prose-only contracts need no artificial example; every
 advertised Erlang block must execute without skips.
 

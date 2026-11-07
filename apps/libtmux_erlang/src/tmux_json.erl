@@ -1,15 +1,15 @@
 -module(tmux_json).
 -moduledoc """
-Decode bounded JSON using OTP's parser and binary object keys.
+Decode bounded JSON using OTP's `m:json` parser and binary object keys.
 
 Documents are limited to 256 KiB before parsing and 32 nested containers
 during parsing. Duplicate keys are rejected before overwriting values, even
-when different escapes spell the same key. Trailing input is rejected.
-Numbers stay in the shared exact integer range. Integral decimal tokens are
-converted exactly; fractional tokens that round to integers are rejected.
-Field validation decides whether a remaining float is permitted. Syntax and
-resource errors have a root path; duplicate-key errors retain their complete
-document path.
+when different escapes spell the same key. Trailing input is rejected. Numbers
+stay in the shared exact integer range. Integral decimal tokens are converted
+exactly; fractional tokens that round to integers are rejected. Field
+validation decides whether a remaining float is permitted. Syntax and resource
+errors have a root path; duplicate-key errors retain their complete document
+path. Use `tmux_filter:from_wire/2` to validate decoded filter data.
 """.
 -export([decode/1]).
 -define(MAX_BYTES, 262144).

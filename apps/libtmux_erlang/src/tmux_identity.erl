@@ -13,14 +13,15 @@ ok
 
 A successful check is an observation. It neither reserves a PID nor pins a
 tmux connection, and it never authorizes signalling a process. Endpoint owners
-must compare the PID returned by the current tmux connection as well. A server
-can still change between this check and a later one-shot command.
+in `m:tmux_server` compare the PID returned by the current connection as well.
+A server can still change between this check and a later one-shot command.
 """.
 -export([observe/1, check/2]).
 -export_type([t/0]).
 
 -doc """
-Observed Linux PID, boot identity and process-start token. It does not pin a connection.
+Observed Linux PID, boot identity and process-start token. It does not pin a
+connection.
 """.
 -opaque t() :: {process_identity, pos_integer(), binary(), non_neg_integer()}.
 
@@ -37,8 +38,8 @@ observe(Pid) when is_integer(Pid, 1, 2147483647) ->
 observe(_) -> {error, #{code => invalid_pid}}.
 
 -doc """
-Re-observe the PID and compare its incarnation token. A successful result
-is a momentary observation, not ownership, permission to signal, or a
+Re-observe the PID and compare its incarnation token. A successful result is a
+momentary observation, not ownership, permission to signal, or a
 same-connection guarantee.
 """.
 -spec check(t(), pos_integer()) -> ok | {error, map()}.

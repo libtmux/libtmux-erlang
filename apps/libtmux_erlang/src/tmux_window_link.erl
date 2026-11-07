@@ -9,14 +9,16 @@ Missing or replaced membership returns stale_link. A link that moves away and
 back to the same coordinates and physical window cannot be distinguished.
 
 The preflight and action use separate one-shot commands. Concurrent changes
-after preflight can still affect the action; this is not atomic compare-and-act.
-All input rows must belong to the same registered owner. Re-read or explicitly
-bind rows when using another owner. Closed owners and known restarts invalidate
-their rows. Every call performs explicit I/O after validating its arguments.
+after preflight can still affect the action; this is not atomic
+compare-and-act. All input rows must belong to the same registered owner.
+Re-read or explicitly bind rows when using another owner. Closed owners and
+known restarts invalidate their rows. Every call performs explicit I/O after
+validating its arguments.
 
 Use `tmux_window:kill/1` to destroy a physical window across all memberships.
-Use `unlink/2` to remove one membership. Existing rows and snapshots are never
-refreshed by actions; use `get/3` or a new snapshot for current memberships.
+Use `unlink/2` to remove one membership. Existing rows and
+snapshots are never refreshed by actions; use `get/3` or a
+new snapshot for current memberships.
 """.
 -export([get/3, select/1, link/3, move/3, swap/3, unlink/2, check/2]).
 -export_type([index/0, placement_options/0, swap_options/0, unlink_options/0]).
@@ -76,9 +78,9 @@ select(Link) ->
 Add another membership of this link's physical window to the destination
 session and explicit index. Defaults to detached and refuses an occupied
 index. replace = true maps to tmux -k and can destroy the occupied window.
-Returns the command result; use `get/3` to observe the new membership.
-The source membership remains. Session groups and renumber-windows retain
-their tmux semantics. Performs I/O after owner and membership checks.
+Returns the command result; use `get/3` to observe the new membership. The
+source membership remains. Session groups and renumber-windows retain their
+tmux semantics. Performs I/O after owner and membership checks.
 """.
 -spec link(tmux_model:window_link(), tmux_model:session(), placement_options()) ->
     {ok, tmux_operation:completed()} | {error, tmux_operation:failure()}.

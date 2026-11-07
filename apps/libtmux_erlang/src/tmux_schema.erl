@@ -5,6 +5,8 @@ Validate schema-defined observations and normalize scalar values.
 Field names come from the generated registry, never record reflection or
 payload-created atoms. Text is validated UTF-8; byte fields preserve arbitrary
 binaries. Integer normalization uses the shared exact JSON integer range.
+`m:tmux_model` validates rows and `m:tmux_filter` validates criteria through
+this schema. The [field reference](fields.md) lists fields and relationships.
 """.
 -export([fields/1, relations/1, field/2, normalize/2, value/2, operators/1]).
 -export_type([entity/0, error_detail/0, value_type/0, field_metadata/0,
@@ -44,9 +46,9 @@ Completeness belongs to snapshot coverage, not this static schema.
 -define(MAX_INTEGER, 9007199254740991).
 
 -doc """
-Return generated field metadata for a known entity, or a tagged
-unknown_entity error. Field names, wire names and stable IDs are allowlisted;
-this is not reflection over arbitrary record fields.
+Return generated field metadata for a known entity, or a tagged unknown_entity
+error. Field names, wire names and stable IDs are allowlisted; this is not
+reflection over arbitrary record fields.
 """.
 -spec fields(entity()) -> {ok, #{atom() => field_metadata()}} | {error, error_detail()}.
 fields(Entity) ->
@@ -56,8 +58,8 @@ fields(Entity) ->
     end.
 
 -doc """
-Return generated relationship metadata, including target entities and
-one/many cardinality. Performs no I/O.
+Return generated relationship metadata, including target entities and one/many
+cardinality. Performs no I/O.
 """.
 -spec relations(entity()) -> {ok, #{atom() => relation_metadata()}} | {error, error_detail()}.
 relations(Entity) ->
@@ -82,8 +84,8 @@ field(Entity, Field) ->
 
 -doc """
 Validate a domain-field map and normalize its scalar observations, retaining
-not_loaded/unavailable distinctly and deriving schema-defined values.
-Performs no I/O; constructors and action boundaries still validate records.
+not_loaded/unavailable distinctly and deriving schema-defined values. Performs
+no I/O; constructors and action boundaries still validate records.
 """.
 -spec normalize(entity(), map()) -> {ok, map()} | {error, error_detail()}.
 normalize(Entity, Input) when is_map(Input) ->
@@ -138,8 +140,8 @@ value(Metadata, _Value) ->
     invalid(Metadata).
 
 -doc """
-Return the permitted scalar operators for this field type and nullability.
-The generated field reference uses this same validator. Performs no I/O.
+Return the permitted scalar operators for this field type and nullability. The
+generated field reference uses this same validator. Performs no I/O.
 """.
 -spec operators(#{type := value_type(), nullable := boolean(), atom() => term()}) -> [operator()].
 operators(#{type := Type, nullable := Nullable}) ->

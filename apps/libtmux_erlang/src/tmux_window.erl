@@ -2,19 +2,21 @@
 -moduledoc """
 Create physical windows in a session and act through their registered IDs.
 
-create accepts name, cwd, env, launch and detach, using the session's next
-available index. It defaults to detached. get explicitly reads current fields;
-rename returns the command result and leaves previous records unchanged.
-Launch and environment options follow `tmux_session:create/2`.
-An empty shell command does not portably keep the window alive: older tmux
-releases execute it as a shell command. Use a running program when needed.
-Creation returns a fresh observed row or an error retaining a completed
-mutation and its result if the follow-up observation fails.
+`create/2` accepts name, cwd, env, launch and detach, using the
+session's next available index. It defaults to detached. `get/2`
+reads current fields; `rename/2` returns the command result and
+leaves previous records unchanged. Launch and environment options follow
+`tmux_session:create/2`. An empty shell command does not portably keep the
+window alive: older tmux releases execute it as a shell command. Use a running
+program when needed. Creation returns a fresh observed row or an error
+retaining a completed mutation and its result if the follow-up observation
+fails.
 
-kill destroys the physical window and all its links. It does not mean unlink
-one session membership. These calls perform I/O after validating their inputs.
-select_layout changes the physical window's layout across all its session links;
-previously observed pane geometry remains unchanged in captured values.
+`kill/1` destroys the physical window and all its links. Use
+`tmux_window_link:unlink/2` to remove one session membership. These calls
+perform I/O after validating their inputs. `select_layout/2`
+changes the physical window's layout across all its session links; previously
+observed pane geometry remains unchanged in captured values.
 """.
 -export([create/2, get/2, rename/2, kill/1, respawn/2, select_layout/2]).
 
@@ -31,8 +33,9 @@ previously observed pane geometry remains unchanged in captured values.
 
 -doc """
 Create a physical window in the session's next free index and observe it.
-Defaults to detached. Launch, cwd and environment follow `tmux_session:create/2`.
-Performs I/O and retains completed-mutation details if observation fails.
+Defaults to detached. Launch, cwd and environment follow
+`tmux_session:create/2`. Performs I/O and retains completed-mutation details
+if observation fails.
 """.
 -spec create(tmux_model:session(), create_options()) -> {ok, tmux_model:window()} | {error, map()}.
 create(Session, Options) ->
@@ -64,28 +67,28 @@ rename(Window, Name) ->
     end.
 
 -doc """
-Destroy the physical window and all of its session links. This does not
-unlink only one membership. Performs I/O after origin and target validation.
+Destroy the physical window and all of its session links. This does not unlink
+only one membership. Performs I/O after origin and target validation.
 """.
 -spec kill(tmux_model:window()) -> {ok, map()} | {error, map()}.
 kill(Window) -> tmux_target:act(window, Window, <<"kill-window">>, []).
 
 -doc """
 Respawn a registered physical window across all its session links. tmux keeps
-the first pane's ID, removes the other panes and rebuilds a single-pane layout.
-force defaults false: a window with a running pane normally returns
+the first pane's ID, removes the other panes and rebuilds a single-pane
+layout. force defaults false: a window with a running pane normally returns
 command_error. force = true permits closing existing PTYs. Command completion
-does not establish former-job termination or application readiness.
-Other panes can already be removed if a later spawn step fails.
-Respawn also selects this window in tmux's resolved session. For a window
-linked into several sessions, tmux chooses that context from the physical ID;
-this facade does not pin selection or environment to a captured membership.
+does not establish former-job termination or application readiness. Other
+panes can already be removed if a later spawn step fails. Respawn also selects
+this window in tmux's resolved session. For a window linked into several
+sessions, tmux chooses that context from the physical ID; this facade does not
+pin selection or environment to a captured membership.
 
 launch defaults to previous and reuses the retained pane's saved command.
 Explicit argv and shell maps, saved cwd and fresh-spawn environment rules
 follow `tmux_pane:respawn/2`, using the resolved session's environment. This
-physical-window mutation affects every link. Performs I/O after validation
-and returns the command result without refreshing rows. Use `get/2` or a new
+physical-window mutation affects every link. Performs I/O after validation and
+returns the command result without refreshing rows. Use `get/2` or a new
 snapshot for current data.
 """.
 -spec respawn(tmux_model:window(), respawn_options()) ->
@@ -102,18 +105,19 @@ respawn(Window, Options) ->
 Select a built-in arrangement or restore a literal serialized layout for this
 registered physical window. Binary names must exactly match one of the five
 built-ins; abbreviations and other names are rejected. Legacy serialized
-layouts need four hexadecimal checksum digits, a comma and nonempty data.
-This guard avoids a malformed-header crash in tmux 3.3 and 3.3a.
+layouts need four hexadecimal checksum digits, a comma and nonempty data. This
+guard avoids a malformed-header crash in tmux 3.3 and 3.3a.
 
-Native JSON v2 layouts require a bounded JSON object with V = 2 and an L object.
-They return unsupported_capability on tmux before 3.8 without dispatching a
-tmux command. This preserves `get/2` layout restoration on newer servers.
+Native JSON v2 layouts require a bounded JSON object with V = 2 and an L
+object. They return unsupported_capability on tmux before 3.8 without
+dispatching a tmux command. This preserves `get/2` layout restoration on newer
+servers.
 
 Execution unzooms the window and changes it in every linked session. tmux
 validates serialized geometry; malformed geometry can return a command error.
 The layout argument uses no shell or format expansion. Existing rows are not
-refreshed; use `get/2` or a
-fresh snapshot to observe layout and pane geometry.
+refreshed; use `get/2` or a fresh snapshot to observe layout and pane
+geometry.
 
 Unsupported atom names fail before dispatch:
 

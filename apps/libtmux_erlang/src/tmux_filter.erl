@@ -5,7 +5,9 @@ Construct portable conditions and prepare them against captured values.
 Local criteria use atom keys, binary text and schema-typed values. Fields and
 operators conjoin. Boolean branches use 'and', 'or' and 'not'; relationships
 use some/every/none/count or is/is_not. Validation examines the entire input
-before evaluation. No function here performs tmux I/O.
+before evaluation. No function here performs tmux I/O. Use portable filters
+with `tmux_select:where/2` or `tmux_query:where/2`; the [query
+guide](querying.md) explains their different execution boundaries.
 
 ```erlang
 1> Fields = #{id => <<"%1">>, current_command => <<"vim">>}, ok.
@@ -32,7 +34,8 @@ depth and byte limits. Resource errors can refer to the canonical wire path.
          prepare_rows/3]).
 -export_type([t/0, prepared/0, expr/0, wire_document/0]).
 -doc """
-Portable normalized predicate data for one schema entity; contains no executable state.
+Portable normalized predicate data for one schema entity; contains no
+executable state.
 """.
 -opaque t() :: {tmux_filter, 1, tmux_schema:entity(), expr()}.
 -doc "Normalized data expressions with stable field IDs, used by internal planners; not the wire grammar.".
@@ -47,9 +50,9 @@ A cached evaluator bound to one captured observation and schema context.
 -doc """
 Version-one JSON-compatible filter envelope with binary keys version, entity
 and where. entity is the generated wire entity name; where contains Boolean,
-field and relationship conditions. Version is the integer 1.
-Keys and operators still require `from_wire/2` validation; the typespec alone
-does not authorize arbitrary fields or unbounded external input.
+field and relationship conditions. Version is the integer 1. Keys and
+operators still require `from_wire/2` validation; the typespec alone does not
+authorize arbitrary fields or unbounded external input.
 """.
 -type wire_document() :: #{binary() => json:encode_value()}.
 -define(MAX_NODES, 1024).
@@ -186,8 +189,8 @@ prepare_rows({tmux_filter, 1, Entity, Tree} = Filter, Rows, Coverage) ->
 Return a Boolean function bound to the prepared observation context.
 
 Rows outside that context raise {prepared_context_mismatch, Detail}. Regex
-evaluation errors raise {filter_evaluation_failed, Detail}. Use `matches/2` for
-tagged errors. This does not run callbacks.
+evaluation errors raise {filter_evaluation_failed, Detail}. Use `matches/2`
+for tagged errors. This does not run callbacks.
 """.
 -spec predicate(prepared()) -> fun((tmux_model:row()) -> boolean()).
 predicate(Prepared) ->
@@ -202,8 +205,8 @@ predicate(Prepared) ->
 
 -doc """
 Evaluate an unmodified captured row against a prepared filter. Returns a
-Boolean result or tagged context/regex resource error. It performs no tmux
-I/O and never converts evaluation failure into a nonmatch.
+Boolean result or tagged context/regex resource error. It performs no tmux I/O
+and never converts evaluation failure into a nonmatch.
 """.
 -spec matches(prepared(), tmux_model:row()) -> {ok, boolean()} | {error, map()}.
 matches(Prepared, Row) -> tmux_filter_eval:matches(Prepared, Row).
