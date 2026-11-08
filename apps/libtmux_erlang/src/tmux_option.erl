@@ -23,9 +23,9 @@ options may execute later when tmux uses them. This API is for trusted
 application code. Numeric and flag values are canonical binary text on reads,
 not Erlang numbers.
 
-Only the seven catalogue versions listed by `catalogue/1` are
-accepted for built-ins, including exact patch letters; tracking and unknown
-versions fail closed. User options beginning @ do not need a built-in
+Built-in metadata covers every released version in the supported tmux
+3.3a–3.8 range, including exact patch letters. Tracking and unknown versions
+fail closed. User options beginning @ do not need a built-in
 catalogue. The raw `tmux_command:raw/2` remains available for deliberate
 newer-server integration. All mutations are one-shot I/O with observed
 identity checks, not transactions. Timeouts can leave an unknown remote
@@ -59,7 +59,7 @@ parser types; it does not qualify runtime behavior or authorize hook
 execution.
 
 ```erlang
-1> {ok, V} = tmux_version:parse(<<"tmux 3.3">>), ok.
+1> {ok, V} = tmux_version:parse(<<"tmux 3.3a">>), ok.
 ok
 2> {ok, M} = tmux_option:describe(V, <<"exit-empty">>), ok.
 ok
@@ -79,8 +79,9 @@ describe(Version, Name) ->
 
 -doc """
 Return all canonical built-in option and hook metadata for one exact parsed
-version, without I/O. Supported catalogues are 3.3, 3.3a, 3.4, 3.5a, 3.6b,
-3.7c and 3.8. The generated reference records source commits and file digests.
+version, without I/O. Catalogues cover every release from 3.3a through 3.8;
+historical 3.3 metadata remains available for source discovery. The generated
+reference records each release's source commit and file digests.
 """.
 -spec catalogue(tmux_version:t()) -> {ok, #{binary() => metadata()}} | {error, map()}.
 catalogue(Version) ->

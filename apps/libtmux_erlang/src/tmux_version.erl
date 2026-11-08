@@ -2,9 +2,9 @@
 -moduledoc """
 Parse the output of tmux -V without invoking tmux.
 
-Version comparisons use numeric components. Support starts at plain 3.3; patch
-letters do not turn an older minor release into a supported version. Runtime
-acceptance does not establish that a version passed the CI matrix. Use
+Support covers tmux 3.3a through 3.8, including intermediate releases. The
+minimum-version check includes the patch letter; numeric feature comparisons
+use major/minor components. CI tests the endpoints of the supported range. Use
 `tmux_server:version/1` for the daemon version observed by an endpoint.
 """.
 -export([parse/1, require/1, at_least/2]).
@@ -47,7 +47,7 @@ parse(Raw) ->
 Reject a tmux release below the supported floor.
 
 ```erlang
-1> {ok, Version} = tmux_version:require(<<"tmux 3.3">>), ok.
+1> {ok, Version} = tmux_version:require(<<"tmux 3.3a">>), ok.
 ok
 2> tmux_version:at_least(Version, {3, 4}).
 false
@@ -58,7 +58,8 @@ false
 require(Raw) ->
     maybe
         {ok, Version} ?= parse(Raw),
-        case at_least(Version, {3, 3}) of
+        #{major := Major, minor := Minor, patch := Patch} = Version,
+        case {Major, Minor, Patch} >= {3, 3, <<"a">>} of
             true -> {ok, Version};
             false -> {error, {unsupported_tmux_version, Version}}
         end

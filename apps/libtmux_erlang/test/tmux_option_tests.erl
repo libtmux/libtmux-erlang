@@ -23,6 +23,13 @@ scope_validation_before_dispatch_test() ->
         tmux_option:get(Pane, <<"@value">>, #{quiet => true})).
 
 catalogue_version_boundary_test() ->
+    lists:foreach(fun(Release) ->
+        {ok, Version} = tmux_version:require(<<"tmux ", Release/binary>>),
+        ?assertMatch({ok, #{scopes := [server], array := false}},
+            tmux_option:describe(Version, <<"exit-empty">>))
+    end, [<<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>,
+          <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>,
+          <<"3.7c">>, <<"3.8">>]),
     {ok, Old} = tmux_version:parse(<<"tmux 3.3">>),
     {ok, New} = tmux_version:parse(<<"tmux 3.8">>),
     {ok, Future} = tmux_version:parse(<<"tmux 4.0">>),

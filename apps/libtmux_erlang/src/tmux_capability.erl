@@ -3,7 +3,8 @@
 Look up source-derived native command declarations and feature minimums.
 
 `commands/1` and `command/2` describe the exact source profiles in `profiles/0`.
-They do not contact tmux, interpret its arguments or qualify another build.
+Profiles cover every release in the supported tmux 3.3a–3.8 range. They do not
+contact tmux, interpret its arguments or qualify another build.
 Canonical command names are lookup keys; aliases remain metadata. A native
 declaration does not mean this library provides a typed facade for it. Use
 `tmux_command:raw/2` for an explicit trusted command.
@@ -61,7 +62,7 @@ known command is absent from that profile, and unsupported_command_catalogue
 for uncatalogued or tracking versions. Performs no I/O.
 
 ```erlang
-1> {ok, V} = tmux_version:parse(<<"tmux 3.3">>), ok.
+1> {ok, V} = tmux_version:parse(<<"tmux 3.3a">>), ok.
 ok
 2> {ok, C} = tmux_capability:command(V, <<"send-keys">>), ok.
 ok

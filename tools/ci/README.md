@@ -1,17 +1,21 @@
 # CI source builds
 
-The workflow uses exact OTP and Rebar3 versions from .tool-versions. Its nine
-Ubuntu 24.04 cells cover tmux 3.3, 3.3a, 3.4, 3.5a, 3.6b, 3.7c and 3.8 on
-x86_64, plus 3.3 and 3.8 on arm64. These cells run the currently implemented
-core checks; the remaining suite features retain their implementation gates.
+The workflow uses the latest stable OTP release, pinned with Rebar3 in
+.tool-versions. Four Ubuntu 24.04 cells cross tmux 3.3a and 3.8 with x86_64 and
+arm64. These are the oldest supported and newest stable tmux releases.
+Support includes the releases between them. Each cell runs the current
+core checks and clean source-package installation; remaining suite features
+retain their implementation gates.
 
 [tmux-sources.json](tmux-sources.json) pins official release archives by SHA256
-and records the corresponding peeled source commits. build_tmux.py derives an
-exact cache key from that pin, runner image/version, architecture, compiler,
-native dependency versions, flags and recipe bytes. It checks the installed
-binary's hash, version and loader before reuse. An invalid cache rebuilds in
-the owned prefix. The workflow saves a new cache only after the owned fixture,
-integration and archive-consumer gates pass. It uses no broad restore keys.
+and records the corresponding peeled source commits. Historical pins remain
+available for reproduction; they do not expand the CI matrix.
+build_tmux.py derives an exact cache key from that pin, runner image/version,
+architecture, compiler, native dependency versions, flags and recipe bytes.
+It checks the installed binary's hash, version and loader before reuse. An
+invalid cache rebuilds in the owned prefix. The workflow saves a new cache
+only after the owned fixture, integration and archive-consumer gates pass.
+It uses no broad restore keys.
 
 This follows the [Go port's cache identity and validation approach](https://github.com/libtmux/libtmux-go/blob/d8ea6f77ede9f75e96af78719c8c1707fc47bdfb/.github/scripts/tmux_build.py).
 The [setup-beam documentation](https://github.com/erlef/setup-beam/blob/54075bcc5e249e4758d363f27d099f55d843f124/README.md)

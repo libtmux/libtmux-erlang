@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Correct the minimum tmux version to 3.3a. Support includes all releases
+  through 3.8; CI tests the two endpoints. Option, hook and native command
+  metadata cover intermediate releases with their exact source provenance.
+
 - Local library exceptions include native EEP-54 explanations for validation,
   missing observations and cardinality errors. Reasons and callback stacks
   retain their existing contracts.

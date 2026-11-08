@@ -181,7 +181,7 @@ A missing compiler must fail installation before the successful build. The
 same installed examples and native-record checks used by the compiled archive
 run against this installation. Tarballs, source/tool hashes, logs and timings
 remain under _build/source-package-check/. CI runs this on both architectures
-with tmux 3.3 and 3.8. Registry publication remains a separate gate.
+with tmux 3.3a and 3.8. Registry publication remains a separate gate.
 
 Common Test selects tmux from LIBTMUX_TEST_TMUX, or PATH when unset. Set that
 variable to an absolute executable path to qualify a particular release.

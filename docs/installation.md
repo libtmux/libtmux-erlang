@@ -80,7 +80,7 @@ headers or serialize record internals as a wire format.
 | --- | --- |
 | Erlang/OTP | Exactly the qualified latest-stable baseline, 29.1.2 |
 | Build tool | Rebar3 3.28.0 |
-| tmux | Plain 3.3 minimum; version-specific CI is linked in the compatibility guide |
+| tmux | 3.3a–3.8, including intermediate releases; CI tests both endpoints |
 | Runtime platform | Linux x86_64 and arm64 qualification cells |
 | Native build | C11 compiler, libc headers and make |
 | Core dependencies | OTP kernel, stdlib and crypto; no JSON package or NIF |

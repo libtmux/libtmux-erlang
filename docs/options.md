@@ -119,11 +119,11 @@ Mutations are not retried after a timeout or unknown outcome.
 ## Discover version support
 
 The [generated catalogue](options-reference.md) lists canonical names, scopes,
-parser types, arrays and hooks from the exact source commits used by CI.
+parser types, arrays and hooks from pinned release commits.
 `tmux_option:describe/2` and `catalogue/1` read that metadata without I/O.
-Built-ins require an exact catalogue version: 3.3, 3.3a, 3.4, 3.5a, 3.6b, 3.7c
-or 3.8. Tracking builds and other versions return
-`unsupported_option_catalogue`; unavailable built-ins return
+Built-ins have exact source catalogues for every release from 3.3a through
+3.8, including intermediate patch releases. Tracking builds and unknown
+versions return `unsupported_option_catalogue`; unavailable built-ins return
 `unsupported_tmux_option`. User options do not depend on a built-in catalogue.
 
 Hooks are executable commands and are rejected by this API, including hook

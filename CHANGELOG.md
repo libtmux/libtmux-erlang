@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Support tmux 3.3a–3.8, including intermediate releases. Run CI on the latest
+  stable Erlang/OTP with tmux 3.3a and 3.8 on both Linux architectures.
+
 - Document runtime Logger domains, correlated outcomes, capture costs and
   report data boundaries.
 

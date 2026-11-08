@@ -1,8 +1,8 @@
 # Support and remaining gaps
 
-The implemented core passed the exact Linux/tmux matrix at the
-[source-query commit](https://github.com/libtmux/libtmux-erlang/actions/runs/42378067926).
-The [workflow](../.github/workflows/ci.yml) defines the checks for later commits.
+Support covers tmux **3.3a–3.8**, including intermediate releases, on Linux
+x86_64 and arm64. The [workflow](../.github/workflows/ci.yml) tests the oldest
+supported and newest stable tmux releases on both architectures.
 OTP 29.1.2 is the only supported Erlang baseline;
 older-OTP compatibility branches are not maintained. Native records remain an
 experimental language dependency in OTP 29. Do not persist their internals or
@@ -10,8 +10,12 @@ assume compatibility with another OTP line.
 
 | Platform | tmux releases in the required matrix |
 | --- | --- |
-| Ubuntu 24.04 x86_64 | 3.3, 3.3a, 3.4, 3.5a, 3.6b, 3.7c, 3.8 |
-| Ubuntu 24.04 arm64 | 3.3, 3.8 |
+| Ubuntu 24.04 x86_64 | 3.3a, 3.8 |
+| Ubuntu 24.04 arm64 | 3.3a, 3.8 |
+
+CI uses only the latest stable Erlang/OTP release. Testing the endpoints keeps
+the routine matrix small; it does not exclude releases between them from
+support. Earlier intermediate-version results retain their recorded scope.
 
 Inspect the individual jobs at the commit you will consume. A minimum-version
 check does not prove runtime support on every newer release. Tracking builds,
@@ -109,7 +113,7 @@ its helper from packaged C source. Missing compiler support fails installation.
 The installed examples, native-record imports, model-upgrade check and owned
 transport checks run against that consumer.
 
-CI runs this gate on both supported architectures with tmux 3.3 and 3.8.
+CI runs this gate on both supported architectures with tmux 3.3a and 3.8.
 Inspect its receipt for the commit being consumed. These local source artifacts
 retain the development version; the check neither publishes to Hex nor proves
 an independently retrieved registry release. The older compiled-archive check

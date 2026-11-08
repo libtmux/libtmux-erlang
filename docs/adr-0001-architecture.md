@@ -28,8 +28,8 @@ can leave a command running. A client can retire after tmux has already made
 an irreversible change. The API must preserve those distinctions while fitting
 ordinary Erlang programs.
 
-The core targets the single current stable OTP baseline and the selected Linux
-qualification matrix, starting at plain tmux 3.3. It does not carry older-OTP
+The core targets the single current stable OTP baseline and tmux 3.3a–3.8 on
+Linux, including intermediate releases. It does not carry older-OTP
 compatibility branches. The [project policy](project-policy.md) defines the
 runtime dependency and application boundaries.
 
@@ -229,7 +229,7 @@ because one release sanitizes titles.
 Candidate-scoped hydration is a later strategy if measurements justify its
 coverage complexity. A subset of matching children must never be represented
 as the complete relationship. Candidate implication tests must execute the
-translated predicate through supported tmux versions, including plain 3.3.
+translated predicate through the CI endpoints, tmux 3.3a and 3.8.
 
 ### AD-5: Supervise resource owners and keep domain rows as values
 
@@ -369,8 +369,12 @@ ordinary diagnostics, and keep optional telemetry outside core dependencies.
 EUnit, Common Test, properties, Dialyzer, documentation and installed-consumer
 checks cover different contracts. Preserve failed or skipped evidence instead
 of treating it as a passing subset. Exact source/tool/platform identities and
-individual matrix conclusions determine qualification. Test-loop durations
-do not establish throughput or a control-versus-streaming performance claim.
+individual matrix conclusions determine qualification. Continuous CI uses the
+latest stable Erlang/OTP release and the oldest supported and newest stable
+tmux releases on both Linux architectures. Support includes the releases
+between those endpoints; earlier results retain their recorded scope.
+Test-loop durations do not establish throughput or a control-versus-streaming
+performance claim.
 
 Source installation is a separate gate from consuming a compiled `ebin`/`priv`
 archive. Build the exact source package outside the umbrella without a prebuilt

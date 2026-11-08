@@ -16,15 +16,45 @@
       "archive_sha256": "551ab8dea0bf505c0ad6b7bb35ef567cdde0ccb84357df142c254f35a23e19aa",
       "url": "https://github.com/tmux/tmux/releases/download/3.4/tmux-3.4.tar.gz"
     },
+    "3.5": {
+      "commit": "ac44566c9c7e3e94d23be6def4c7ae83472543f5",
+      "archive_sha256": "2fe01942e7e7d93f524a22f2c883822c06bc258a4d61dba4b407353d7081950f",
+      "url": "https://github.com/tmux/tmux/releases/download/3.5/tmux-3.5.tar.gz"
+    },
     "3.5a": {
       "commit": "549c35b06165f6ae023115eb76f83f2cbf945395",
       "archive_sha256": "16216bd0877170dfcc64157085ba9013610b12b082548c7c9542cc0103198951",
       "url": "https://github.com/tmux/tmux/releases/download/3.5a/tmux-3.5a.tar.gz"
     },
+    "3.6": {
+      "commit": "0dac7fe434d029a4f0b819cba8eb7963df291990",
+      "archive_sha256": "136db80cfbfba617a103401f52874e7c64927986b65b1b700350b6058ad69607",
+      "url": "https://github.com/tmux/tmux/releases/download/3.6/tmux-3.6.tar.gz"
+    },
+    "3.6a": {
+      "commit": "cc117b5048f77a4842820f8ebbe3a86e5c077224",
+      "archive_sha256": "b6d8d9c76585db8ef5fa00d4931902fa4b8cbe8166f528f44fc403961a3f3759",
+      "url": "https://github.com/tmux/tmux/releases/download/3.6a/tmux-3.6a.tar.gz"
+    },
     "3.6b": {
       "commit": "0623d1e968423ad0c192e0d8debf1258671063d5",
       "archive_sha256": "390759d25fdba016887ec982b808927e637070fd7d03a8021f8ef3102b9ae3c7",
       "url": "https://github.com/tmux/tmux/releases/download/3.6b/tmux-3.6b.tar.gz"
+    },
+    "3.7": {
+      "commit": "81f88f8517c9fc5371b56cf117530c6b477c96ac",
+      "archive_sha256": "2344f191501b8a73eb71dd6c5fd5dcf8c765f5066f34ab46f04b3013dc7bc1a5",
+      "url": "https://github.com/tmux/tmux/releases/download/3.7/tmux-3.7.tar.gz"
+    },
+    "3.7a": {
+      "commit": "0e418b62d259ce8da8970f75732cc6632ee4c3a0",
+      "archive_sha256": "8ee44ce951182845fd57ad12dd6f27fb677b1afb900e2e84df4798112ed0dbf0",
+      "url": "https://github.com/tmux/tmux/releases/download/3.7a/tmux-3.7a.tar.gz"
+    },
+    "3.7b": {
+      "commit": "e802909de06012a4df6209d55e86487c56223163",
+      "archive_sha256": "87f2e99e3b685973f2ca002ffd6ed7e51a5744f7009daae5a15670b6d532db96",
+      "url": "https://github.com/tmux/tmux/releases/download/3.7b/tmux-3.7b.tar.gz"
     },
     "3.7c": {
       "commit": "e476c1230b958df0cb12977517d24b3dc931375b",

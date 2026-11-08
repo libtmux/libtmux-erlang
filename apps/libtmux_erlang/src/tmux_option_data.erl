@@ -4,7 +4,7 @@
 -export([versions/0, names/0, variants/1]).
 
 -spec versions() -> [binary()].
-versions() -> [<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>].
+versions() -> [<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>].
 
 -spec names() -> [binary()].
 names() -> [
@@ -284,178 +284,178 @@ names() -> [
 
 -spec variants(binary()) -> [{[binary()], map()}].
 variants(<<"activity-action">>) -> [
-    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => choice, array => false, hook => false}}];
+    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => choice, array => false, hook => false}}];
 variants(<<"after-bind-key">>) -> [
-    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => command, array => true, hook => true}}];
+    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => command, array => true, hook => true}}];
 variants(<<"after-capture-pane">>) -> [
-    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => command, array => true, hook => true}}];
+    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => command, array => true, hook => true}}];
 variants(<<"after-copy-mode">>) -> [
-    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => command, array => true, hook => true}}];
+    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => command, array => true, hook => true}}];
 variants(<<"after-display-message">>) -> [
-    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => command, array => true, hook => true}}];
+    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => command, array => true, hook => true}}];
 variants(<<"after-display-panes">>) -> [
-    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => command, array => true, hook => true}}];
+    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => command, array => true, hook => true}}];
 variants(<<"after-kill-pane">>) -> [
-    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => command, array => true, hook => true}}];
+    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => command, array => true, hook => true}}];
 variants(<<"after-list-buffers">>) -> [
-    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => command, array => true, hook => true}}];
+    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => command, array => true, hook => true}}];
 variants(<<"after-list-clients">>) -> [
-    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => command, array => true, hook => true}}];
+    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => command, array => true, hook => true}}];
 variants(<<"after-list-keys">>) -> [
-    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => command, array => true, hook => true}}];
+    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => command, array => true, hook => true}}];
 variants(<<"after-list-panes">>) -> [
-    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => command, array => true, hook => true}}];
+    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => command, array => true, hook => true}}];
 variants(<<"after-list-sessions">>) -> [
-    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => command, array => true, hook => true}}];
+    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => command, array => true, hook => true}}];
 variants(<<"after-list-windows">>) -> [
-    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => command, array => true, hook => true}}];
+    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => command, array => true, hook => true}}];
 variants(<<"after-load-buffer">>) -> [
-    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => command, array => true, hook => true}}];
+    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => command, array => true, hook => true}}];
 variants(<<"after-lock-server">>) -> [
-    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => command, array => true, hook => true}}];
+    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => command, array => true, hook => true}}];
 variants(<<"after-new-session">>) -> [
-    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => command, array => true, hook => true}}];
+    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => command, array => true, hook => true}}];
 variants(<<"after-new-window">>) -> [
-    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => command, array => true, hook => true}}];
+    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => command, array => true, hook => true}}];
 variants(<<"after-paste-buffer">>) -> [
-    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => command, array => true, hook => true}}];
+    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => command, array => true, hook => true}}];
 variants(<<"after-pipe-pane">>) -> [
-    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => command, array => true, hook => true}}];
+    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => command, array => true, hook => true}}];
 variants(<<"after-queue">>) -> [
-    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>], #{scopes => [session], type => command, array => true, hook => true}}];
+    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>], #{scopes => [session], type => command, array => true, hook => true}}];
 variants(<<"after-refresh-client">>) -> [
-    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => command, array => true, hook => true}}];
+    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => command, array => true, hook => true}}];
 variants(<<"after-rename-session">>) -> [
-    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => command, array => true, hook => true}}];
+    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => command, array => true, hook => true}}];
 variants(<<"after-rename-window">>) -> [
-    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => command, array => true, hook => true}}];
+    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => command, array => true, hook => true}}];
 variants(<<"after-resize-pane">>) -> [
-    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => command, array => true, hook => true}}];
+    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => command, array => true, hook => true}}];
 variants(<<"after-resize-window">>) -> [
-    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => command, array => true, hook => true}}];
+    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => command, array => true, hook => true}}];
 variants(<<"after-save-buffer">>) -> [
-    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => command, array => true, hook => true}}];
+    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => command, array => true, hook => true}}];
 variants(<<"after-select-layout">>) -> [
-    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => command, array => true, hook => true}}];
+    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => command, array => true, hook => true}}];
 variants(<<"after-select-pane">>) -> [
-    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => command, array => true, hook => true}}];
+    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => command, array => true, hook => true}}];
 variants(<<"after-select-window">>) -> [
-    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => command, array => true, hook => true}}];
+    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => command, array => true, hook => true}}];
 variants(<<"after-send-keys">>) -> [
-    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => command, array => true, hook => true}}];
+    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => command, array => true, hook => true}}];
 variants(<<"after-set-buffer">>) -> [
-    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => command, array => true, hook => true}}];
+    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => command, array => true, hook => true}}];
 variants(<<"after-set-environment">>) -> [
-    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => command, array => true, hook => true}}];
+    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => command, array => true, hook => true}}];
 variants(<<"after-set-hook">>) -> [
-    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => command, array => true, hook => true}}];
+    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => command, array => true, hook => true}}];
 variants(<<"after-set-option">>) -> [
-    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => command, array => true, hook => true}}];
+    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => command, array => true, hook => true}}];
 variants(<<"after-show-environment">>) -> [
-    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => command, array => true, hook => true}}];
+    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => command, array => true, hook => true}}];
 variants(<<"after-show-messages">>) -> [
-    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => command, array => true, hook => true}}];
+    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => command, array => true, hook => true}}];
 variants(<<"after-show-options">>) -> [
-    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => command, array => true, hook => true}}];
+    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => command, array => true, hook => true}}];
 variants(<<"after-split-window">>) -> [
-    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => command, array => true, hook => true}}];
+    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => command, array => true, hook => true}}];
 variants(<<"after-swap-window">>) -> [
     {[<<"3.8">>], #{scopes => [session], type => command, array => true, hook => true}}];
 variants(<<"after-unbind-key">>) -> [
-    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => command, array => true, hook => true}}];
+    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => command, array => true, hook => true}}];
 variants(<<"aggressive-resize">>) -> [
-    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [window], type => flag, array => false, hook => false}}];
+    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [window], type => flag, array => false, hook => false}}];
 variants(<<"alert-activity">>) -> [
-    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => command, array => true, hook => true}}];
+    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => command, array => true, hook => true}}];
 variants(<<"alert-bell">>) -> [
-    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => command, array => true, hook => true}}];
+    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => command, array => true, hook => true}}];
 variants(<<"alert-silence">>) -> [
-    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => command, array => true, hook => true}}];
+    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => command, array => true, hook => true}}];
 variants(<<"allow-passthrough">>) -> [
     {[<<"3.3">>, <<"3.3a">>], #{scopes => [window, pane], type => flag, array => false, hook => false}},
-    {[<<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [window, pane], type => choice, array => false, hook => false}}];
+    {[<<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [window, pane], type => choice, array => false, hook => false}}];
 variants(<<"allow-rename">>) -> [
-    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [window, pane], type => flag, array => false, hook => false}}];
+    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [window, pane], type => flag, array => false, hook => false}}];
 variants(<<"allow-set-title">>) -> [
-    {[<<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [window, pane], type => flag, array => false, hook => false}}];
+    {[<<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [window, pane], type => flag, array => false, hook => false}}];
 variants(<<"alternate-screen">>) -> [
-    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [window, pane], type => flag, array => false, hook => false}}];
+    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [window, pane], type => flag, array => false, hook => false}}];
 variants(<<"assume-paste-time">>) -> [
-    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => number, array => false, hook => false}}];
+    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => number, array => false, hook => false}}];
 variants(<<"automatic-rename">>) -> [
-    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [window], type => flag, array => false, hook => false}}];
+    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [window], type => flag, array => false, hook => false}}];
 variants(<<"automatic-rename-format">>) -> [
-    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [window], type => string, array => false, hook => false}}];
+    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [window], type => string, array => false, hook => false}}];
 variants(<<"backspace">>) -> [
-    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [server], type => key, array => false, hook => false}}];
+    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [server], type => key, array => false, hook => false}}];
 variants(<<"base-index">>) -> [
-    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => number, array => false, hook => false}}];
+    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => number, array => false, hook => false}}];
 variants(<<"bell-action">>) -> [
-    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => choice, array => false, hook => false}}];
+    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => choice, array => false, hook => false}}];
 variants(<<"buffer-limit">>) -> [
-    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [server], type => number, array => false, hook => false}}];
+    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [server], type => number, array => false, hook => false}}];
 variants(<<"clear-on-attach">>) -> [
     {[<<"3.8">>], #{scopes => [server], type => flag, array => false, hook => false}}];
 variants(<<"client-active">>) -> [
-    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => command, array => true, hook => true}}];
+    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => command, array => true, hook => true}}];
 variants(<<"client-attached">>) -> [
-    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => command, array => true, hook => true}}];
+    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => command, array => true, hook => true}}];
 variants(<<"client-closed">>) -> [
     {[<<"3.8">>], #{scopes => [session], type => command, array => true, hook => true}}];
 variants(<<"client-created">>) -> [
     {[<<"3.8">>], #{scopes => [session], type => command, array => true, hook => true}}];
 variants(<<"client-dark-theme">>) -> [
-    {[<<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => command, array => true, hook => true}}];
+    {[<<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => command, array => true, hook => true}}];
 variants(<<"client-detached">>) -> [
-    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => command, array => true, hook => true}}];
+    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => command, array => true, hook => true}}];
 variants(<<"client-focus-in">>) -> [
-    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => command, array => true, hook => true}}];
+    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => command, array => true, hook => true}}];
 variants(<<"client-focus-out">>) -> [
-    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => command, array => true, hook => true}}];
+    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => command, array => true, hook => true}}];
 variants(<<"client-light-theme">>) -> [
-    {[<<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => command, array => true, hook => true}}];
+    {[<<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => command, array => true, hook => true}}];
 variants(<<"client-resized">>) -> [
-    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => command, array => true, hook => true}}];
+    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => command, array => true, hook => true}}];
 variants(<<"client-session-changed">>) -> [
-    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => command, array => true, hook => true}}];
+    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => command, array => true, hook => true}}];
 variants(<<"clock-mode-colour">>) -> [
-    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>], #{scopes => [window], type => colour, array => false, hook => false}},
+    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>], #{scopes => [window], type => colour, array => false, hook => false}},
     {[<<"3.8">>], #{scopes => [window], type => string, array => false, hook => false}}];
 variants(<<"clock-mode-style">>) -> [
-    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [window], type => choice, array => false, hook => false}}];
+    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [window], type => choice, array => false, hook => false}}];
 variants(<<"codepoint-widths">>) -> [
-    {[<<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [server], type => string, array => true, hook => false}}];
+    {[<<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [server], type => string, array => true, hook => false}}];
 variants(<<"command-alias">>) -> [
-    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [server], type => string, array => true, hook => false}}];
+    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [server], type => string, array => true, hook => false}}];
 variants(<<"command-error">>) -> [
-    {[<<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => command, array => true, hook => true}}];
+    {[<<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => command, array => true, hook => true}}];
 variants(<<"copy-command">>) -> [
-    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [server], type => string, array => false, hook => false}}];
+    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [server], type => string, array => false, hook => false}}];
 variants(<<"copy-mode-current-line-number-style">>) -> [
-    {[<<"3.7c">>, <<"3.8">>], #{scopes => [window], type => string, array => false, hook => false}}];
+    {[<<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [window], type => string, array => false, hook => false}}];
 variants(<<"copy-mode-current-line-style">>) -> [
     {[<<"3.8">>], #{scopes => [window], type => string, array => false, hook => false}}];
 variants(<<"copy-mode-current-match-style">>) -> [
-    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [window], type => string, array => false, hook => false}}];
+    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [window], type => string, array => false, hook => false}}];
 variants(<<"copy-mode-line-number-style">>) -> [
-    {[<<"3.7c">>, <<"3.8">>], #{scopes => [window], type => string, array => false, hook => false}}];
+    {[<<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [window], type => string, array => false, hook => false}}];
 variants(<<"copy-mode-line-numbers">>) -> [
-    {[<<"3.7c">>, <<"3.8">>], #{scopes => [window], type => choice, array => false, hook => false}}];
+    {[<<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [window], type => choice, array => false, hook => false}}];
 variants(<<"copy-mode-mark-style">>) -> [
-    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [window], type => string, array => false, hook => false}}];
+    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [window], type => string, array => false, hook => false}}];
 variants(<<"copy-mode-match-style">>) -> [
-    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [window], type => string, array => false, hook => false}}];
+    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [window], type => string, array => false, hook => false}}];
 variants(<<"copy-mode-position-format">>) -> [
-    {[<<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [window, pane], type => string, array => false, hook => false}}];
+    {[<<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [window, pane], type => string, array => false, hook => false}}];
 variants(<<"copy-mode-position-style">>) -> [
-    {[<<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [window], type => string, array => false, hook => false}}];
+    {[<<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [window], type => string, array => false, hook => false}}];
 variants(<<"copy-mode-selection-style">>) -> [
-    {[<<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [window], type => string, array => false, hook => false}}];
+    {[<<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [window], type => string, array => false, hook => false}}];
 variants(<<"cursor-colour">>) -> [
-    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>], #{scopes => [window, pane], type => colour, array => false, hook => false}},
+    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>], #{scopes => [window, pane], type => colour, array => false, hook => false}},
     {[<<"3.8">>], #{scopes => [window, pane], type => string, array => false, hook => false}}];
 variants(<<"cursor-style">>) -> [
-    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [window, pane], type => choice, array => false, hook => false}}];
+    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [window, pane], type => choice, array => false, hook => false}}];
 variants(<<"dark-theme-black">>) -> [
     {[<<"3.8">>], #{scopes => [server], type => string, array => false, hook => false}}];
 variants(<<"dark-theme-blue">>) -> [
@@ -477,65 +477,65 @@ variants(<<"dark-theme-white">>) -> [
 variants(<<"dark-theme-yellow">>) -> [
     {[<<"3.8">>], #{scopes => [server], type => string, array => false, hook => false}}];
 variants(<<"default-client-command">>) -> [
-    {[<<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [server], type => command, array => false, hook => false}}];
+    {[<<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [server], type => command, array => false, hook => false}}];
 variants(<<"default-command">>) -> [
-    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => string, array => false, hook => false}}];
+    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => string, array => false, hook => false}}];
 variants(<<"default-shell">>) -> [
-    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => string, array => false, hook => false}}];
+    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => string, array => false, hook => false}}];
 variants(<<"default-size">>) -> [
-    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => string, array => false, hook => false}}];
+    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => string, array => false, hook => false}}];
 variants(<<"default-terminal">>) -> [
-    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [server], type => string, array => false, hook => false}}];
+    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [server], type => string, array => false, hook => false}}];
 variants(<<"destroy-unattached">>) -> [
     {[<<"3.3">>, <<"3.3a">>], #{scopes => [session], type => flag, array => false, hook => false}},
-    {[<<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => choice, array => false, hook => false}}];
+    {[<<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => choice, array => false, hook => false}}];
 variants(<<"detach-on-destroy">>) -> [
-    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => choice, array => false, hook => false}}];
+    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => choice, array => false, hook => false}}];
 variants(<<"display-panes-active-colour">>) -> [
-    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>], #{scopes => [session], type => colour, array => false, hook => false}},
+    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>], #{scopes => [session], type => colour, array => false, hook => false}},
     {[<<"3.8">>], #{scopes => [window], type => string, array => false, hook => false}}];
 variants(<<"display-panes-border-style">>) -> [
     {[<<"3.8">>], #{scopes => [window], type => string, array => false, hook => false}}];
 variants(<<"display-panes-colour">>) -> [
-    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>], #{scopes => [session], type => colour, array => false, hook => false}},
+    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>], #{scopes => [session], type => colour, array => false, hook => false}},
     {[<<"3.8">>], #{scopes => [window], type => string, array => false, hook => false}}];
 variants(<<"display-panes-format">>) -> [
     {[<<"3.8">>], #{scopes => [window], type => string, array => false, hook => false}}];
 variants(<<"display-panes-time">>) -> [
-    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>], #{scopes => [session], type => number, array => false, hook => false}},
+    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>], #{scopes => [session], type => number, array => false, hook => false}},
     {[<<"3.8">>], #{scopes => [window], type => number, array => false, hook => false}}];
 variants(<<"display-time">>) -> [
-    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => number, array => false, hook => false}}];
+    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => number, array => false, hook => false}}];
 variants(<<"editor">>) -> [
-    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [server], type => string, array => false, hook => false}}];
+    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [server], type => string, array => false, hook => false}}];
 variants(<<"escape-time">>) -> [
-    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [server], type => number, array => false, hook => false}}];
+    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [server], type => number, array => false, hook => false}}];
 variants(<<"exit-empty">>) -> [
-    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [server], type => flag, array => false, hook => false}}];
+    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [server], type => flag, array => false, hook => false}}];
 variants(<<"exit-unattached">>) -> [
-    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [server], type => flag, array => false, hook => false}}];
+    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [server], type => flag, array => false, hook => false}}];
 variants(<<"extended-keys">>) -> [
-    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [server], type => choice, array => false, hook => false}}];
+    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [server], type => choice, array => false, hook => false}}];
 variants(<<"extended-keys-format">>) -> [
-    {[<<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [server], type => choice, array => false, hook => false}}];
+    {[<<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [server], type => choice, array => false, hook => false}}];
 variants(<<"fill-character">>) -> [
-    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [window], type => string, array => false, hook => false}}];
+    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [window], type => string, array => false, hook => false}}];
 variants(<<"focus-events">>) -> [
-    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [server], type => flag, array => false, hook => false}}];
+    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [server], type => flag, array => false, hook => false}}];
 variants(<<"focus-follows-mouse">>) -> [
-    {[<<"3.7c">>, <<"3.8">>], #{scopes => [session], type => flag, array => false, hook => false}}];
+    {[<<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => flag, array => false, hook => false}}];
 variants(<<"get-clipboard">>) -> [
-    {[<<"3.7c">>, <<"3.8">>], #{scopes => [server], type => choice, array => false, hook => false}}];
+    {[<<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [server], type => choice, array => false, hook => false}}];
 variants(<<"history-file">>) -> [
-    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [server], type => string, array => false, hook => false}}];
+    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [server], type => string, array => false, hook => false}}];
 variants(<<"history-limit">>) -> [
-    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => number, array => false, hook => false}}];
+    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => number, array => false, hook => false}}];
 variants(<<"initial-repeat-time">>) -> [
-    {[<<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => number, array => false, hook => false}}];
+    {[<<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => number, array => false, hook => false}}];
 variants(<<"input-buffer-size">>) -> [
-    {[<<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [server], type => number, array => false, hook => false}}];
+    {[<<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [server], type => number, array => false, hook => false}}];
 variants(<<"key-table">>) -> [
-    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => string, array => false, hook => false}}];
+    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => string, array => false, hook => false}}];
 variants(<<"light-theme-black">>) -> [
     {[<<"3.8">>], #{scopes => [server], type => string, array => false, hook => false}}];
 variants(<<"light-theme-blue">>) -> [
@@ -557,73 +557,73 @@ variants(<<"light-theme-white">>) -> [
 variants(<<"light-theme-yellow">>) -> [
     {[<<"3.8">>], #{scopes => [server], type => string, array => false, hook => false}}];
 variants(<<"lock-after-time">>) -> [
-    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => number, array => false, hook => false}}];
+    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => number, array => false, hook => false}}];
 variants(<<"lock-command">>) -> [
-    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => string, array => false, hook => false}}];
+    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => string, array => false, hook => false}}];
 variants(<<"main-pane-height">>) -> [
-    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [window], type => string, array => false, hook => false}}];
+    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [window], type => string, array => false, hook => false}}];
 variants(<<"main-pane-width">>) -> [
-    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [window], type => string, array => false, hook => false}}];
+    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [window], type => string, array => false, hook => false}}];
 variants(<<"marked-pane-changed">>) -> [
     {[<<"3.8">>], #{scopes => [session], type => command, array => true, hook => true}}];
 variants(<<"menu-border-lines">>) -> [
-    {[<<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [window], type => choice, array => false, hook => false}}];
+    {[<<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [window], type => choice, array => false, hook => false}}];
 variants(<<"menu-border-style">>) -> [
-    {[<<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [window], type => string, array => false, hook => false}}];
+    {[<<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [window], type => string, array => false, hook => false}}];
 variants(<<"menu-selected-style">>) -> [
-    {[<<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [window], type => string, array => false, hook => false}}];
+    {[<<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [window], type => string, array => false, hook => false}}];
 variants(<<"menu-style">>) -> [
-    {[<<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [window], type => string, array => false, hook => false}}];
+    {[<<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [window], type => string, array => false, hook => false}}];
 variants(<<"message-command-style">>) -> [
-    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => string, array => false, hook => false}}];
+    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => string, array => false, hook => false}}];
 variants(<<"message-format">>) -> [
-    {[<<"3.7c">>, <<"3.8">>], #{scopes => [session], type => string, array => false, hook => false}}];
+    {[<<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => string, array => false, hook => false}}];
 variants(<<"message-limit">>) -> [
-    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [server], type => number, array => false, hook => false}}];
+    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [server], type => number, array => false, hook => false}}];
 variants(<<"message-line">>) -> [
-    {[<<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => choice, array => false, hook => false}}];
+    {[<<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => choice, array => false, hook => false}}];
 variants(<<"message-style">>) -> [
-    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => string, array => false, hook => false}}];
+    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => string, array => false, hook => false}}];
 variants(<<"mode-keys">>) -> [
-    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [window], type => choice, array => false, hook => false}}];
+    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [window], type => choice, array => false, hook => false}}];
 variants(<<"mode-style">>) -> [
-    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [window], type => string, array => false, hook => false}}];
+    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [window], type => string, array => false, hook => false}}];
 variants(<<"monitor-activity">>) -> [
-    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [window], type => flag, array => false, hook => false}}];
+    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [window], type => flag, array => false, hook => false}}];
 variants(<<"monitor-bell">>) -> [
-    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [window], type => flag, array => false, hook => false}}];
+    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [window], type => flag, array => false, hook => false}}];
 variants(<<"monitor-silence">>) -> [
-    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [window], type => number, array => false, hook => false}}];
+    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [window], type => number, array => false, hook => false}}];
 variants(<<"mouse">>) -> [
-    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => flag, array => false, hook => false}}];
+    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => flag, array => false, hook => false}}];
 variants(<<"other-pane-height">>) -> [
-    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [window], type => string, array => false, hook => false}}];
+    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [window], type => string, array => false, hook => false}}];
 variants(<<"other-pane-width">>) -> [
-    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [window], type => string, array => false, hook => false}}];
+    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [window], type => string, array => false, hook => false}}];
 variants(<<"pane-active-border-style">>) -> [
-    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>], #{scopes => [window], type => string, array => false, hook => false}},
-    {[<<"3.7c">>, <<"3.8">>], #{scopes => [window, pane], type => string, array => false, hook => false}}];
+    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>], #{scopes => [window], type => string, array => false, hook => false}},
+    {[<<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [window, pane], type => string, array => false, hook => false}}];
 variants(<<"pane-activity">>) -> [
     {[<<"3.8">>], #{scopes => [window, pane], type => command, array => true, hook => true}}];
 variants(<<"pane-base-index">>) -> [
-    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [window], type => number, array => false, hook => false}}];
+    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [window], type => number, array => false, hook => false}}];
 variants(<<"pane-bell">>) -> [
     {[<<"3.8">>], #{scopes => [window, pane], type => command, array => true, hook => true}}];
 variants(<<"pane-border-format">>) -> [
-    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [window, pane], type => string, array => false, hook => false}}];
+    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [window, pane], type => string, array => false, hook => false}}];
 variants(<<"pane-border-indicators">>) -> [
-    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [window], type => choice, array => false, hook => false}}];
+    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [window], type => choice, array => false, hook => false}}];
 variants(<<"pane-border-lines">>) -> [
-    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>], #{scopes => [window], type => choice, array => false, hook => false}},
+    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>], #{scopes => [window], type => choice, array => false, hook => false}},
     {[<<"3.8">>], #{scopes => [window, pane], type => choice, array => false, hook => false}}];
 variants(<<"pane-border-status">>) -> [
-    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>], #{scopes => [window], type => choice, array => false, hook => false}},
+    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>], #{scopes => [window], type => choice, array => false, hook => false}},
     {[<<"3.8">>], #{scopes => [window, pane], type => choice, array => false, hook => false}}];
 variants(<<"pane-border-style">>) -> [
-    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>], #{scopes => [window], type => string, array => false, hook => false}},
-    {[<<"3.7c">>, <<"3.8">>], #{scopes => [window, pane], type => string, array => false, hook => false}}];
+    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>], #{scopes => [window], type => string, array => false, hook => false}},
+    {[<<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [window, pane], type => string, array => false, hook => false}}];
 variants(<<"pane-colours">>) -> [
-    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [window, pane], type => colour, array => true, hook => false}}];
+    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [window, pane], type => colour, array => true, hook => false}}];
 variants(<<"pane-command-finished">>) -> [
     {[<<"3.8">>], #{scopes => [window, pane], type => command, array => true, hook => true}}];
 variants(<<"pane-command-started">>) -> [
@@ -631,15 +631,15 @@ variants(<<"pane-command-started">>) -> [
 variants(<<"pane-created">>) -> [
     {[<<"3.8">>], #{scopes => [window, pane], type => command, array => true, hook => true}}];
 variants(<<"pane-died">>) -> [
-    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [window, pane], type => command, array => true, hook => true}}];
+    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [window, pane], type => command, array => true, hook => true}}];
 variants(<<"pane-exited">>) -> [
-    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [window, pane], type => command, array => true, hook => true}}];
+    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [window, pane], type => command, array => true, hook => true}}];
 variants(<<"pane-focus-in">>) -> [
-    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [window, pane], type => command, array => true, hook => true}}];
+    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [window, pane], type => command, array => true, hook => true}}];
 variants(<<"pane-focus-out">>) -> [
-    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [window, pane], type => command, array => true, hook => true}}];
+    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [window, pane], type => command, array => true, hook => true}}];
 variants(<<"pane-mode-changed">>) -> [
-    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [window, pane], type => command, array => true, hook => true}}];
+    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [window, pane], type => command, array => true, hook => true}}];
 variants(<<"pane-mode-entered">>) -> [
     {[<<"3.8">>], #{scopes => [window, pane], type => command, array => true, hook => true}}];
 variants(<<"pane-mode-exited">>) -> [
@@ -653,192 +653,192 @@ variants(<<"pane-prompt-opened">>) -> [
 variants(<<"pane-resized">>) -> [
     {[<<"3.8">>], #{scopes => [window, pane], type => command, array => true, hook => true}}];
 variants(<<"pane-scrollbars">>) -> [
-    {[<<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [window], type => choice, array => false, hook => false}}];
+    {[<<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [window], type => choice, array => false, hook => false}}];
 variants(<<"pane-scrollbars-position">>) -> [
-    {[<<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [window], type => choice, array => false, hook => false}}];
+    {[<<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [window], type => choice, array => false, hook => false}}];
 variants(<<"pane-scrollbars-style">>) -> [
-    {[<<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [window, pane], type => string, array => false, hook => false}}];
+    {[<<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [window, pane], type => string, array => false, hook => false}}];
 variants(<<"pane-scrollbars-timeout">>) -> [
     {[<<"3.8">>], #{scopes => [window], type => number, array => false, hook => false}}];
 variants(<<"pane-set-clipboard">>) -> [
-    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [window, pane], type => command, array => true, hook => true}}];
+    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [window, pane], type => command, array => true, hook => true}}];
 variants(<<"pane-shell-prompt">>) -> [
     {[<<"3.8">>], #{scopes => [window, pane], type => command, array => true, hook => true}}];
 variants(<<"pane-status-current-style">>) -> [
-    {[<<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [window], type => string, array => false, hook => false}}];
+    {[<<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [window], type => string, array => false, hook => false}}];
 variants(<<"pane-status-style">>) -> [
-    {[<<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [window], type => string, array => false, hook => false}}];
+    {[<<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [window], type => string, array => false, hook => false}}];
 variants(<<"pane-title-changed">>) -> [
-    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [window, pane], type => command, array => true, hook => true}}];
+    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [window, pane], type => command, array => true, hook => true}}];
 variants(<<"popup-border-lines">>) -> [
-    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [window], type => choice, array => false, hook => false}}];
+    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [window], type => choice, array => false, hook => false}}];
 variants(<<"popup-border-style">>) -> [
-    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [window], type => string, array => false, hook => false}}];
+    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [window], type => string, array => false, hook => false}}];
 variants(<<"popup-style">>) -> [
-    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [window], type => string, array => false, hook => false}}];
+    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [window], type => string, array => false, hook => false}}];
 variants(<<"prefix">>) -> [
-    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => key, array => false, hook => false}}];
+    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => key, array => false, hook => false}}];
 variants(<<"prefix-timeout">>) -> [
-    {[<<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [server], type => number, array => false, hook => false}}];
+    {[<<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [server], type => number, array => false, hook => false}}];
 variants(<<"prefix2">>) -> [
-    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => key, array => false, hook => false}}];
+    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => key, array => false, hook => false}}];
 variants(<<"prompt-command-cursor-colour">>) -> [
     {[<<"3.8">>], #{scopes => [session], type => string, array => false, hook => false}}];
 variants(<<"prompt-command-cursor-style">>) -> [
-    {[<<"3.7c">>, <<"3.8">>], #{scopes => [session], type => choice, array => false, hook => false}}];
+    {[<<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => choice, array => false, hook => false}}];
 variants(<<"prompt-cursor-colour">>) -> [
-    {[<<"3.6b">>, <<"3.7c">>], #{scopes => [session], type => colour, array => false, hook => false}},
+    {[<<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>], #{scopes => [session], type => colour, array => false, hook => false}},
     {[<<"3.8">>], #{scopes => [session], type => string, array => false, hook => false}}];
 variants(<<"prompt-cursor-style">>) -> [
-    {[<<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => choice, array => false, hook => false}}];
+    {[<<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => choice, array => false, hook => false}}];
 variants(<<"prompt-history-limit">>) -> [
-    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [server], type => number, array => false, hook => false}}];
+    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [server], type => number, array => false, hook => false}}];
 variants(<<"remain-on-exit">>) -> [
-    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [window, pane], type => choice, array => false, hook => false}}];
+    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [window, pane], type => choice, array => false, hook => false}}];
 variants(<<"remain-on-exit-format">>) -> [
-    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [window, pane], type => string, array => false, hook => false}}];
+    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [window, pane], type => string, array => false, hook => false}}];
 variants(<<"renumber-windows">>) -> [
-    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => flag, array => false, hook => false}}];
+    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => flag, array => false, hook => false}}];
 variants(<<"repeat-time">>) -> [
-    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => number, array => false, hook => false}}];
+    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => number, array => false, hook => false}}];
 variants(<<"scroll-on-clear">>) -> [
-    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [window, pane], type => flag, array => false, hook => false}}];
+    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [window, pane], type => flag, array => false, hook => false}}];
 variants(<<"session-added-to-group">>) -> [
     {[<<"3.8">>], #{scopes => [session], type => command, array => true, hook => true}}];
 variants(<<"session-closed">>) -> [
-    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => command, array => true, hook => true}}];
+    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => command, array => true, hook => true}}];
 variants(<<"session-created">>) -> [
-    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => command, array => true, hook => true}}];
+    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => command, array => true, hook => true}}];
 variants(<<"session-removed-from-group">>) -> [
     {[<<"3.8">>], #{scopes => [session], type => command, array => true, hook => true}}];
 variants(<<"session-renamed">>) -> [
-    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => command, array => true, hook => true}}];
+    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => command, array => true, hook => true}}];
 variants(<<"session-status-current-style">>) -> [
-    {[<<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [window], type => string, array => false, hook => false}}];
+    {[<<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [window], type => string, array => false, hook => false}}];
 variants(<<"session-status-style">>) -> [
-    {[<<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [window], type => string, array => false, hook => false}}];
+    {[<<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [window], type => string, array => false, hook => false}}];
 variants(<<"session-window-changed">>) -> [
-    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => command, array => true, hook => true}}];
+    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => command, array => true, hook => true}}];
 variants(<<"set-clipboard">>) -> [
-    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [server], type => choice, array => false, hook => false}}];
+    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [server], type => choice, array => false, hook => false}}];
 variants(<<"set-titles">>) -> [
-    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => flag, array => false, hook => false}}];
+    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => flag, array => false, hook => false}}];
 variants(<<"set-titles-string">>) -> [
-    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => string, array => false, hook => false}}];
+    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => string, array => false, hook => false}}];
 variants(<<"silence-action">>) -> [
-    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => choice, array => false, hook => false}}];
+    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => choice, array => false, hook => false}}];
 variants(<<"status">>) -> [
-    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => choice, array => false, hook => false}}];
+    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => choice, array => false, hook => false}}];
 variants(<<"status-bg">>) -> [
-    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => colour, array => false, hook => false}}];
+    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => colour, array => false, hook => false}}];
 variants(<<"status-fg">>) -> [
-    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => colour, array => false, hook => false}}];
+    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => colour, array => false, hook => false}}];
 variants(<<"status-format">>) -> [
-    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => string, array => true, hook => false}}];
+    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => string, array => true, hook => false}}];
 variants(<<"status-interval">>) -> [
-    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => number, array => false, hook => false}}];
+    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => number, array => false, hook => false}}];
 variants(<<"status-justify">>) -> [
-    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => choice, array => false, hook => false}}];
+    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => choice, array => false, hook => false}}];
 variants(<<"status-keys">>) -> [
-    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => choice, array => false, hook => false}}];
+    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => choice, array => false, hook => false}}];
 variants(<<"status-left">>) -> [
-    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => string, array => false, hook => false}}];
+    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => string, array => false, hook => false}}];
 variants(<<"status-left-length">>) -> [
-    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => number, array => false, hook => false}}];
+    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => number, array => false, hook => false}}];
 variants(<<"status-left-style">>) -> [
-    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => string, array => false, hook => false}}];
+    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => string, array => false, hook => false}}];
 variants(<<"status-position">>) -> [
-    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => choice, array => false, hook => false}}];
+    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => choice, array => false, hook => false}}];
 variants(<<"status-right">>) -> [
-    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => string, array => false, hook => false}}];
+    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => string, array => false, hook => false}}];
 variants(<<"status-right-length">>) -> [
-    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => number, array => false, hook => false}}];
+    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => number, array => false, hook => false}}];
 variants(<<"status-right-style">>) -> [
-    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => string, array => false, hook => false}}];
+    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => string, array => false, hook => false}}];
 variants(<<"status-style">>) -> [
-    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => string, array => false, hook => false}}];
+    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => string, array => false, hook => false}}];
 variants(<<"switch-mode-match-style">>) -> [
     {[<<"3.8">>], #{scopes => [window, pane], type => string, array => false, hook => false}}];
 variants(<<"synchronize-panes">>) -> [
-    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [window, pane], type => flag, array => false, hook => false}}];
+    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [window, pane], type => flag, array => false, hook => false}}];
 variants(<<"terminal-features">>) -> [
-    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [server], type => string, array => true, hook => false}}];
+    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [server], type => string, array => true, hook => false}}];
 variants(<<"terminal-overrides">>) -> [
-    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [server], type => string, array => true, hook => false}}];
+    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [server], type => string, array => true, hook => false}}];
 variants(<<"theme">>) -> [
     {[<<"3.8">>], #{scopes => [server], type => choice, array => false, hook => false}}];
 variants(<<"tiled-layout-max-columns">>) -> [
-    {[<<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [window], type => number, array => false, hook => false}}];
+    {[<<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [window], type => number, array => false, hook => false}}];
 variants(<<"tree-mode-border-style">>) -> [
     {[<<"3.8">>], #{scopes => [window], type => string, array => false, hook => false}}];
 variants(<<"tree-mode-preview-format">>) -> [
-    {[<<"3.7c">>, <<"3.8">>], #{scopes => [window, pane], type => string, array => false, hook => false}}];
+    {[<<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [window, pane], type => string, array => false, hook => false}}];
 variants(<<"tree-mode-preview-style">>) -> [
-    {[<<"3.7c">>, <<"3.8">>], #{scopes => [window], type => string, array => false, hook => false}}];
+    {[<<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [window], type => string, array => false, hook => false}}];
 variants(<<"tree-mode-selection-style">>) -> [
     {[<<"3.8">>], #{scopes => [window], type => string, array => false, hook => false}}];
 variants(<<"update-environment">>) -> [
-    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => string, array => true, hook => false}}];
+    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => string, array => true, hook => false}}];
 variants(<<"user-keys">>) -> [
-    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [server], type => string, array => true, hook => false}}];
+    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [server], type => string, array => true, hook => false}}];
 variants(<<"variation-selector-always-wide">>) -> [
-    {[<<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [server], type => flag, array => false, hook => false}}];
+    {[<<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [server], type => flag, array => false, hook => false}}];
 variants(<<"visual-activity">>) -> [
-    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => choice, array => false, hook => false}}];
+    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => choice, array => false, hook => false}}];
 variants(<<"visual-bell">>) -> [
-    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => choice, array => false, hook => false}}];
+    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => choice, array => false, hook => false}}];
 variants(<<"visual-silence">>) -> [
-    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => choice, array => false, hook => false}}];
+    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => choice, array => false, hook => false}}];
 variants(<<"window-active-style">>) -> [
-    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [window, pane], type => string, array => false, hook => false}}];
+    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [window, pane], type => string, array => false, hook => false}}];
 variants(<<"window-closed">>) -> [
     {[<<"3.8">>], #{scopes => [window], type => command, array => true, hook => true}}];
 variants(<<"window-created">>) -> [
     {[<<"3.8">>], #{scopes => [window], type => command, array => true, hook => true}}];
 variants(<<"window-layout-changed">>) -> [
-    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [window], type => command, array => true, hook => true}}];
+    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [window], type => command, array => true, hook => true}}];
 variants(<<"window-linked">>) -> [
-    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => command, array => true, hook => true}}];
+    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => command, array => true, hook => true}}];
 variants(<<"window-pane-changed">>) -> [
-    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [window], type => command, array => true, hook => true}}];
+    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [window], type => command, array => true, hook => true}}];
 variants(<<"window-pane-current-status-format">>) -> [
-    {[<<"3.7c">>, <<"3.8">>], #{scopes => [window], type => string, array => false, hook => false}}];
+    {[<<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [window], type => string, array => false, hook => false}}];
 variants(<<"window-pane-status-format">>) -> [
-    {[<<"3.7c">>, <<"3.8">>], #{scopes => [window], type => string, array => false, hook => false}}];
+    {[<<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [window], type => string, array => false, hook => false}}];
 variants(<<"window-renamed">>) -> [
-    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [window], type => command, array => true, hook => true}}];
+    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [window], type => command, array => true, hook => true}}];
 variants(<<"window-resized">>) -> [
-    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [window], type => command, array => true, hook => true}}];
+    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [window], type => command, array => true, hook => true}}];
 variants(<<"window-size">>) -> [
-    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [window], type => choice, array => false, hook => false}}];
+    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [window], type => choice, array => false, hook => false}}];
 variants(<<"window-status-activity-style">>) -> [
-    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [window], type => string, array => false, hook => false}}];
+    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [window], type => string, array => false, hook => false}}];
 variants(<<"window-status-bell-style">>) -> [
-    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [window], type => string, array => false, hook => false}}];
+    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [window], type => string, array => false, hook => false}}];
 variants(<<"window-status-current-format">>) -> [
-    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [window], type => string, array => false, hook => false}}];
+    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [window], type => string, array => false, hook => false}}];
 variants(<<"window-status-current-style">>) -> [
-    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [window], type => string, array => false, hook => false}}];
+    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [window], type => string, array => false, hook => false}}];
 variants(<<"window-status-format">>) -> [
-    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [window], type => string, array => false, hook => false}}];
+    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [window], type => string, array => false, hook => false}}];
 variants(<<"window-status-last-style">>) -> [
-    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [window], type => string, array => false, hook => false}}];
+    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [window], type => string, array => false, hook => false}}];
 variants(<<"window-status-separator">>) -> [
-    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [window], type => string, array => false, hook => false}}];
+    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [window], type => string, array => false, hook => false}}];
 variants(<<"window-status-style">>) -> [
-    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [window], type => string, array => false, hook => false}}];
+    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [window], type => string, array => false, hook => false}}];
 variants(<<"window-style">>) -> [
-    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [window, pane], type => string, array => false, hook => false}}];
+    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [window, pane], type => string, array => false, hook => false}}];
 variants(<<"window-unlinked">>) -> [
-    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => command, array => true, hook => true}}];
+    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => command, array => true, hook => true}}];
 variants(<<"window-unzoomed">>) -> [
     {[<<"3.8">>], #{scopes => [window], type => command, array => true, hook => true}}];
 variants(<<"window-zoomed">>) -> [
     {[<<"3.8">>], #{scopes => [window], type => command, array => true, hook => true}}];
 variants(<<"word-separators">>) -> [
-    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => string, array => false, hook => false}}];
+    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [session], type => string, array => false, hook => false}}];
 variants(<<"wrap-search">>) -> [
-    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [window], type => flag, array => false, hook => false}}];
+    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [window], type => flag, array => false, hook => false}}];
 variants(<<"xterm-keys">>) -> [
-    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5a">>, <<"3.6b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [window], type => flag, array => false, hook => false}}];
+    {[<<"3.3">>, <<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>, <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>, <<"3.7c">>, <<"3.8">>], #{scopes => [window], type => flag, array => false, hook => false}}];
 variants(_) -> [].

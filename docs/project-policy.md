@@ -38,6 +38,11 @@ Keep Erlang runtime dependencies within OTP. An exception requires a concrete
 capability need, maintenance assessment and recorded architecture decision.
 Test, build and documentation tools are separate from runtime dependencies.
 
+Support covers tmux 3.3a–3.8, including intermediate releases, on Linux x86_64
+and arm64. CI uses only the latest stable Erlang/OTP release and samples the
+oldest supported and newest stable tmux releases. Verify upstream releases
+before updating the exact pins. Historical results retain their recorded scope.
+
 The Linux transport uses the bundled C11 executable for bounded I/O and owned
 process retirement. It is built from packaged source with recorded provenance.
 Workspace code uses that transport through the public core API.

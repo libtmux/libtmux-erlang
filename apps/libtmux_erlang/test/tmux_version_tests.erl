@@ -9,7 +9,17 @@ floor_and_numeric_order_test() ->
     ?assert(tmux_version:at_least(Floor, {3, 3})),
     ?assertNot(tmux_version:at_least(Older, {3, 3})),
     ?assert(tmux_version:at_least(Later, {3, 8})),
-    ?assertMatch({ok, _}, tmux_version:require(<<"tmux 3.3">>)),
+    ?assertMatch({error, {unsupported_tmux_version, _}},
+                 tmux_version:require(<<"tmux 3.3">>)),
+    lists:foreach(
+        fun(Release) ->
+            ?assertMatch({ok, _},
+                         tmux_version:require(<<"tmux ", Release/binary>>))
+        end,
+        [<<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>,
+         <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>,
+         <<"3.7c">>, <<"3.8">>]
+    ),
     ?assertMatch({error, {unsupported_tmux_version, _}},
                  tmux_version:require(<<"tmux 3.2a">>)).
 

@@ -30,7 +30,13 @@ native_catalogue_test() ->
     ?assertMatch({error, #{code := unsupported_command_catalogue}},
         tmux_capability:commands(Tracking)),
     ?assertEqual(ok, tmux_capability:require(Tracking, layout_json)),
-    ?assertEqual(7, length(tmux_capability:profiles())).
+    lists:foreach(fun(Release) ->
+        {ok, Version} = tmux_version:require(<<"tmux ", Release/binary>>),
+        ?assertMatch({ok, _},
+            tmux_capability:command(Version, <<"send-keys">>))
+    end, [<<"3.3a">>, <<"3.4">>, <<"3.5">>, <<"3.5a">>, <<"3.6">>,
+          <<"3.6a">>, <<"3.6b">>, <<"3.7">>, <<"3.7a">>, <<"3.7b">>,
+          <<"3.7c">>, <<"3.8">>]).
 
 feature_gates_test() ->
     {ok, Floor} = tmux_version:parse(<<"tmux 3.3">>),
