@@ -142,6 +142,8 @@ session/index membership.
   link a shared window twice, and verify physical and membership counts.
 - [Daemon ownership](docs/ownership.md): choose private startup or a borrowed
   socket, keep their lifetimes explicit and handle incomplete cleanup.
+- [Build command values](docs/commands.md): prepare a rename and resize, submit
+  them explicitly and inspect fresh state without changing captured rows.
 - [Run a job and capture its result](docs/jobs.md): wait for a pane's completion
   event, check its exit status, capture bytes, and cancel a separate operation.
 - [Local filters and source queries](docs/querying.md): Boolean criteria,

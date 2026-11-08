@@ -4,13 +4,13 @@
          borrowed_commands/1, cancellation/1, operation_owner/1, stale_endpoint/1,
          replacement_endpoint/1, retirement_requests/1,
          ownership_transfer/1, endpoint_owner/1, admission_limits/1, result_retention/1,
-         admission_expiry/1, registry_restart/1]).
+         admission_expiry/1, registry_restart/1, command_origins/1]).
 
 %% Outer: real tmux commands, operation ownership and borrowed-server survival.
 all() -> [borrowed_commands, cancellation, operation_owner, stale_endpoint,
           replacement_endpoint, retirement_requests,
           ownership_transfer, endpoint_owner, admission_limits, result_retention,
-          admission_expiry, registry_restart].
+          admission_expiry, registry_restart, command_origins].
 
 init_per_suite(Config) ->
     {ok, _} = application:ensure_all_started(libtmux_erlang),
@@ -22,6 +22,34 @@ init_per_suite(Config) ->
     [{executable, unicode:characters_to_binary(Executable)} | Config].
 
 end_per_suite(_) -> ok = application:stop(libtmux_erlang).
+
+command_origins(Config) ->
+    with_server(Config, fun(First, _) ->
+        {ok, Session} = tmux_session:create(First,
+            #{name => <<"first">>, launch => #{argv => [<<"/bin/cat">>]}}),
+        {ok, Snapshot} = tmux_server:snapshot(First),
+        [Pane] = tmux_snapshot:panes(Snapshot),
+        {ok, Rename} = tmux_session:rename_command(Session, <<"renamed">>),
+        {ok, Resize} = tmux_pane:resize_command(Pane, #{width => 60}),
+        with_server(Config, fun(Second, _) ->
+            {ok, Other} = tmux_session:create(Second,
+                #{name => <<"second">>, launch => #{argv => [<<"/bin/cat">>]}}),
+            Id = tmux_model:get(id, Session),
+            Id = tmux_model:get(id, Other),
+            lists:foreach(fun(Command) ->
+                {error, #{code := different_owner, outcome := error,
+                          submitted := false, cleanup := complete}} =
+                    tmux_server:command(Second, Command, #{})
+            end, [Rename, Resize]),
+            {ok, Unchanged} = tmux_session:get(Second, Id),
+            <<"second">> = tmux_model:get(name, Unchanged),
+            {ok, #{exit_status := 0, cleanup := complete}} =
+                tmux_server:command(First, Rename, #{}),
+            {ok, Fresh} = tmux_session:get(First, Id),
+            <<"renamed">> = tmux_model:get(name, Fresh),
+            <<"first">> = tmux_model:get(name, Session)
+        end)
+    end).
 
 borrowed_commands(Config) ->
     with_server(Config, fun(Server, Fixture) ->

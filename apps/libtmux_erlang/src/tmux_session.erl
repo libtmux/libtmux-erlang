@@ -19,14 +19,15 @@ new/current row through several one-shot commands. These reads are not atomic.
 If creation succeeds but observation fails, the error retains mutation =
 completed and the original command result. `rename/2` and
 `kill/1` return command results without refreshing the input
-record. Detached rows require `tmux_server:bind/2` before actions. Every call
-performs I/O except when validation rejects its arguments first.
+record. Detached rows require `tmux_server:bind/2` before actions.
+`rename_command/2` builds a reusable value without tmux I/O; the other calls
+perform I/O after validation.
 
 `select/2` switches one explicitly named attached client to a session. It
 never attaches a client or infers the current client. Use
 `tmux_window_link:select/1` to select a session's window membership instead.
 """.
--export([create/2, get/2, rename/2, select/2, select/3, kill/1]).
+-export([create/2, get/2, rename/2, rename_command/2, select/2, select/3, kill/1]).
 
 -export_type([create_options/0, select_options/0]).
 -doc "Session creation options. Launch defaults to the configured shell; creation defaults to detached.".
@@ -70,8 +71,30 @@ detached or stale references fail validation before the action.
 -spec rename(tmux_model:session(), binary()) -> {ok, map()} | {error, map()}.
 rename(Session, Name) ->
     maybe
+        {ok, Command} ?= rename_command(Session, Name),
+        tmux_target:execute(Command)
+    end.
+
+-doc """
+Build a literal rename command without tmux I/O. Validates the row and keeps
+its captured origin; endpoint liveness is checked during execution. Submit
+the value to `tmux_server:command/3` or `tmux_operation:start/3` with its original
+endpoint. Existing session records retain their captured name.
+
+Detached rows require `tmux_server:bind/2` first. Building a command does not
+execute it or make a repeated mutation safe.
+
+```erlang
+1> tmux_session:rename_command(invalid_row, <<"work">>).
+{error,#{code => invalid_row,path => []}}
+```
+""".
+-spec rename_command(tmux_model:session(), binary()) -> {ok, tmux_command:t()} | {error, map()}.
+rename_command(Session, Name) ->
+    maybe
         {ok, [_, Literal]} ?= tmux_args:options(#{name => Name}, [{name, text_format, <<"-n">>}]),
-        tmux_target:act(session, Session, <<"rename-session">>, [Literal])
+        {ok, Origin, Target} ?= tmux_target:captured_target(session, Session),
+        tmux_command:generated(session_rename, Origin, [<<"-t">>, Target, <<"--">>, Literal])
     end.
 
 -doc """

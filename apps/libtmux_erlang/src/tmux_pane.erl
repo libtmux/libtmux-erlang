@@ -14,8 +14,9 @@ observation, not a guarantee that the process remains alive.
 
 A successful split followed by a failed observation retains the completed
 mutation and command result in its error. `kill/1` returns the
-command result. Detached or stale references cannot act. All calls perform I/O
-after validation.
+command result. Detached or stale references cannot act. `resize_command/2`
+builds a reusable value without tmux I/O; the other calls perform I/O after
+validation.
 
 `send_text/2` sends up to 2,000 literal bytes, including NUL, in one
 command using tmux's hexadecimal key form. It adds no Enter key and never
@@ -49,6 +50,7 @@ readiness, delivered bytes and job completion.
 """.
 -export([split/2, get/2, kill/1, resize/2, respawn/2, send_text/2, send_keys/2,
          capture/2, break/4, join/3, move/3, swap/3, pipe/3, stop_pipe/1]).
+-export([resize_command/2]).
 
 -export_type([split_options/0, capture_options/0, resize_options/0, respawn_options/0,
               coordinate/0, key/0, break_options/0, join_options/0, swap_options/0,
@@ -314,11 +316,29 @@ An empty request is rejected before dispatch:
     {ok, tmux_operation:completed()} | {error, tmux_operation:failure()}.
 resize(Pane, Options) ->
     maybe
+        {ok, Command} ?= resize_command(Pane, Options),
+        tmux_target:execute(Command)
+    end.
+
+-doc """
+Build a resize command without tmux I/O. Uses the dimensions and validation
+rules of `resize/2`, preserving the row's captured origin and stable pane ID.
+Endpoint liveness and native layout constraints are checked during execution.
+Submit through `tmux_server:command/3` or `tmux_operation:start/3`.
+
+```erlang
+1> tmux_pane:resize_command(invalid_row, #{}).
+{error,#{code => empty_resize}}
+```
+""".
+-spec resize_command(tmux_model:pane(), resize_options()) -> {ok, tmux_command:t()} | {error, map()}.
+resize_command(Pane, Options) ->
+    maybe
         {ok, Flags} ?= tmux_args:options(Options,
             [{width, dimension, <<"-x">>}, {height, dimension, <<"-y">>}]),
         ok ?= case Flags of [] -> {error, #{code => empty_resize}}; _ -> ok end,
-        {ok, Server, Target} ?= tmux_target:resolve(pane, Pane),
-        tmux_target:run(Server, <<"resize-pane">>, Flags ++ [<<"-t">>, Target])
+        {ok, Origin, Target} ?= tmux_target:captured_target(pane, Pane),
+        tmux_command:generated(pane_resize, Origin, Flags ++ [<<"-t">>, Target])
     end.
 
 -doc """

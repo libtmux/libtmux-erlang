@@ -31,7 +31,7 @@ run(Arguments) ->
     Modules = case Selected of
         [] -> [filter_demo, inspect_demo, readme_demo, linked_graph, job_demo,
                options_demo, buffer_demo, pane_demo, config_demo, pipe_demo,
-               hook_demo, key_demo];
+               hook_demo, key_demo, command_demo];
         ["filter"] -> [filter_demo];
         ["inspect"] -> [inspect_demo];
         ["readme"] -> [readme_demo];
@@ -43,7 +43,8 @@ run(Arguments) ->
         ["config"] -> [config_demo];
         ["pipe"] -> [pipe_demo];
         ["hooks"] -> [hook_demo];
-        ["keys"] -> [key_demo]
+        ["keys"] -> [key_demo];
+        ["commands"] -> [command_demo]
     end,
     Suffix = binary:encode_hex(crypto:strong_rand_bytes(10), lowercase),
     Scratch = binary_to_list(<<"/tmp/ltm-examples-", Suffix/binary>>),

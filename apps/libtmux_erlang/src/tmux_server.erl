@@ -162,6 +162,9 @@ Execute one validated command and await its result. Performs I/O. The result
 preserves stdout, stderr, exit status and cleanup certainty. Use
 `tmux_operation:start/3` to submit without blocking this caller. A timeout or
 cancellation cannot reverse effects that may already have reached tmux.
+Values from domain command builders keep their captured endpoint origin.
+Another endpoint returns different_owner with submitted = false before any
+native preflight or execution. Raw commands do not carry that origin.
 """.
 -spec command(t(), tmux_command:t(), command_options()) ->
     {ok, tmux_operation:completed()} | {error, tmux_operation:failure()}.
@@ -520,20 +523,28 @@ new_operation(Owner, Deadline) ->
 
 admit(Id, Owner, {Command, Options, Started}, State) ->
     case submission(Command, Options, Started) of
-        {ok, #{bytes := Bytes, deadline := Deadline} = Spec} ->
-            case tmux_admission:claim(maps:get(admission, State), Id, Owner, Bytes) of
-                ok ->
-                    {ok, Next} = ensure_operation(Id, State),
-                    Op = operation(Id, Next),
-                    Timer = erlang:start_timer(Deadline, self(), {deadline, Id}, [{abs, true}]),
-                    put_operation(Id, Op#{spec => maps:remove(command, Spec), stage => waiting,
-                        deadline => Deadline, timer => Timer},
-                        Next#{queue => queue:in(Id, maps:get(queue, Next))});
-                {error, _} -> expire_leases(State)
+        {ok, Spec} ->
+            Origin = maps:get(origin, State),
+            case tmux_command:provenance(maps:get(command, Spec)) of
+                none -> admit_validated(Id, Owner, Spec, State);
+                #{origin := Origin} -> admit_validated(Id, Owner, Spec, State);
+                _ -> reject(Id, #{code => different_owner}, State)
             end;
         {error, Error} -> reject(Id, Error, State)
     end;
 admit(Id, _, _, State) -> reject(Id, #{code => invalid_command}, State).
+
+admit_validated(Id, Owner, #{bytes := Bytes, deadline := Deadline} = Spec, State) ->
+    case tmux_admission:claim(maps:get(admission, State), Id, Owner, Bytes) of
+        ok ->
+            {ok, Next} = ensure_operation(Id, State),
+            Op = operation(Id, Next),
+            Timer = erlang:start_timer(Deadline, self(), {deadline, Id}, [{abs, true}]),
+            put_operation(Id, Op#{spec => maps:remove(command, Spec), stage => waiting,
+                deadline => Deadline, timer => Timer},
+                Next#{queue => queue:in(Id, maps:get(queue, Next))});
+        {error, _} -> expire_leases(State)
+    end.
 
 reject(Id, Error, State) ->
     case ensure_operation(Id, State) of

@@ -43,6 +43,10 @@ that must remain available across supported versions.
 
 Submit commands through `tmux_server:command/3` or `tmux_operation:start/3`.
 The [job guide](jobs.md) shows submission, completion and cancellation.
+`tmux_session:rename_command/2` and `tmux_pane:resize_command/2` build values
+bound to their row's captured origin. Execution through another endpoint
+returns different_owner before native work. Construction does not validate
+endpoint liveness or authorize an automatic mutation retry.
 
 `wait_for/2` builds native channel signals, waits and advisory locks.
 `source_file/2` builds configuration loading from stdin or a literal absolute
@@ -52,6 +56,7 @@ configuration input, preserving argument bytes through tmux's lexer.
 """.
 -export([raw/2, validate/1, argv/1, literal_format/1, literal_format/2, launch/1,
          wait_for/2, source_file/2, to_config/1]).
+-export([generated/3, provenance/1]).
 -export_type([t/0]).
 -export_type([wait_action/0, source/0, source_options/0]).
 
@@ -75,8 +80,11 @@ Used by `tmux_pane:respawn/2` and `tmux_window:respawn/2`.
 
 -doc """
 A validated single-command value. Rendering and execution remain separate.
+Domain builders retain a captured endpoint origin; raw values are unbound.
 """.
--opaque t() :: {tmux_command, binary(), [binary()]}.
+-opaque t() :: {tmux_command, binary(), [binary()]}
+             | {tmux_command, binary(), [binary()],
+                #{origin := reference(), kind := session_rename | pane_resize}}.
 
 -doc """
 Validate one trusted command name and binary argv, without I/O. The renderer
@@ -188,7 +196,39 @@ validated command or a tagged shape/argument/resource error, without I/O.
 """.
 -spec validate(term()) -> {ok, t()} | {error, map()}.
 validate({tmux_command, Name, Arguments}) -> raw(Name, Arguments);
+validate({tmux_command, Name, Arguments, #{origin := Origin, kind := Kind} = Metadata})
+  when map_size(Metadata) =:= 2 ->
+    case generated(Kind, Origin, Arguments) of
+        {ok, {tmux_command, Name, _, _}} = Valid -> Valid;
+        {ok, _} -> {error, #{code => invalid_command}};
+        Error -> Error
+    end;
 validate(_) -> {error, #{code => invalid_command}}.
+
+-doc false.
+-spec generated(session_rename | pane_resize, reference(), [binary()]) ->
+    {ok, t()} | {error, map()}.
+generated(Kind, Origin, Arguments) when is_reference(Origin) ->
+    maybe
+        {ok, Name} ?= case Kind of
+            session_rename -> {ok, <<"rename-session">>};
+            pane_resize -> {ok, <<"resize-pane">>};
+            _ -> {error, #{code => invalid_command}}
+        end,
+        {ok, {tmux_command, Name, Words}} ?= raw(Name, Arguments),
+        {ok, {tmux_command, Name, Words, #{origin => Origin, kind => Kind}}}
+    end;
+generated(_, _, _) -> {error, #{code => invalid_command}}.
+
+%% Intent does not establish control eligibility; reply success and error
+%% shapes require separate qualification before a control dispatcher admits it.
+-doc false.
+-spec provenance(t()) -> none | #{origin := reference(), kind := session_rename | pane_resize}.
+provenance({tmux_command, _, _}) -> none;
+provenance({tmux_command, _, _, Metadata}) -> Metadata.
+
+parts({tmux_command, Name, Arguments}) -> {Name, Arguments};
+parts({tmux_command, Name, Arguments, _}) -> {Name, Arguments}.
 
 -doc """
 Render a validated command into executable argv, protecting trailing tmux
@@ -197,7 +237,8 @@ separators. Performs no I/O and raises for an invalid command value.
 -spec argv(t()) -> [binary()].
 argv(Command) ->
     case validate(Command) of
-        {ok, {tmux_command, Name, Arguments}} ->
+        {ok, Validated} ->
+            {Name, Arguments} = parts(Validated),
             [Name | [escape_separator(Word) || Word <- Arguments]];
         {error, Detail} -> error({invalid_command, Detail})
     end.
@@ -209,6 +250,8 @@ binary of at most 32 KiB, without a final newline. Validation uses `validate/1`;
 escaping growth, command count and aggregate size can return `command_limit`.
 Lists use native command separators between independently quoted commands.
 Rendering does not execute them or provide atomic execution or rollback.
+The text carries no origin token; executing serialized configuration requires
+the caller to choose and validate its destination explicitly.
 
 Each argument is doublequoted. Quote, backslash, dollar, tilde, control and
 non-ASCII bytes use three-digit octal escapes. Empty arguments, semicolons,
@@ -234,7 +277,8 @@ to_config(Command) -> config_command(Command).
 
 config_command(Command) ->
     maybe
-        {ok, {tmux_command, Name, Arguments}} ?= validate(Command),
+        {ok, Validated} ?= validate(Command),
+        {Name, Arguments} = parts(Validated),
         Words = [Name | [config_word(Word) || Word <- Arguments]],
         Text = iolist_to_binary(lists:join(<<" ">>, Words)),
         case byte_size(Text) =< 32768 of
