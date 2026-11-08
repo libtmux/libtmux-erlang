@@ -9,12 +9,24 @@ unavailable. Neither state means an empty relation or known absence.
 Rows created by `new/2` and the entity constructors are detached.
 Use `tmux_server:bind/2` to register a fresh observed row for actions;
 use `m:tmux_snapshot` for captured graph relationships.
+
+Observed rows carry a private `t:observation/0` value. Actions compare it
+with the row's origin, snapshot identity and target fields, rejecting
+mismatched observations before I/O. Valid-shaped binding mismatches return
+observation_mismatch; detached and malformed rows keep their validation
+errors. Retarget through
+`tmux_server:bind/2`; it reads current values. This protects ordinary API
+use, not authority against trusted code in the Erlang VM.
+
+Native model version 2 adds this association. Discard version-1 rows and
+snapshots on upgrade and freshly observe them. `to_map/1` extracts domain
+fields for explicit schema validation; maps carry no actionable origin.
 """.
 -export_record([session, window, window_link, pane]).
 -export([new/2, validate/1, entity/1, get/2, to_map/1, origin/1,
-         snapshot_id/1, model_version/1, bind/3]).
+         snapshot_id/1, model_version/1, bind/3, verify_observation/1]).
 -export([session/1, window/1, window_link/1, pane/1]).
--export_type([row/0, pane_id/0, window_id/0, session_id/0,
+-export_type([row/0, observation/0, pane_id/0, window_id/0, session_id/0,
               session/0, window/0, window_link/0, pane/0]).
 
 -doc "A canonical pane ID binary in the percent namespace; nominal checking is by Dialyzer.".
@@ -24,6 +36,11 @@ use `m:tmux_snapshot` for captured graph relationships.
 -doc "A canonical session ID binary in the dollar namespace.".
 -nominal session_id() :: binary().
 
+-record #observation{entity :: atom(), origin :: reference(),
+    snapshot_id :: reference(), identity :: tuple()}.
+-doc "Private captured target association, created by observation. Retain with its row; construction and field access are internal. It is not an authorization or serialization format.".
+-opaque observation() :: #observation{}.
+
 -record #session{
     id :: session_id(),
     name = not_loaded :: binary() | not_loaded | unavailable,
@@ -32,7 +49,8 @@ use `m:tmux_snapshot` for captured graph relationships.
     created = not_loaded :: non_neg_integer() | not_loaded | unavailable,
     origin = none :: none | reference(),
     snapshot_id = none :: none | reference(),
-    model_version = 1 :: pos_integer()
+    model_version = 2 :: pos_integer(),
+    observation = none :: none | observation()
 }.
 
 -record #window{
@@ -44,7 +62,8 @@ use `m:tmux_snapshot` for captured graph relationships.
     layout = not_loaded :: binary() | not_loaded | unavailable,
     origin = none :: none | reference(),
     snapshot_id = none :: none | reference(),
-    model_version = 1 :: pos_integer()
+    model_version = 2 :: pos_integer(),
+    observation = none :: none | observation()
 }.
 
 -record #window_link{
@@ -54,7 +73,8 @@ use `m:tmux_snapshot` for captured graph relationships.
     active = not_loaded :: boolean() | not_loaded | unavailable,
     origin = none :: none | reference(),
     snapshot_id = none :: none | reference(),
-    model_version = 1 :: pos_integer()
+    model_version = 2 :: pos_integer(),
+    observation = none :: none | observation()
 }.
 
 -record #pane{
@@ -72,7 +92,8 @@ use `m:tmux_snapshot` for captured graph relationships.
     exit_status = not_loaded :: integer() | none | not_loaded | unavailable,
     origin = none :: none | reference(),
     snapshot_id = none :: none | reference(),
-    model_version = 1 :: pos_integer()
+    model_version = 2 :: pos_integer(),
+    observation = none :: none | observation()
 }.
 
 -doc "One schema-defined native domain record, with separate origin and capture metadata.".
@@ -123,9 +144,10 @@ pane(Fields) -> new(pane, Fields).
 -spec validate(term()) -> {ok, row()} | {error, map()}.
 validate(Row) ->
     case row_metadata(Row) of
-        {Entity, 1, Origin, Snapshot}
+        {Entity, 2, Origin, Snapshot, Observation}
           when (Origin =:= none orelse is_reference(Origin)),
-               (Snapshot =:= none orelse is_reference(Snapshot)) ->
+               (Snapshot =:= none orelse is_reference(Snapshot)),
+               (Observation =:= none orelse is_record(Observation, observation)) ->
             Fields = to_map(Row),
             case tmux_schema:normalize(Entity, Fields) of
                 {ok, Fields} -> {ok, Row};
@@ -206,28 +228,62 @@ get(Field, Row) -> error({unknown_field, entity(Row), Field}).
 bind(Row = #session{}, Origin, Snapshot)
   when is_reference(Origin), is_reference(Snapshot) ->
     {ok, Row} = validate(Row),
-    Row#session{origin = Origin, snapshot_id = Snapshot};
+    Row#session{origin = Origin, snapshot_id = Snapshot,
+        observation = observation(Row, Origin, Snapshot)};
 bind(Row = #window{}, Origin, Snapshot)
   when is_reference(Origin), is_reference(Snapshot) ->
     {ok, Row} = validate(Row),
-    Row#window{origin = Origin, snapshot_id = Snapshot};
+    Row#window{origin = Origin, snapshot_id = Snapshot,
+        observation = observation(Row, Origin, Snapshot)};
 bind(Row = #window_link{}, Origin, Snapshot)
   when is_reference(Origin), is_reference(Snapshot) ->
     {ok, Row} = validate(Row),
-    Row#window_link{origin = Origin, snapshot_id = Snapshot};
+    Row#window_link{origin = Origin, snapshot_id = Snapshot,
+        observation = observation(Row, Origin, Snapshot)};
 bind(Row = #pane{}, Origin, Snapshot)
   when is_reference(Origin), is_reference(Snapshot) ->
     {ok, Row} = validate(Row),
-    Row#pane{origin = Origin, snapshot_id = Snapshot}.
+    Row#pane{origin = Origin, snapshot_id = Snapshot,
+        observation = observation(Row, Origin, Snapshot)}.
 
-row_metadata(#session{model_version = V, origin = O, snapshot_id = S}) ->
-    {session, V, O, S};
-row_metadata(#window{model_version = V, origin = O, snapshot_id = S}) ->
-    {window, V, O, S};
-row_metadata(#window_link{model_version = V, origin = O, snapshot_id = S}) ->
-    {window_link, V, O, S};
-row_metadata(#pane{model_version = V, origin = O, snapshot_id = S}) ->
-    {pane, V, O, S};
+-doc false.
+-spec verify_observation(row()) -> ok | {error, map()}.
+verify_observation(Row) ->
+    case row_metadata(Row) of
+        {_, 2, Origin, Snapshot, Captured}
+          when is_reference(Origin), is_reference(Snapshot) ->
+            case Captured =:= observation(Row, Origin, Snapshot) of
+                true -> ok;
+                false -> {error, #{code => observation_mismatch}}
+            end;
+        _ -> {error, #{code => observation_mismatch}}
+    end.
+
+observation(Row = #session{}, Origin, Snapshot) ->
+    #observation{entity = session, origin = Origin,
+        snapshot_id = Snapshot, identity = {Row#session.id}};
+observation(Row = #window{}, Origin, Snapshot) ->
+    #observation{entity = window, origin = Origin,
+        snapshot_id = Snapshot, identity = {Row#window.id}};
+observation(Row = #window_link{}, Origin, Snapshot) ->
+    #observation{entity = window_link, origin = Origin,
+        snapshot_id = Snapshot, identity = {Row#window_link.session_id, Row#window_link.window_id, Row#window_link.index}};
+observation(Row = #pane{}, Origin, Snapshot) ->
+    #observation{entity = pane, origin = Origin,
+        snapshot_id = Snapshot, identity = {Row#pane.id, Row#pane.window_id, Row#pane.index}}.
+
+row_metadata(#session{model_version = V, origin = O, snapshot_id = S,
+        observation = B}) ->
+    {session, V, O, S, B};
+row_metadata(#window{model_version = V, origin = O, snapshot_id = S,
+        observation = B}) ->
+    {window, V, O, S, B};
+row_metadata(#window_link{model_version = V, origin = O, snapshot_id = S,
+        observation = B}) ->
+    {window_link, V, O, S, B};
+row_metadata(#pane{model_version = V, origin = O, snapshot_id = S,
+        observation = B}) ->
+    {pane, V, O, S, B};
 row_metadata(_) -> invalid.
 
 build(session, Fields) -> #session{

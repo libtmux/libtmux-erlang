@@ -72,7 +72,7 @@ capabilities. Those fields can be absent in internally constructed partial
 captures. Query captures also include `t:query_metadata/0`. Opaque references
 and process identities are local values, not portable wire identifiers.
 """.
--type metadata() :: #{id := reference(), origin := reference(), model_version := 1,
+-type metadata() :: #{id := reference(), origin := reference(), model_version := 2,
     graph := complete | partial, generation => reference(),
     endpoint => #{socket_path := binary()}, server_instance => tmux_identity:t(),
     tmux_version => tmux_version:t(), capture_started => integer(),
@@ -211,7 +211,7 @@ build(Input, #{origin := Origin, id := Id, graph := Mode} = Metadata)
         Coverage = maps:from_list([{Entity, entity_coverage(Entity, Input, Rows, Mode)}
                                    || Entity <- Entities]),
         {ok, #{rows => Rows, indexes => Indexes, edges => Edges,
-               coverage => Coverage, metadata => Metadata#{model_version => 1}}}
+               coverage => Coverage, metadata => Metadata#{model_version => 2}}}
     end;
 build(_, _) -> {error, #{code => invalid_snapshot_metadata}}.
 

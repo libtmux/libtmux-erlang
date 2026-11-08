@@ -112,12 +112,16 @@ At the recorded baseline, the [origin registry](https://github.com/libtmux/libtm
 generation, while [target resolution](https://github.com/libtmux/libtmux-erlang/blob/9a1ca749f7bf6f082c910c99f961bb586781ab0b/apps/libtmux_erlang/src/tmux_target.erl#L9) takes the ID from the supplied row.
 Exported records permit construction and updates, including that ID and their
 provenance fields. The origin therefore does not authenticate an unchanged
-observation. Resolve this contract with edited-row regressions before changing
-the representation: action-target changes must be deliberate, through fresh
-binding or an explicit selector contract. If actions promise observation
-identity, store or validate that association outside writable row fields.
+observation. The selected correction binds the captured target in a private,
+unexported native record carried by the public row. Actions compare its entity,
+origin, snapshot ID and target fields with the supplied row before dispatch.
+Edited identities require fresh `tmux_server:bind/2` observation. The private
+value retains identifiers rather than a graph or a per-row registry entry.
+Edited-row regressions cover IDs, origins, snapshot IDs and link memberships.
+The [model upgrade policy](compatibility.md#retained-rows-and-upgrades) requires
+discarding version-1 values when adopting this model version 2 representation.
 These checks provide library provenance, not authorization against trusted
-code in the Erlang VM.
+code in the Erlang VM or callers of internal construction functions.
 
 ### AD-3: Keep selections, portable filters and source queries distinct
 

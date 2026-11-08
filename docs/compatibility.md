@@ -24,6 +24,42 @@ child. An unavailable interface returns `unsupported_capability` with
 See the [helper protocol](../apps/libtmux_erlang/c_src/README.md) for cleanup
 evidence and the limits of native process ownership.
 
+## Retained rows and upgrades
+
+Native model version 2 adds a private captured target association to each
+observed row. Actions check the entity, stable ID, origin and snapshot ID;
+pane associations also retain the observed window and index, and window-link
+associations retain their session, index and expected physical window.
+Actions reject edited target fields before dispatch. Valid-shaped binding
+mismatches return `observation_mismatch`; detached and malformed rows retain
+their validation errors. `tmux_server:bind/2` reads the requested target and returns
+a new actionable row. Ordinary record matching and detached constructors
+remain available.
+
+The private value retains identifiers, not the snapshot graph. It prevents
+accidental retargeting through public row updates; it is not an authorization
+boundary against trusted code running inside the VM. The internal construction
+functions remain implementation details.
+
+Discard version-1 rows and snapshots when upgrading to model version 2. Stop
+consumers that retain them, clear their process/ETS state and freshly observe
+the server after restart. This release supplies no `appup`/`relup` conversion.
+Old or unknown model versions fail row validation. New code must validate a
+retained value before accessing fields added by another model version.
+
+Every exported-field addition, rename, removal or default change requires a
+model compatibility review independently of the OTP version. Its changelog
+must state whether retained values remain usable, need an explicit validated
+conversion, or must be discarded. Do not assume hot loading changes fields in
+existing native values.
+
+`tmux_model:to_map/1` extracts the documented domain fields from a valid row.
+Validate those fields with the destination model's constructor when migrating
+data. The map loses actionable provenance; bind it through a freshly
+constructed row before an action. It is not a versioned storage or cross-port
+wire format: absence atoms, binary bytes and field inventories still require
+an application-defined schema.
+
 ## Implemented surfaces
 
 | Surface | Current behavior |

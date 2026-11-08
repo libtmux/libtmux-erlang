@@ -30,7 +30,7 @@ run() ->
         #pane{id = <<"%1">>, active = true, width = 120} = Pane,
         {ok, Pane} = tmux_model:validate(Pane),
         {error, #{code := invalid_row}} =
-            tmux_model:validate(Pane#pane{model_version = 2}),
+            tmux_model:validate(Pane#pane{model_version = 1}),
         Selection = tmux_select:from_list(pane, [Pane]),
         {ok, Pane} = tmux_select:one(#{width => #{gte => 120}}, Selection),
         {ok, Regex} = tmux_filter:new(pane, #{current_command => #{regex => #{

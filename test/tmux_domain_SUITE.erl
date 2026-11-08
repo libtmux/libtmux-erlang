@@ -2,11 +2,12 @@
 -compile(nowarn_missing_spec).
 -export([all/0, init_per_suite/1, end_per_suite/1, creation_and_identity/1,
          launch_and_input/1, capture_bytes/1, linked_snapshot/1, snapshot_limits/1,
-         geometry/1, membership_actions/1, respawn/1]).
+         geometry/1, membership_actions/1, respawn/1, observed_identity/1]).
 
 %% Outer: public domain calls, literal values, explicit binding and owned teardown.
 all() -> [creation_and_identity, launch_and_input, capture_bytes,
-          linked_snapshot, snapshot_limits, geometry, membership_actions, respawn].
+          linked_snapshot, snapshot_limits, geometry, membership_actions, respawn,
+          observed_identity].
 
 init_per_suite(Config) ->
     {ok, _} = application:ensure_all_started(libtmux_erlang),
@@ -17,6 +18,71 @@ init_per_suite(Config) ->
     [{executable, list_to_binary(Path)} | Config].
 
 end_per_suite(_) -> ok = application:stop(libtmux_erlang).
+
+observed_identity(Config) ->
+    with_server(Config, fun(Server, Fixture) ->
+        Launch = #{argv => [<<"/bin/cat">>]},
+        {ok, Session} = tmux_session:create(Server,
+            #{name => <<"observed">>, launch => Launch}),
+        {ok, Other} = tmux_session:create(Server,
+            #{name => <<"other">>, launch => Launch}),
+        {ok, Snapshot} = tmux_server:snapshot(Server),
+        [Pane, OtherPane] = tmux_snapshot:panes(Snapshot),
+        [Window, OtherWindow] = tmux_snapshot:windows(Snapshot),
+        SessionId = tmux_model:get(id, Session),
+        {ok, Link} = tmux_window_link:get(Server, SessionId, 0),
+        {ok, _} = tmux_window_link:link(Link, Session, #{index => 7}),
+        #{socket := Socket} = tmux_test_fixture:info(Fixture),
+        {ok, Second} = tmux_server:open(#{socket_path => Socket,
+            executable => proplists:get_value(executable, Config)}),
+        try
+            {ok, OtherOrigin} = tmux_server:origin(Second),
+            OtherId = tmux_model:get(id, OtherPane),
+            Edited = Pane#tmux_model:pane{id = OtherId},
+            Trace = trace:session_create(observed_identity, self(), []),
+            try
+                1 = trace:function(Trace, {tmux_server, command, 3}, true, [call_count]),
+                lists:foreach(fun(Changed) ->
+                    {error, #{code := observation_mismatch}} =
+                        tmux_pane:resize_command(Changed, #{width => 40}),
+                    {error, #{code := observation_mismatch}} =
+                        tmux_pane:send_text(Changed, <<"must not arrive">>)
+                end, [Edited, Pane#tmux_model:pane{origin = OtherOrigin},
+                      Pane#tmux_model:pane{snapshot_id = make_ref()},
+                      Pane#tmux_model:pane{window_id = tmux_model:get(id, OtherWindow)},
+                      Pane#tmux_model:pane{index = 7},
+                      Pane#tmux_model:pane{observation =
+                          OtherPane#tmux_model:pane.observation}]),
+                {error, #{code := observation_mismatch}} = tmux_session:rename_command(
+                    Session#tmux_model:session{id = tmux_model:get(id, Other)}, <<"changed">>),
+                {error, #{code := observation_mismatch}} = tmux_window:rename(
+                    Window#tmux_model:window{id = tmux_model:get(id, OtherWindow)}, <<"changed">>),
+                lists:foreach(fun(ChangedLink) ->
+                    {error, #{code := observation_mismatch}} =
+                        tmux_window_link:select(ChangedLink)
+                end, [Link#tmux_model:window_link{index = 7},
+                      Link#tmux_model:window_link{session_id = tmux_model:get(id, Other)},
+                      Link#tmux_model:window_link{window_id = tmux_model:get(id, OtherWindow)}]),
+                {ok, Detached} = tmux_model:pane(tmux_model:to_map(Pane)),
+                {error, #{code := observation_mismatch}} = tmux_pane:resize_command(
+                    Detached#tmux_model:pane{origin = tmux_model:origin(Pane),
+                        snapshot_id = tmux_model:snapshot_id(Pane)}, #{width => 40}),
+                {ok, _} = tmux_pane:resize_command(
+                    Pane#tmux_model:pane{title = <<"local annotation">>}, #{width => 40}),
+                {call_count, 0} = trace:info(Trace, {tmux_server, command, 3}, call_count)
+            after true = trace:session_destroy(Trace)
+            end,
+            {ok, Rebound} = tmux_server:bind(Server, Edited),
+            OtherId = tmux_model:get(id, Rebound),
+            {ok, _} = tmux_pane:send_text(Rebound, <<"deliberately rebound">>),
+            {ok, ReboundLink} = tmux_server:bind(Server,
+                Link#tmux_model:window_link{index = 7}),
+            {ok, _} = tmux_window_link:select(ReboundLink),
+            {ok, CurrentLink} = tmux_window_link:get(Server, SessionId, 7),
+            true = tmux_model:get(active, CurrentLink)
+        after ok = tmux_server:close(Second)
+        end
+    end).
 
 creation_and_identity(Config) ->
     with_server(Config, fun(Server, _) ->

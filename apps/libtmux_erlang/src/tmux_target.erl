@@ -31,7 +31,11 @@ row_origin(Expected, Row) ->
         end,
         case tmux_model:origin(Validated) of
             none -> {error, #{code => detached_reference}};
-            Ref -> {ok, Ref}
+            Ref ->
+                maybe
+                    ok ?= tmux_model:verify_observation(Validated),
+                    {ok, Ref}
+                end
         end
     end.
 

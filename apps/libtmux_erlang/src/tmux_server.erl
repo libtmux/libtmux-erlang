@@ -251,7 +251,10 @@ observation_context(Server) -> server_request(Server, observation_context, 900).
 -doc """
 Explicitly read current fields from this server and register the new value.
 For sessions, physical windows and panes, the read uses the stable ID and
-discards the supplied field observations. It provides no atomic identity
+discards the supplied field observations. This explicit call accepts an edited
+target; ordinary actions require its captured target association to match
+and reject mismatches before dispatch. The returned row carries a new private
+observation association; see `m:tmux_model`. It provides no atomic identity
 check. Window-link binding checks its session/index and expected physical
 window. A replaced or missing membership returns stale_link. This observed
 preflight does not make a later action atomic.

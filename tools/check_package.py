@@ -123,6 +123,32 @@ def main() -> None:
             "-pa", str(consumer_ebin), "-eval",
             "ok = native_consumer:run(), halt(0)."
         ], temp, env))
+        # A separate VM retains a native value whose captured definition lacks
+        # the new field. Changing only model_version on a new row misses this.
+        legacy = temp / "legacy"
+        legacy.mkdir()
+        (legacy / "tmux_model.erl").write_text(
+            '-module(tmux_model).\n-export([old_pane/0]).\n'
+            '-export_record([pane]).\n'
+            '-record #pane{id, origin = none, snapshot_id = none, model_version = 1}.\n'
+            'old_pane() -> #pane{id = <<"%1">>}.\n'
+        )
+        commands.append(run([
+            "erl", "-noshell", "-noinput", "-pa", str(installed_ebin), "-eval",
+            '{tmux_model, Current, Name} = code:get_object_code(tmux_model), '
+            '{ok, tmux_model, Legacy} = compile:file("legacy/tmux_model.erl", [binary]), '
+            '{module, tmux_model} = code:load_binary(tmux_model, "legacy", Legacy), '
+            'Old = tmux_model:old_pane(), Table = ets:new(retained_rows, []), '
+            'true = ets:insert(Table, {pane, Old}), '
+            '{module, tmux_model} = code:load_binary(tmux_model, Name, Current), '
+            '{error, #{code := invalid_row}} = tmux_model:validate(Old), '
+            '[{pane, Retained}] = ets:lookup(Table, pane), '
+            '{error, #{code := invalid_row}} = tmux_model:validate(Retained), '
+            '{ok, Fresh} = tmux_model:pane(#{id => <<"%1">>}), '
+            '2 = tmux_model:model_version(Fresh), '
+            '{ok, Fresh} = tmux_model:validate(Fresh), '
+            'true = ets:delete(Table), halt(0).'
+        ], temp, env))
         installed_helper = temp / prefix / "priv/tmux_owned_io"
         commands.append(run(
             [str(installed_helper), "--exec-one", "/bin/true"], temp, env
@@ -175,6 +201,7 @@ def main() -> None:
         "public_control_attachment": "PASS: installed control example verifies same-connection identity, attachment counts, unchanged dimensions and native detachment",
         "relative_code_path_child_cwd": "PASS",
         "public_domain_consumer": "PASS: session lifecycle, pane topology, literal names, window/pane deletion and session cleanup",
+        "retained_native_model": "PASS: old native shape in process and ETS is rejected after loading model version 2; fresh rows validate",
         "public_input_consumer": "PASS: text/native key delivery and normal job exit after EOF",
         "public_hook_consumer": "PASS: sparse registration, manual execution, empty override and local removal",
         "public_layout_consumer": "PASS: restore native serialized layouts after changing arrangement; require JSON v2 on tmux 3.8+",
