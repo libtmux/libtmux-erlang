@@ -2,12 +2,13 @@
 -moduledoc false.
 -behaviour(gen_server).
 -export([run/3, start/3, await/2, await_started/2, cancel/1, close/1, status/1]).
+-export([start_channel/3, ack/3, write/2, ack_write/2, close_stdin/1]).
 -export([send_request/2, cancel_async/1, close_async/1]).
 -export([start_link/3, init/1, handle_continue/2, handle_call/3, handle_cast/2,
          handle_info/2, terminate/2, format_status/1]).
 -export_type([t/0, result/0]).
 
--opaque t() :: {transport, pid(), reference()}.
+-opaque t() :: {transport, pid(), reference()} | {transport, pid(), reference(), pid()}.
 -type result() :: {ok, map()} | {error, map()}.
 -define(CLEANUP_MS, 900).
 -define(WAITERS, 16).
@@ -24,13 +25,64 @@ run(Executable, Arguments, Options) ->
 
 -spec start(binary(), [binary()], map()) -> {ok, t()} | {error, map()}.
 start(Executable, Arguments, Options) ->
+    start(Executable, Arguments, Options, oneshot).
+
+%% Private lifetime lane: one unacknowledged chunk per stream and one write
+%% completion awaiting consumption. Only the initiating process advances them.
+%% The startup deadline ends at exec acknowledgement, not application readiness.
+%% Callers own their later readiness deadline and public admission boundary.
+-spec start_channel(binary(), [binary()], map()) -> {ok, t()} | {error, map()}.
+start_channel(Executable, Arguments, Options) when is_map(Options) ->
+    case maps:without([startup_timeout_ms, cwd, env, inherit_env], Options) of
+        Empty when map_size(Empty) =:= 0 ->
+            Timeout = maps:get(startup_timeout_ms, Options, 900),
+            Config = (maps:remove(startup_timeout_ms, Options))#{
+                timeout_ms => Timeout, max_stdout => 8192, max_stderr => 8192},
+            start(Executable, Arguments, Config, channel);
+        _ -> {error, #{code => invalid_argument, outcome => not_started}}
+    end;
+start_channel(_, _, _) -> {error, #{code => invalid_argument, outcome => not_started}}.
+
+-spec ack(t(), stdout | stderr, pos_integer()) -> ok | {error, map()}.
+ack({transport, _, _, Owner}, _, _) when Owner =/= self() ->
+    {error, #{code => not_owner}};
+ack({transport, _, _, _} = Handle, Stream, Sequence)
+  when (Stream =:= stdout orelse Stream =:= stderr),
+                                 is_integer(Sequence, 1, 18446744073709551615) ->
+    request(Handle, {ack, Stream, Sequence}, ?CLEANUP_MS);
+ack(_, _, _) -> {error, #{code => invalid_argument}}.
+
+-spec write(t(), binary()) -> {ok, non_neg_integer()} | {error, map()}.
+write({transport, _, _, Owner}, _) when Owner =/= self() ->
+    {error, #{code => not_owner}};
+write({transport, _, _, _} = Handle, Bytes)
+  when is_binary(Bytes), byte_size(Bytes) > 0,
+                          byte_size(Bytes) =< 8192 ->
+    request(Handle, {write, Bytes}, ?CLEANUP_MS);
+write(_, _) -> {error, #{code => invalid_argument}}.
+
+-spec ack_write(t(), non_neg_integer()) -> ok | {error, map()}.
+ack_write({transport, _, _, Owner}, _) when Owner =/= self() ->
+    {error, #{code => not_owner}};
+ack_write({transport, _, _, _} = Handle, Id) when is_integer(Id, 0, 4294967295) ->
+    request(Handle, {ack_write, Id}, ?CLEANUP_MS);
+ack_write(_, _) -> {error, #{code => invalid_argument}}.
+
+-spec close_stdin(t()) -> ok | {error, map()}.
+close_stdin({transport, _, _, Owner}) when Owner =/= self() ->
+    {error, #{code => not_owner}};
+close_stdin({transport, _, _, _} = Handle) -> request(Handle, close_stdin, ?CLEANUP_MS);
+close_stdin(_) -> {error, #{code => invalid_argument}}.
+
+start(Executable, Arguments, Options, Mode) ->
     maybe
         {ok, Config} ?= prepare(Executable, Arguments, Options),
         {ok, _} ?= start_application(),
         Token = make_ref(),
-        Child = #{id => Token, start => {?MODULE, start_link, [self(), Token, Config]},
+        Child = #{id => Token, start => {?MODULE, start_link, [self(), Token, Config#{mode => Mode}]},
                   restart => temporary, shutdown => 1000},
         case supervisor:start_child(tmux_sup, Child) of
+            {ok, Pid} when Mode =:= channel -> {ok, {transport, Pid, Token, self()}};
             {ok, Pid} -> {ok, {transport, Pid, Token}};
             {error, _} -> {error, #{code => transport_unavailable, outcome => not_started}}
         end
@@ -54,14 +106,20 @@ status(Handle) -> request(Handle, status, ?CLEANUP_MS).
 
 -spec send_request(t(), await | retired) -> gen_server:request_id().
 send_request({transport, Pid, Token}, Kind) when Kind =:= await; Kind =:= retired ->
-    gen_server:send_request(Pid, {Token, Kind, make_ref()}).
+    gen_server:send_request(Pid, {Token, Kind, make_ref()});
+send_request({transport, Pid, Token, _}, Kind) ->
+    send_request({transport, Pid, Token}, Kind).
 
 -spec cancel_async(t()) -> ok.
-cancel_async({transport, Pid, Token}) -> gen_server:cast(Pid, {Token, cancel}).
+cancel_async({transport, Pid, Token}) -> gen_server:cast(Pid, {Token, cancel});
+cancel_async({transport, Pid, Token, _}) -> cancel_async({transport, Pid, Token}).
 
 -spec close_async(t()) -> ok.
-close_async({transport, Pid, Token}) -> gen_server:cast(Pid, {Token, close}).
+close_async({transport, Pid, Token}) -> gen_server:cast(Pid, {Token, close});
+close_async({transport, Pid, Token, _}) -> close_async({transport, Pid, Token}).
 
+request({transport, Pid, Token, _}, Kind, Timeout) ->
+    request({transport, Pid, Token}, Kind, Timeout);
 request({transport, Pid, Token}, Kind, Timeout)
   when is_pid(Pid), is_reference(Token),
        (Timeout =:= infinity orelse is_integer(Timeout, 0, 4294967295)) ->
@@ -85,13 +143,16 @@ init({Owner, Token, Config}) ->
     process_flag(trap_exit, true),
     Input = maps:get(stdin, Config),
     State = #{owner => Owner, owner_monitor => monitor(process, Owner), owner_alive => true,
-              token => Token, config => Config, phase => queued, port => none,
+              token => Token, config => Config, mode => maps:get(mode, Config),
+              phase => queued, port => none,
               helper_pid => none, child_pid => none, sent => false,
               stdout => stream(maps:get(max_stdout, Config)),
               stderr => stream(maps:get(max_stderr, Config)),
               stdin => Input, input_size => byte_size(Input), input_offset => 0,
               input_delivered => 0, pending_write => none, write_id => 0,
-              input_closed => Input =:= <<>>, cause => none, terminal => none,
+              write_acknowledged => -1,
+              input_closed => Input =:= <<>> andalso maps:get(mode, Config) =:= oneshot,
+              cause => none, terminal => none,
               result => none, cleanup => pending, closing => false, waiters => #{},
               deadline_timer => none, cleanup_timer => none, retention_timer => none},
     {ok, State, {continue, launch}}.
@@ -120,6 +181,10 @@ handle_call({Token, Kind, Tag}, From, #{token := Token} = State) ->
         await -> await_request(await, Tag, From, State);
         retired -> await_request(retired, Tag, From, State);
         started -> await_request(started, Tag, From, State);
+        {ack, Stream, Seq} -> channel_call({ack, Stream, Seq}, From, State);
+        {write, Bytes} -> channel_call({write, Bytes}, From, State);
+        {ack_write, Id} -> channel_call({ack_write, Id}, From, State);
+        close_stdin -> channel_call(close_stdin, From, State);
         _ -> {reply, {error, #{code => invalid_argument}}, State}
     end;
 handle_call(_, _, State) -> {reply, {error, #{code => operation_expired}}, State}.
@@ -251,7 +316,7 @@ environment(Overrides, Inherit) ->
     end.
 
 stream(Limit) -> #{limit => Limit, size => 0, chunks => [], buffer => <<>>,
-                   credit => 0, eof => false}.
+                   sequence => 0, acknowledged => 0, credit => 0, eof => false}.
 
 launch(Remaining, #{config := Config} = State) ->
     Helper = filename:join(code:priv_dir(libtmux_erlang), "tmux_owned_io"),
@@ -264,7 +329,11 @@ launch(Remaining, #{config := Config} = State) ->
             Timer = erlang:start_timer(Remaining, self(), deadline),
             Next = State#{port => Port, helper_pid => Pid, config => #{},
                           phase => starting, deadline_timer => Timer},
-            case send_frame(Port, <<$O, 3, Input, Remaining:32, Tail/binary>>) of
+            {OpenInput, Lifetime} = case maps:get(mode, State) of
+                channel -> {1, 0};
+                oneshot -> {Input, Remaining}
+            end,
+            case send_frame(Port, <<$O, 3, OpenInput, Lifetime:32, Tail/binary>>) of
                 true -> Next#{sent => true};
                 false -> stop_child(#{code => transport_busy}, Next)
             end
@@ -277,10 +346,26 @@ before_send(Code, State) ->
             State#{cleanup => complete, phase => retired, config => #{}, stdin => <<>>}).
 
 event({started, Pid}, #{child_pid := none, phase := Phase} = State) ->
-    Next = notify_started(State#{child_pid => Pid}),
+    Ready = case maps:get(mode, State) of
+        channel ->
+            cancel_timer(maps:get(deadline_timer, State)),
+            State#{deadline_timer => none};
+        oneshot -> State
+    end,
+    Next = notify_started(Ready#{child_pid => Pid}),
     case Phase of
         starting -> input_next(grant(stderr, grant(stdout, Next#{phase => running})));
         _ -> Next
+    end;
+event({data, Stream, Bytes}, #{mode := channel} = State) ->
+    Slot = maps:get(Stream, State),
+    #{credit := Credit, size := Size, sequence := Seq, acknowledged := Acked} = Slot,
+    case byte_size(Bytes) =< Credit andalso Credit > 0 andalso Seq =:= Acked of
+        false -> stop_child(#{code => invalid_helper_frame}, State);
+        true ->
+            channel_event({data, Stream, Seq + 1, Bytes}, State),
+            State#{Stream => Slot#{credit => 0, sequence => Seq + 1,
+                                  size => Size + byte_size(Bytes)}}
     end;
 event({data, Stream, Bytes}, State) ->
     Slot = maps:get(Stream, State),
@@ -298,7 +383,12 @@ event({data, Stream, Bytes}, State) ->
 event({eof, Stream}, State) ->
     Slot = maps:get(Stream, State),
     case maps:get(credit, Slot) > 0 andalso not maps:get(eof, Slot) of
-        true -> State#{Stream => Slot#{credit => 0, eof => true}};
+        true ->
+            case maps:get(mode, State) of
+                channel -> channel_event({eof, Stream}, State);
+                oneshot -> ok
+            end,
+            State#{Stream => Slot#{credit => 0, eof => true}};
         false -> stop_child(#{code => invalid_helper_frame}, State)
     end;
 event({write_ack, Id, Delivered, Failed}, #{pending_write := {Id, Size}} = State)
@@ -307,7 +397,13 @@ event({write_ack, Id, Delivered, Failed}, #{pending_write := {Id, Size}} = State
                   input_delivered => maps:get(input_delivered, State) + Delivered},
     case Failed orelse Delivered =/= Size of
         true -> stop_child(#{code => stdin_write_failed}, Next);
-        false -> input_next(Next)
+        false ->
+            case maps:get(mode, State) of
+                channel ->
+                    channel_event({write_ack, Id, Delivered}, Next),
+                    Next#{pending_write => {ack, Id}};
+                oneshot -> input_next(Next)
+            end
     end;
 event(stdin_closed, #{input_closed := sent} = State) -> State#{input_closed => true};
 event({retired, _, _} = Terminal, State) -> terminal(Terminal, State);
@@ -318,13 +414,17 @@ event(_, State) -> stop_child(#{code => invalid_helper_frame}, State).
 grant(Stream, #{phase := running, port := Port} = State) ->
     #{limit := Limit, size := Size, credit := 0, eof := false} = Slot = maps:get(Stream, State),
     %% One byte beyond the configured limit distinguishes exact EOF from overflow.
-    Credit = min(8192, max(1, Limit - Size)),
+    Credit = case maps:get(mode, State) of
+        channel -> 8192;
+        oneshot -> min(8192, max(1, Limit - Size))
+    end,
     case send_frame(Port, tmux_transport_codec:credit(Stream, Credit)) of
         true -> State#{Stream => Slot#{credit => Credit}};
         false -> stop_child(#{code => transport_busy}, State)
     end;
 grant(_, State) -> State.
 
+input_next(#{mode := channel} = State) -> State;
 input_next(#{phase := running, pending_write := none, input_closed := false,
              stdin := Input, input_offset := Offset, write_id := Id, port := Port} = State) ->
     case byte_size(Input) - Offset of
@@ -343,6 +443,53 @@ input_next(#{phase := running, pending_write := none, input_closed := false,
             end
     end;
 input_next(State) -> State.
+
+channel_event(Event, #{owner := Owner, token := Token}) ->
+    Owner ! {tmux_transport, {transport, self(), Token, Owner}, Event},
+    ok.
+
+channel_call(_, {Caller, _}, #{owner := Owner} = State) when Caller =/= Owner ->
+    {reply, {error, #{code => not_owner}}, State};
+channel_call(_, _, #{mode := oneshot} = State) ->
+    {reply, {error, #{code => invalid_argument}}, State};
+channel_call(_, _, #{phase := Phase} = State) when Phase =/= running ->
+    {reply, {error, #{code => channel_closed}}, State};
+channel_call({ack, Stream, Seq}, _, State) ->
+    #{sequence := Last, acknowledged := Acked} = Slot = maps:get(Stream, State),
+    case Seq of
+        _ when Seq =< Acked -> {reply, ok, State};
+        Last -> {reply, ok, grant(Stream, State#{Stream => Slot#{acknowledged => Seq}})};
+        _ -> {reply, {error, #{code => invalid_ack}}, State}
+    end;
+channel_call({ack_write, Id}, _, #{pending_write := {ack, Id}} = State) ->
+    {reply, ok, State#{pending_write => none, write_acknowledged => Id}};
+channel_call({ack_write, Id}, _, #{write_acknowledged := Acked} = State) when Id =< Acked ->
+    {reply, ok, State};
+channel_call({ack_write, _}, _, State) ->
+    {reply, {error, #{code => invalid_ack}}, State};
+channel_call({write, Bytes}, _, #{pending_write := none, input_closed := false,
+                                 port := Port, write_id := Id} = State)
+  when Id =< 4294967295 ->
+    case send_frame(Port, tmux_transport_codec:write(Id, Bytes)) of
+        true -> {reply, {ok, Id}, State#{pending_write => {Id, byte_size(Bytes)},
+                                        write_id => Id + 1}};
+        false -> {reply, {error, #{code => transport_busy}},
+                  stop_child(#{code => transport_busy}, State)}
+    end;
+channel_call({write, _}, _, #{write_id := Id} = State) when Id > 4294967295 ->
+    {reply, {error, #{code => write_limit}}, stop_child(#{code => write_limit}, State)};
+channel_call(close_stdin, _, #{pending_write := none, input_closed := false,
+                              port := Port} = State) ->
+    case send_frame(Port, <<$C>>) of
+        true -> {reply, ok, State#{input_closed => sent}};
+        false -> {reply, {error, #{code => transport_busy}},
+                  stop_child(#{code => transport_busy}, State)}
+    end;
+channel_call(close_stdin, _, #{input_closed := Closed} = State) when Closed =/= false ->
+    {reply, ok, State};
+channel_call({write, _}, _, #{input_closed := Closed} = State) when Closed =/= false ->
+    {reply, {error, #{code => stdin_closed}}, State};
+channel_call(_, _, State) -> {reply, {error, #{code => busy}}, State}.
 
 send_frame(Port, Frame) ->
     try erlang:port_command(Port, Frame, [nosuspend])
@@ -394,6 +541,7 @@ result(#{terminal := Terminal, cause := Cause} = State) ->
         {_, Existing} when is_map(Existing) -> Existing#{outcome => outcome(State)};
         {{failed, Kind, Errno}, _} -> #{code => helper_failure, kind => Kind, errno => Errno,
                                       outcome => unknown};
+        {{retired, 0, _}, _} when map_get(mode, State) =:= channel -> none;
         {{retired, 0, _}, _} ->
             case maps:get(input_size, State) =:= maps:get(input_delivered, State) of
                 true -> none;
@@ -411,6 +559,10 @@ result(#{terminal := Terminal, cause := Cause} = State) ->
 outcome(#{sent := false}) -> not_started;
 outcome(_) -> unknown.
 
+details(#{mode := channel} = State) ->
+    #{stdout_bytes => maps:get(size, maps:get(stdout, State)),
+      stderr_bytes => maps:get(size, maps:get(stderr, State)),
+      stdin_delivered => maps:get(input_delivered, State), cleanup => maps:get(cleanup, State)};
 details(State) ->
     #{stdout => output(stdout, State), stderr => output(stderr, State),
       stdin_delivered => maps:get(input_delivered, State), cleanup => maps:get(cleanup, State)}.
