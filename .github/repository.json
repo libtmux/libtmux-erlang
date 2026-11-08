@@ -8,7 +8,7 @@
     "tony": "private"
   },
   "default_branch": "master",
-  "description": "Native Erlang library for tmux automation.",
+  "description": "Erlang tmux client library with native records, immutable snapshots, and explicit queries. Alpha.",
   "topics": [
     "beam",
     "erlang",
