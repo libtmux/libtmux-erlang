@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Example attempts invalidate older success receipts before running and
+  record caught failures explicitly.
+
 - Reader programs preserve operation and cleanup failures together, including
   nested resource cleanup. The README uses a scoped owned daemon.
 

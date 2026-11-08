@@ -69,6 +69,13 @@ captured source links and working-tree provenance. The HTML build treats
 warnings and broken local links/anchors as failures. Add complete runnable
 programs under examples/ and drift-checked excerpts to their reader guides.
 
+The example runner marks `_build/checks/examples.json` as `RUNNING` before
+starting work. Success replaces it with `PASS`; a caught failure records
+`FAIL`. After initialization, an interrupted run leaves `RUNNING` rather than
+an earlier success. Failed initialization prevents examples from starting.
+Only a completed `PASS` receipt supplies runtime example evidence. Scratch
+directories use `TMPDIR` when set, otherwise `/tmp`.
+
 Run compilation, native helper qualification, Dialyzer, real subprocess/tmux
 integration, executable docs and the external OTP archive consumer:
 

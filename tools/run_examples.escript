@@ -3,14 +3,23 @@
 -mode(compile).
 
 main(Arguments) ->
-    try run(Arguments) of
-        Result ->
-            Encoded = json:encode(Result),
-            ok = filelib:ensure_dir("_build/checks/examples.json"),
-            ok = file:write_file("_build/checks/examples.json", Encoded),
-            io:format("~s~n", [Encoded])
+    Root = filename:dirname(filename:dirname(filename:absname(escript:script_name()))),
+    Receipt = filename:join([Root, "_build", "checks", "examples.json"]),
+    try
+        ok = filelib:ensure_dir(Receipt),
+        ok = file:write_file(Receipt, json:encode(#{result => 'RUNNING'})),
+        Result = run(Arguments),
+        Encoded = json:encode(Result),
+        ok = file:write_file(Receipt, Encoded),
+        io:format("~s~n", [Encoded])
     catch Class:Reason:Stack ->
         io:format(standard_error, "Example failed: ~p:~p~n~p~n", [Class, Reason, Stack]),
+        Failure = json:encode(#{result => 'FAIL', error_class => Class}),
+        case file:write_file(Receipt, Failure) of
+            ok -> ok;
+            {error, WriteError} ->
+                io:format(standard_error, "Could not record failure: ~p~n", [WriteError])
+        end,
         halt(1)
     end.
 
@@ -49,7 +58,12 @@ run(Arguments) ->
         false -> ok
     end,
     Suffix = binary:encode_hex(crypto:strong_rand_bytes(10), lowercase),
-    Scratch = binary_to_list(<<"/tmp/ltm-examples-", Suffix/binary>>),
+    TemporaryRoot = case os:getenv("TMPDIR") of
+        false -> "/tmp";
+        "" -> "/tmp";
+        Value -> Value
+    end,
+    Scratch = filename:join(TemporaryRoot, "ltm-examples-" ++ binary_to_list(Suffix)),
     ok = file:make_dir(Scratch),
     ok = file:change_mode(Scratch, 8#700),
     try
