@@ -116,6 +116,12 @@ monitoring the new owner and releasing the old monitor; the new process does
 not perform a handshake. Owner death and cancellation retire queued or
 possibly-sent clients; they do not replay mutations.
 
+An `await_timeout` from `tmux_operation:transfer/2` leaves the transfer outcome
+uncertain: the endpoint may process the owner change after the caller stops
+waiting. Read `tmux_operation:status/1` to establish the current owner before
+relying on ownership. The timeout does not prove the old owner still owns the
+operation.
+
 Retired results are retained for at most 60 seconds. The endpoint also evicts
 the oldest results when retention exceeds 64 results or 4 MiB of stdout/stderr.
 Use `tmux_operation:status/1` while a handle is valid, and handle

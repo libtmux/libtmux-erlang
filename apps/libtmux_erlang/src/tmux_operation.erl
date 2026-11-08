@@ -119,6 +119,10 @@ Transfer ownership to a live process on this Erlang node. The endpoint
 installs its new owner monitor before releasing the previous monitor and
 returns after the swap. The new process performs no handshake. Waiters and
 ownership remain separate; endpoint ownership does not change.
+
+An `await_timeout` abandons the reply, not the queued ownership change. The
+transfer may complete later. Use `status/1` to read the current owner before
+relying on ownership; a timeout does not prove that the old owner remains.
 """.
 -spec transfer(t(), pid()) -> ok | {error, map()}.
 transfer(Operation, Owner) when is_pid(Owner), node(Owner) =:= node() ->

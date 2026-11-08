@@ -3,13 +3,13 @@
 -export([all/0, init_per_suite/1, end_per_suite/1,
          borrowed_commands/1, cancellation/1, operation_owner/1, stale_endpoint/1,
          replacement_endpoint/1, retirement_requests/1,
-         ownership_transfer/1, endpoint_owner/1, admission_limits/1, result_retention/1,
+         ownership_transfer/1, transfer_timeout/1, endpoint_owner/1, admission_limits/1, result_retention/1,
          admission_expiry/1, registry_restart/1, command_origins/1]).
 
 %% Outer: real tmux commands, operation ownership and borrowed-server survival.
 all() -> [borrowed_commands, cancellation, operation_owner, stale_endpoint,
           replacement_endpoint, retirement_requests,
-          ownership_transfer, endpoint_owner, admission_limits, result_retention,
+          ownership_transfer, transfer_timeout, endpoint_owner, admission_limits, result_retention,
           admission_expiry, registry_restart, command_origins].
 
 init_per_suite(Config) ->
@@ -320,6 +320,51 @@ ownership_transfer(Config) ->
             Op = receive {transferred, OldOwner, Handle} -> Handle
                  after 900 -> ct:fail(transfer_timeout)
                  end,
+            receive {'DOWN', OldMonitor, process, OldOwner, normal} -> ok
+            after 900 -> ct:fail(old_owner_alive)
+            end,
+            {ok, #{owner := NewOwner, outcome := pending}} = tmux_operation:status(Op),
+            exit(NewOwner, kill),
+            receive {'DOWN', NewMonitor, process, NewOwner, killed} -> ok
+            after 900 -> ct:fail(new_owner_alive)
+            end,
+            {error, #{code := owner_down, outcome := unknown, cleanup := complete}} =
+                tmux_operation:await(Op, 900)
+        after
+            exit(OldOwner, kill), exit(NewOwner, kill)
+        end
+    end).
+
+transfer_timeout(Config) ->
+    %% Outer: exercise the public 900 ms abandonment bound on a suspended owner.
+    with_server(Config, fun(Server, _) ->
+        Parent = self(),
+        {ok, #{owner := Endpoint}} = tmux_server:status(Server),
+        {NewOwner, NewMonitor} = spawn_monitor(fun() -> receive finish -> ok end end),
+        {OldOwner, OldMonitor} = spawn_monitor(fun() ->
+            {ok, Op} = tmux_operation:start(Server, raw(<<"wait-for">>, [<<"late-transfer">>]),
+                                           #{deadline_ms => 5000}),
+            {ok, _} = tmux_operation:await_started(Op, 900),
+            Parent ! {ready, self(), Op},
+            receive transfer ->
+                Parent ! {transfer_result, self(), tmux_operation:transfer(Op, NewOwner)}
+            end,
+            receive finish -> ok end
+        end),
+        try
+            Op = receive {ready, OldOwner, Handle} -> Handle
+                 after 900 -> ct:fail(operation_start_timeout)
+                 end,
+            ok = sys:suspend(Endpoint),
+            try
+                OldOwner ! transfer,
+                receive {transfer_result, OldOwner, {error, #{code := await_timeout}}} -> ok
+                after 1000 -> ct:fail(transfer_wait_did_not_expire)
+                end
+            after ok = sys:resume(Endpoint)
+            end,
+            %% The timed-out request still changes ownership after resumption.
+            OldOwner ! finish,
             receive {'DOWN', OldMonitor, process, OldOwner, normal} -> ok
             after 900 -> ct:fail(old_owner_alive)
             end,
