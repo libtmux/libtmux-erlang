@@ -6,8 +6,10 @@ Use `fetch/1` to execute a query. Constructors,
 `where/2`, `limit/2`, `pushdown/2` and
 `explain/1` perform no tmux I/O. Criteria are validated when added,
 and repeated conditions conjoin. Fetching returns an ordered `m:tmux_select`
-selection backed by a complete `m:tmux_snapshot` graph. Native filtering is a
-necessary condition; the full filter always runs locally before the limit.
+selection backed by a complete `m:tmux_snapshot` graph. By default the full
+captured view is filtered locally. Enable native candidate exclusion with
+`pushdown/2`: it can add a scan without reducing complete-graph hydration. The
+candidate is a necessary condition; the full filter still runs before the limit.
 
 Captures span commands and are not atomic. Candidate IDs excluded at one
 observation cannot be recovered by later local filtering. Disabling
@@ -22,6 +24,10 @@ ok
 2> Q = tmux_query:where(#{width => #{gte => 120}}, Q0), ok.
 ok
 3> maps:get(format, maps:get(candidate, tmux_query:explain(Q))).
+<<"1">>
+4> Pushed = tmux_query:pushdown(true, Q), ok.
+ok
+5> maps:get(format, maps:get(candidate, tmux_query:explain(Pushed))).
 <<"#{e|>=|:#{pane_width},120}">>
 ```
 """.
@@ -31,7 +37,7 @@ ok
 -record(query, {server :: tmux_server:t(), entity :: tmux_schema:entity(),
                 filter = none :: none | tmux_filter:t(),
                 limit = infinity :: infinity | 0..65536,
-                pushdown = true :: boolean()}).
+                pushdown = false :: boolean()}).
 -export_type([fetch_options/0, plan/0, candidate/0, local_reason/0,
               source_command/0, command_plan/0]).
 -doc "Capture bounds plus an explicitly requested single inconsistent-capture retry; default retry is zero.".
@@ -77,7 +83,8 @@ fail.
     candidate := [source_command()], hydration := [source_command()],
     final_spine := [source_command()], empty_server := skip_window_and_pane_scans}.
 -doc """
-Pure explanation of a query. residual is the full portable predicate, required
+Pure explanation of a query. pushdown reports whether candidate exclusion is
+enabled (disabled by default). residual is the full portable predicate, required
 lists coverage requirements, and limit applies after residual evaluation.
 ordering and deduplication name the identity policy, not arbitrary map order.
 capabilities describes the planner baseline without probing a live endpoint.
@@ -86,7 +93,7 @@ Capture spans commands. Candidate scalar values are checked against the first
 scan; text and relationships are later observations. Excluded rows cannot be
 recovered after state changes. Even an exact candidate is not an atomic query.
 """.
--type plan() :: #{entity := tmux_schema:entity(), candidate := candidate(),
+-type plan() :: #{entity := tmux_schema:entity(), pushdown := boolean(), candidate := candidate(),
     residual := tmux_filter:wire_document(), required := [tmux_snapshot:requirement()],
     limit := infinity | 0..65536, commands := command_plan(), hydration := complete_graph,
     ordering := session_index_window | numeric_id,
@@ -154,8 +161,9 @@ limit(Count, Query) when is_integer(Count, 0, 65536) -> Query#query{limit = Coun
 limit(Count, _) -> error({bad_query_limit, Count}).
 
 -doc """
-Enable or disable native candidate exclusion, returning a new query. Disabling
-pushdown evaluates the full captured view locally; neither mode promises an
+Enable or disable native candidate exclusion, returning a new query. The
+default is disabled: evaluate the complete captured view locally. Enabling it
+can add a candidate scan without reducing hydration; neither mode promises an
 atomic graph. Performs no I/O.
 """.
 -spec pushdown(boolean(), t()) -> t().
@@ -173,7 +181,7 @@ explain(#query{entity = Entity, limit = Limit, pushdown = Enabled} = Query) ->
         true -> tmux_query_plan:compile(Filter);
         false -> #{format => <<"1">>, exact => false, local_only => [#{reason => disabled}]}
     end,
-    #{entity => Entity, candidate => Candidate, residual => tmux_filter:to_wire(Filter),
+    #{entity => Entity, pushdown => Enabled, candidate => Candidate, residual => tmux_filter:to_wire(Filter),
       required => tmux_filter:requirements(Filter), limit => Limit,
       commands => tmux_observe:plan(Entity, maps:get(format, Candidate)),
       hydration => complete_graph, ordering => case Entity of

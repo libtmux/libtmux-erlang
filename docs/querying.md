@@ -94,6 +94,11 @@ are errors, not nonmatches. Local callbacks provide other regex semantics.
 
 ## Source plans
 
+Queries filter the complete captured graph locally by default. Enable native
+candidate exclusion explicitly with `tmux_query:pushdown(true, Query)`. It can add
+a candidate scan and an earlier observation without reducing graph hydration.
+`tmux_query:explain/1` reports the choice in its `pushdown` field.
+
 `tmux_query:explain/1` performs no I/O. It reports command templates, native
 candidate conditions, full residual data, complete hydration, required fields,
 ordering, identity policy and temporal assumptions. ID, Boolean and qualified
@@ -106,7 +111,7 @@ exclude a same-state full-filter match. Unsupported leaves become true;
 AND and OR compose conservatively; NOT translates only exact children.
 Membership trees are balanced to respect tmux's recursion limit.
 
-Fetch retains a complete captured graph, validates candidate scalar agreement,
+Fetch retains a complete captured graph, validates any candidate scalar agreement,
 evaluates the full local filter, and only then applies limits. Physical entities
 deduplicate by ID; window links retain membership identity. `pushdown(false, Q)`
 disables earlier candidate exclusion. Capture options bound rows, output and

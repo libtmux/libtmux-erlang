@@ -35,7 +35,8 @@ complete_graph_and_residuals(Config) ->
         end, [<<S1Id/binary, ":7">>, <<S2Id/binary, ":9">>]),
         Criteria = #{name => Name, pane_count => #{gte => 1},
                      panes => #{some => #{pid => none}}},
-        Query = tmux_query:limit(1, tmux_query:where(Criteria, tmux_query:windows(Server))),
+        Default = tmux_query:limit(1, tmux_query:where(Criteria, tmux_query:windows(Server))),
+        Query = tmux_query:pushdown(true, Default),
         Trace = trace:session_create(query_planning, self(), []),
         Boundaries = [{tmux_server, command, 3}, {tmux_observe, get, 3},
                       {tmux_observe, query, 3}, {tmux_observe, snapshot, 2}],
@@ -45,7 +46,7 @@ complete_graph_and_residuals(Config) ->
             lists:foreach(fun(MFA) -> {call_count, 0} = trace:info(Trace, MFA, call_count) end, Boundaries)
         after true = trace:session_destroy(Trace)
         end,
-        {ok, Chosen} = tmux_query:fetch(Query),
+        {Chosen, PushedCalls} = fetch_count(Query),
         [WindowId] = ids(Chosen),
         #{query := #{candidate_count := 3, pushed_down := true, attempt := 1},
           capture_started := Started, capture_finished := Finished} = tmux_select:summary(Chosen),
@@ -53,20 +54,26 @@ complete_graph_and_residuals(Config) ->
         1 = tmux_select:count(#{panes => #{count => 2}}, Chosen),
         0 = tmux_select:count(#{panes => #{every => #{pid => none}}}, Chosen),
         0 = tmux_select:count(#{panes => #{none => #{pid => none}}}, Chosen),
-        {ok, Local} = tmux_query:fetch(tmux_query:pushdown(false, Query)),
+        {Local, LocalCalls} = fetch_count(Default),
         [WindowId] = ids(Local),
+        #{query := #{pushed_down := false}} = tmux_select:summary(Local),
+        true = PushedCalls =:= LocalCalls + 1,
         true = [tmux_model:to_map(R) || R <- tmux_select:to_list(Chosen)] =:=
                [tmux_model:to_map(R) || R <- tmux_select:to_list(Local)],
-        {ok, Panes} = tmux_query:fetch(tmux_query:where(#{id => PaneId}, tmux_query:panes(Server))),
+        PaneQuery = tmux_query:pushdown(true,
+            tmux_query:where(#{id => PaneId}, tmux_query:panes(Server))),
+        {ok, Panes} = tmux_query:fetch(PaneQuery),
         [PaneId] = ids(Panes),
         #{query := #{candidate_count := 1}} = tmux_select:summary(Panes),
         1 = tmux_select:count(#{window => #{is => #{window_links => #{count => 3}}}}, Panes),
-        {ok, Links} = tmux_query:fetch(tmux_query:where(
-            #{session_id => S1Id, window_id => WindowId}, tmux_query:window_links(Server))),
+        {ok, Links} = tmux_query:fetch(tmux_query:pushdown(true, tmux_query:where(
+            #{session_id => S1Id, window_id => WindowId}, tmux_query:window_links(Server)))),
         [1,7] = [tmux_model:get(index, L) || L <- tmux_select:to_list(Links)],
-        {ok, Sessions} = tmux_query:fetch(tmux_query:where(
-            #{id => S1Id, window_links => #{count => 3}}, tmux_query:sessions(Server))),
+        #{query := #{pushed_down := true}} = tmux_select:summary(Links),
+        {ok, Sessions} = tmux_query:fetch(tmux_query:pushdown(true, tmux_query:where(
+            #{id => S1Id, window_links => #{count => 3}}, tmux_query:sessions(Server)))),
         [S1Id] = ids(Sessions),
+        #{query := #{pushed_down := true}} = tmux_select:summary(Sessions),
         ok = tmux_server:close(Server),
         1 = tmux_select:count(#{panes => #{count => 2}}, Chosen)
     end).
@@ -75,10 +82,11 @@ numeric_and_candidate_equivalence(Config) ->
     tmux_test_fixture:with_server(proplists:get_value(executable, Config), fun(Server, Fixture) ->
         {ok, Session} = tmux_session:create(Server, #{name => <<"numeric">>,
             width => 120, launch => #{argv => [<<"/bin/cat">>]}}),
+        Base = tmux_query:pushdown(true, tmux_query:panes(Server)),
         Values = [0,1,9,10,99,100,2147483647,2147483648,9007199254740990,9007199254740991],
         Cases = [{Op, A, B} || Op <- [equals,'not',lt,lte,gt,gte], A <- Values, B <- Values],
         Numeric = [begin
-            Q = tmux_query:where(#{width => #{Op => B}}, tmux_query:panes(Server)),
+            Q = tmux_query:where(#{width => #{Op => B}}, Base),
             #{candidate := #{format := F, exact := true}} = tmux_query:explain(Q),
             {binary:replace(F, <<"#{pane_width}">>, integer_to_binary(A)), compare(Op,A,B)}
         end || {Op,A,B} <- Cases],
@@ -96,7 +104,7 @@ numeric_and_candidate_equivalence(Config) ->
                        #{'and' => [#{width => #{gte => 100}}, #{title => #{contains => <<>>}}]}]},
             #{window => #{is => #{panes => #{every => #{active => true}}}}}],
         lists:foreach(fun(Criteria) ->
-            Q = tmux_query:where(Criteria, tmux_query:panes(Server)),
+            Q = tmux_query:where(Criteria, Base),
             #{candidate := #{format := Format, exact := Exact}} = tmux_query:explain(Q),
             {ok, #{stdout := Output, exit_status := 0}} = tmux_test_fixture:command(Fixture,
                 [<<"list-panes">>, <<"-a">>, <<"-f">>, Format, <<"-F">>, <<"#{pane_id}">>]),
@@ -130,6 +138,17 @@ limits_and_read_retry(Config) ->
         ok = tmux_server:close(Server),
         {error, #{code := stale_reference}} = tmux_query:fetch(Query)
     end).
+
+fetch_count(Query) ->
+    Trace = trace:session_create(query_fetch, self(), []),
+    Boundary = {tmux_server, command, 3},
+    try
+        1 = trace:function(Trace, Boundary, true, [call_count]),
+        {ok, Selection} = tmux_query:fetch(Query),
+        {call_count, Count} = trace:info(Trace, Boundary, call_count),
+        {Selection, Count}
+    after true = trace:session_destroy(Trace)
+    end.
 
 numeric_batches([], _) -> ok;
 numeric_batches(Cases, Fixture) ->

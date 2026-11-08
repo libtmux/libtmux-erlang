@@ -4,9 +4,13 @@
 
 lazy_plan_and_validation_test() ->
     Query = tmux_query:where(#{width => #{gte => 120}}, tmux_query:panes(unopened)),
+    ?assertMatch(#{pushdown := false, commands := #{candidate := []},
+        candidate := #{format := <<"1">>, local_only := [#{reason := disabled}]}},
+        tmux_query:explain(Query)),
     ?assertMatch(#{entity := pane,
         candidate := #{format := <<"#{e|>=|:#{pane_width},120}">>, exact := true},
-        ordering := numeric_id, consistency := observed}, tmux_query:explain(Query)),
+        ordering := numeric_id, consistency := observed},
+        tmux_query:explain(tmux_query:pushdown(true, Query))),
     ?assertMatch(#{candidate := #{format := <<"1">>}},
         tmux_query:explain(tmux_query:pushdown(false, Query))),
     ?assertError({bad_filter, #{code := unsupported_operator, path := [active, contains],
@@ -14,7 +18,7 @@ lazy_plan_and_validation_test() ->
     ?assertError({bad_query_limit, -1}, tmux_query:limit(-1, Query)).
 
 conservative_boolean_translation_test() ->
-    Base = tmux_query:panes(unopened),
+    Base = tmux_query:pushdown(true, tmux_query:panes(unopened)),
     Native = #{active => true},
     Local = #{title => #{contains => <<"#{pid},};\n%end">>}},
     Cases = [
@@ -37,7 +41,7 @@ conservative_boolean_translation_test() ->
 composed_filters_and_post_filter_limit_test() ->
     {ok, Filter} = tmux_filter:new(window, #{name => <<"literal,#{pid}">>}),
     Query = tmux_query:limit(2, tmux_query:where(#{pane_count => #{gte => 2}},
-        tmux_query:where(Filter, tmux_query:windows(unopened)))),
+        tmux_query:where(Filter, tmux_query:pushdown(true, tmux_query:windows(unopened))))),
     #{residual := Wire, required := Required, limit := 2,
       candidate := #{format := <<"#{e|>=|:#{window_panes},2}">>, exact := false}} =
         tmux_query:explain(Query),
