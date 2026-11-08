@@ -11,6 +11,7 @@ run(Socket, Executable) ->
             #{name => <<"commands">>, width => 120, height => 30,
               launch => #{argv => [<<"/bin/cat">>]}}),
         try
+            SessionId = tmux_model:get(id, Session),
             {ok, Snapshot} = tmux_server:snapshot(Server),
             [Anchor] = tmux_snapshot:panes(Snapshot),
             {ok, Pane} = tmux_pane:split(Anchor,
@@ -26,7 +27,7 @@ run(Socket, Executable) ->
             after
                 ok = tmux_server:close(OtherEndpoint)
             end,
-            {ok, Before} = tmux_session:get(Server, tmux_model:get(id, Session)),
+            {ok, Before} = tmux_session:get(Server, SessionId),
             <<"commands">> = tmux_model:get(name, Before),
             40 = tmux_model:get(width, Pane),
             {ok, #{exit_status := 0, cleanup := complete}} =
@@ -36,7 +37,7 @@ run(Socket, Executable) ->
                 tmux_operation:await(Operation, 900),
             {ok, Current} = tmux_pane:get(Server, tmux_model:get(id, Pane)),
             60 = tmux_model:get(width, Current),
-            {ok, Renamed} = tmux_session:get(Server, tmux_model:get(id, Session)),
+            {ok, Renamed} = tmux_session:get(Server, SessionId),
             <<"commands-ready">> = tmux_model:get(name, Renamed),
             <<"commands">> = tmux_model:get(name, Session),
             40 = tmux_model:get(width, Pane),
