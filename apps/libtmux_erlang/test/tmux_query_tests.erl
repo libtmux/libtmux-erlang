@@ -45,3 +45,28 @@ composed_filters_and_post_filter_limit_test() ->
     ?assert(lists:member({field, window, name}, Required)),
     ?assert(lists:member({field, window, pane_count}, Required)),
     ?assertMatch({error, #{code := invalid_query_options}}, tmux_query:fetch(Query, #{retry => 2})).
+
+chained_filters_match_flat_accounting_test() ->
+    Base = tmux_query:panes(unopened),
+    Conditions = [#{width => #{gte => N}} || N <- lists:seq(1, 64)],
+    {ok, Flat} = tmux_filter:new(pane, #{'and' => Conditions}),
+    Chained = lists:foldl(fun tmux_query:where/2, Base, Conditions),
+    #{residual := Wire} = tmux_query:explain(Chained),
+    ?assertEqual(tmux_filter:to_wire(Flat), Wire),
+    {ok, RoundTrip} = tmux_filter:from_wire(pane, Wire),
+    {ok, Match} = tmux_model:pane(#{id => <<"%1">>, width => 64}),
+    {ok, Miss} = tmux_model:pane(#{id => <<"%2">>, width => 63}),
+    Rows = tmux_select:from_list(pane, [Match, Miss]),
+    ?assertEqual([Match], tmux_select:to_list(tmux_select:where(RoundTrip, Rows))),
+    %% Canonical accounting admits 511 scalar leaves plus their conjunction,
+    %% but the next leaf exceeds 1024 expression/operand nodes in both paths.
+    Leaf = #{width => 64},
+    Left = tmux_query:where(#{'and' => lists:duplicate(255, Leaf)}, Base),
+    Boundary = tmux_query:where(#{'and' => lists:duplicate(256, Leaf)}, Left),
+    {ok, FlatBoundary} = tmux_filter:new(pane, #{'and' => lists:duplicate(511, Leaf)}),
+    ?assertEqual(tmux_filter:to_wire(FlatBoundary),
+                 maps:get(residual, tmux_query:explain(Boundary))),
+    ?assertError({bad_filter, #{code := expression_limit, path := _}},
+                 tmux_query:where(Leaf, Boundary)),
+    ?assertMatch({error, #{code := expression_limit}},
+                 tmux_filter:new(pane, #{'and' => lists:duplicate(512, Leaf)})).

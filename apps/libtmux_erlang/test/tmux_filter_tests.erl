@@ -35,12 +35,28 @@ validation_paths_and_bounds_test() ->
         #{'or' => lists:duplicate(1024, #{})})),
     Deep = lists:foldl(fun(_, C) -> #{'not' => C} end, #{}, lists:seq(1, 32)),
     ?assertMatch({error, #{code := depth_limit}}, tmux_filter:new(pane, Deep)),
+    DeepAnd = lists:foldl(fun(_, C) -> #{'and' => [C]} end, #{}, lists:seq(1, 32)),
+    ?assertMatch({error, #{code := depth_limit}}, tmux_filter:new(pane, DeepAnd)),
     ?assertMatch({error, #{code := expected_array}}, tmux_filter:new(pane, #{'or' => [#{} | broken]})),
     ?assertMatch({error, #{code := expected_object}}, tmux_filter:new(pane, [{active, true}])),
     Wire = #{<<"version">> => 1, <<"entity">> => <<"window">>,
         <<"where">> => #{<<"panes">> => #{<<"some">> => #{<<"active">> => #{<<"contains">> => <<"x">>}}}}},
     ?assertMatch({error, #{path := [<<"where">>, <<"panes">>, <<"some">>, <<"active">>, <<"contains">>]}},
         tmux_filter:from_wire(window, Wire)).
+
+conjoin_preserves_quantifier_scope_test() ->
+    A = #{panes => #{some => #{active => true}}},
+    B = #{panes => #{some => #{current_command => <<"nvim">>}}},
+    {ok, Left} = tmux_filter:new(window, A),
+    {ok, Right} = tmux_filter:new(window, B),
+    {ok, Combined} = tmux_filter:conjoin(Left, Right),
+    ?assertEqual({ok, Combined}, tmux_filter:new(window, #{'and' => [A, B]})),
+    ?assertMatch({all, [{relation, _, some, _}, {relation, _, some, _}]},
+                 tmux_filter:expression(Combined)),
+    {ok, Pane} = tmux_filter:new(pane, #{}),
+    ?assertMatch({error, #{code := wrong_filter_entity}}, tmux_filter:conjoin(Left, Pane)),
+    {ok, Large} = tmux_filter:new(pane, #{title => binary:copy(<<"a">>, 140000)}),
+    ?assertMatch({error, #{code := document_limit}}, tmux_filter:conjoin(Large, Large)).
 
 prepared_context_and_nullable_test() ->
     Pane = row(pane, #{id => <<"%1">>, width => 80, title => <<"caf",195,169>>, pid => none}),

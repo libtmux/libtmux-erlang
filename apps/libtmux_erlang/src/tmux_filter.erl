@@ -31,7 +31,7 @@ depth and byte limits. Resource errors can refer to the canonical wire path.
 """.
 -export([new/2, new_or_error/2, from_wire/2, to_wire/1, decode_json/1,
          entity/1, expression/1, requirements/1, prepare/2, predicate/1, matches/2,
-         prepare_rows/3]).
+         prepare_rows/3, conjoin/2]).
 -export_type([t/0, prepared/0, expr/0, wire_document/0]).
 -doc """
 Portable normalized predicate data for one schema entity; contains no
@@ -144,6 +144,14 @@ entity({tmux_filter, 1, Entity, _}) -> Entity.
 -spec expression(t()) -> expr().
 expression({tmux_filter, 1, _, Tree}) -> Tree.
 
+%% Internal composition of already validated data. Recheck canonical limits,
+%% while preserving each relationship node's separate quantifier scope.
+-doc false.
+-spec conjoin(t(), t()) -> {ok, t()} | {error, map()}.
+conjoin({tmux_filter, 1, Entity, Left}, {tmux_filter, 1, Entity, Right}) ->
+    validated(fun() -> checked(Entity, conjunction([Left, Right])) end);
+conjoin(_, _) -> {error, #{code => wrong_filter_entity, path => []}}.
+
 -doc """
 Derive every field and complete relationship needed for faithful evaluation.
 The complete requirement set is checked before short-circuiting any row.
@@ -216,12 +224,14 @@ construct(Entity, Criteria, Mode, Path) ->
 
 build(Entity, Criteria, Mode, Path) ->
     {Tree, _} = expression(Entity, Criteria, Mode, Path, 1, 0),
+    checked(Entity, Tree).
+
+checked(Entity, Tree) ->
     Filter = {tmux_filter, 1, Entity, Tree},
-    Wire = to_wire(Filter),
-    %% Conjunctive leaves can expand a compact input. Check the representation
-    %% we actually export so an accepted filter can cross the same boundary.
-    {Tree, _} = expression(Entity, maps:get(<<"where">>, Wire), wire, [<<"where">>], 1, 0),
-    Encoded = iolist_to_binary(json:encode(Wire)),
+    %% Count the canonical expression/operand nodes without revalidating scalar
+    %% values or importing the growing predicate through the wire grammar.
+    _ = canonical_budget(Entity, Tree, [<<"where">>], 1, 0),
+    Encoded = iolist_to_binary(json:encode(to_wire(Filter))),
     case tmux_json:decode(Encoded) of
         {ok, _} -> Filter;
         {error, Detail} -> fail(Detail)
@@ -254,7 +264,7 @@ entries([{Key, Value} | Rest], Entity, Mode, Path, Depth, Count, Acc) ->
             {{negate, Child}, N};
         {ok, Boolean} ->
             {Children, N} = branches(Value, Entity, Mode, Here, Depth + 1, Count, 0, []),
-            {{case Boolean of 'and' -> all; 'or' -> any end, Children}, N};
+            {case Boolean of 'and' -> conjunction(Children); 'or' -> {any, Children} end, N};
         error -> member(Entity, Key, Value, Mode, Here, Depth, Count)
     end,
     entries(Rest, Entity, Mode, Path, Depth, Next, [Node | Acc]).
@@ -408,8 +418,36 @@ only_keys(Map, Allowed, Path) ->
 budget(Depth, _, Path) when Depth > ?MAX_DEPTH -> fail(depth_limit, Path);
 budget(_, Count, Path) when Count >= ?MAX_NODES -> fail(expression_limit, Path);
 budget(_, Count, _) -> Count + 1.
-conjunction([Node]) -> Node;
-conjunction(Nodes) -> {all, Nodes}.
+conjunction(Nodes) ->
+    Flat = lists:append([case Node of {all, Children} -> Children; _ -> [Node] end
+                         || Node <- Nodes]),
+    case Flat of [Only] -> Only; _ -> {all, Flat} end.
+
+canonical_budget(Entity, Tree, Path, Depth, Count) ->
+    Next = budget(Depth, Count, Path),
+    case Tree of
+        {Kind, Children} when Kind =:= all; Kind =:= any ->
+            Key = case Kind of all -> <<"and">>; any -> <<"or">> end,
+            lists:foldl(fun({Index, Child}, N) ->
+                canonical_budget(Entity, Child, Path ++ [Key, Index], Depth + 1, N)
+            end, Next, lists:enumerate(0, Children));
+        {negate, Child} ->
+            canonical_budget(Entity, Child, Path ++ [<<"not">>], Depth + 1, Next);
+        {field, Stable, Op, _Value} ->
+            {_, #{wire := Wire}} = metadata(Stable, tmux_schema_data:fields(Entity)),
+            budget(Depth, Next, Path ++ [Wire, atom_to_binary(Op)]);
+        {relation, Stable, Op, Child} ->
+            {_, #{wire := Wire, target := Target}} =
+                metadata(Stable, tmux_schema_data:relations(Entity)),
+            Here = Path ++ [Wire, atom_to_binary(Op)],
+            canonical_budget(Target, Child, Here, Depth + 1, budget(Depth, Next, Here));
+        {count, Stable, Ops} ->
+            {_, #{wire := Wire}} = metadata(Stable, tmux_schema_data:relations(Entity)),
+            Here = Path ++ [Wire, <<"count">>],
+            lists:foldl(fun({Op, _}, N) ->
+                budget(Depth + 1, N, Here ++ [atom_to_binary(Op)])
+            end, budget(Depth, Next, Here), Ops)
+    end.
 -spec fail(atom(), [term()]) -> no_return().
 fail(Code, Path) -> fail(#{code => Code, path => Path}).
 -spec fail(map()) -> no_return().

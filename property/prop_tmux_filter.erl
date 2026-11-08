@@ -20,7 +20,10 @@ prop_filter_composition() ->
             Right = tmux_select:where(B, tmux_select:where(A, Selection)),
             Complement = tmux_select:where(#{'not' => A}, Selection),
             Chosen = tmux_select:where(A, Selection),
+            {ok, Flat} = tmux_filter:new(pane, #{'and' => [A, B]}),
+            Query = tmux_query:where(B, tmux_query:where(A, tmux_query:panes(unopened))),
             tmux_select:to_list(Left) =:= tmux_select:to_list(Right) andalso
+                tmux_filter:to_wire(Flat) =:= maps:get(residual, tmux_query:explain(Query)) andalso
                 tmux_select:size(Chosen) + tmux_select:size(Complement) =:= length(Rows)
         end).
 

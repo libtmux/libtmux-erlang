@@ -127,8 +127,9 @@ sessions(Server) -> #query{server = Server, entity = session}.
 
 -doc """
 Validate trusted criteria for this entity and conjoin them with prior
-conditions. Returns a new immutable query; malformed criteria raise
-bad_filter. This performs no I/O.
+conditions. Successive calls share the same normalized resource limits as one
+flat conjunction. Each relationship quantifier retains its own scope. Returns
+a new immutable query; malformed criteria raise bad_filter. Performs no I/O.
 """.
 -spec where(map() | tmux_filter:t(), t()) -> t().
 where(Criteria, #query{entity = Entity, filter = Previous} = Query) ->
@@ -136,10 +137,7 @@ where(Criteria, #query{entity = Entity, filter = Previous} = Query) ->
     Combined = case Previous of
         none -> Filter;
         _ ->
-            Wire = tmux_filter:to_wire(Filter),
-            Prior = tmux_filter:to_wire(Previous),
-            case tmux_filter:from_wire(Entity, Wire#{<<"where">> =>
-                    #{<<"and">> => [maps:get(<<"where">>, Prior), maps:get(<<"where">>, Wire)]}}) of
+            case tmux_filter:conjoin(Previous, Filter) of
                 {ok, Result} -> Result;
                 {error, Detail} -> error({bad_filter, Detail})
             end
