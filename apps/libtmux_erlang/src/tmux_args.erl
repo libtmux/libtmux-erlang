@@ -61,6 +61,9 @@ encode(bytes, Flag, Value) when is_binary(Value), byte_size(Value) =< 32768 ->
         nomatch -> {ok, [Flag, Value]};
         _ -> {error, #{code => invalid_option}}
     end;
+encode(key_table, Flag, Value)
+  when is_binary(Value), byte_size(Value) > 0, byte_size(Value) =< 1024 ->
+    encode(bytes, Flag, Value);
 encode(text, Flag, Value) ->
     maybe
         {ok, _} ?= tmux_schema:value(#{type => text}, Value),

@@ -157,6 +157,8 @@ session/index membership.
   acknowledgement and verify the resulting log.
 - [Hooks and completion](docs/hooks.md): register a split callback, await its
   acknowledgement and remove the local hook.
+- [Key tables](docs/keys.md): register application bindings, inspect native
+  listings and remove the owned table.
 - [API browser and source docs](docs/api.md): build searchable native reference
   pages with specs, types and links to the exact source revision.
 

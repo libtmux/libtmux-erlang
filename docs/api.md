@@ -41,6 +41,7 @@ source-extraction path rejects native-record attributes.
 | Act on session-relative window memberships | `m:tmux_window_link` |
 | Read local or inherited options and change explicit tables | `m:tmux_option` |
 | Register, inspect and explicitly run native hooks | `m:tmux_hook` |
+| Register and remove keys in explicit server tables | `m:tmux_key` |
 | Store byte buffers and paste into a pane | `m:tmux_buffer` |
 | Read a captured graph | `m:tmux_snapshot`, `m:tmux_model` |
 | Filter captured data | `m:tmux_select`, `m:tmux_filter`, `m:tmux_matcher` |
