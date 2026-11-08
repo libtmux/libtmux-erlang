@@ -2,13 +2,13 @@
 -compile(nowarn_missing_spec).
 -export([all/0, init_per_suite/1, end_per_suite/1,
          borrowed_commands/1, cancellation/1, operation_owner/1, stale_endpoint/1,
-         replacement_endpoint/1,
+         replacement_endpoint/1, retirement_requests/1,
          ownership_transfer/1, endpoint_owner/1, admission_limits/1, result_retention/1,
          admission_expiry/1, registry_restart/1]).
 
 %% Outer: real tmux commands, operation ownership and borrowed-server survival.
 all() -> [borrowed_commands, cancellation, operation_owner, stale_endpoint,
-          replacement_endpoint,
+          replacement_endpoint, retirement_requests,
           ownership_transfer, endpoint_owner, admission_limits, result_retention,
           admission_expiry, registry_restart].
 
@@ -152,6 +152,68 @@ replacement_endpoint(Config) ->
         after ok = tmux_server:close(NewServer)
         end
     end).
+
+retirement_requests(Config) ->
+    with_server(Config, fun(Server, Fixture) ->
+        {ok, Op} = tmux_operation:start(Server,
+            raw(<<"wait-for">>, [<<"retirement">>]), #{deadline_ms => 5000}),
+        {ok, #{phase := sent}} = tmux_operation:await_started(Op, 900),
+        {ok, #{owner := Endpoint}} = tmux_server:status(Server),
+        [#{handle := Handle}] = maps:values(maps:get(operations, sys:get_state(Endpoint))),
+        {ok, #{helper_pid := Helper}} = tmux_transport:status(Handle),
+        Identity = tmux_test_fixture:process_identity(Helper),
+        try
+            signal_helper(Helper, Identity, <<"-STOP">>),
+            Retired = tmux_server:send_request(Server, retired),
+            {ok, #{phase := open}} = tmux_server:status(Server),
+            Others = [tmux_server:send_request(Server, retired)
+                      || _ <- lists:seq(1, 14)],
+            Closing = tmux_server:send_request(Server, close),
+            Overflow = tmux_server:send_request(Server, retired),
+            {reply, {error, #{code := too_many_waiters}}} =
+                gen_server:receive_response(Overflow, 900),
+            {ok, #{phase := closing}} = tmux_server:status(Server),
+            #{close_timer := Timer} = sys:get_state(Endpoint),
+            %% Deliver the actual timer's event while native cleanup is paused.
+            %% No elapsed-time wait is needed to exercise the deadline branch.
+            Endpoint ! {timeout, Timer, close},
+            {reply, {error, #{code := cleanup_incomplete}}} =
+                gen_server:receive_response(Closing, 900),
+            lists:foreach(fun(Request) ->
+                timeout = gen_server:wait_response(Request, 0)
+            end, [Retired | Others]),
+            signal_helper(Helper, Identity, <<"-CONT">>),
+            lists:foreach(fun(Request) ->
+                {reply, ok} = gen_server:receive_response(Request, 900)
+            end, [Retired | Others]),
+            false = tmux_test_fixture:same_process(Helper, Identity),
+            {ok, #{phase := closed, operations := 0}} = tmux_server:status(Server)
+        after
+            case tmux_test_fixture:same_process(Helper, Identity) of
+                true -> signal_helper(Helper, Identity, <<"-CONT">>);
+                false -> ok
+            end
+        end,
+        #{socket := Socket} = tmux_test_fixture:info(Fixture),
+        {ok, Full} = tmux_server:open(#{socket_path => Socket,
+            executable => proplists:get_value(executable, Config)}),
+        try
+            Passive = [tmux_server:send_request(Full, retired)
+                       || _ <- lists:seq(1, 16)],
+            {ok, #{phase := open}} = tmux_server:status(Full),
+            ok = tmux_server:close(Full),
+            lists:foreach(fun(Request) ->
+                {reply, ok} = gen_server:receive_response(Request, 900)
+            end, Passive)
+        after _ = tmux_server:close(Full)
+        end
+    end).
+
+signal_helper(Pid, Identity, Signal) ->
+    true = tmux_test_fixture:same_process(Pid, Identity),
+    {ok, #{exit_status := 0, cleanup := complete}} = tmux_transport:run(
+        <<"/bin/kill">>, [Signal, integer_to_binary(Pid)], #{}),
+    ok.
 
 ownership_transfer(Config) ->
     with_server(Config, fun(Server, _) ->

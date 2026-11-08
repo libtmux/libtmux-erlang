@@ -26,7 +26,7 @@ explicit waits; the [job guide](jobs.md) explains ownership and cleanup.
 -export([open/1, command/3, close/1, status/1, origin/1, version/1, from_origin/1, bind/2,
          snapshot/1, snapshot/2, observation_context/1]).
 -export([submit/3, start_link/3, init/1, handle_call/3, handle_cast/2,
-         handle_info/2, format_status/1]).
+         handle_info/2, format_status/1, send_request/2]).
 -export_type([t/0]).
 -export_type([open_options/0, command_options/0, capture_options/0, state/0]).
 -doc "An explicit absolute socket endpoint and optional absolute tmux executable path.".
@@ -242,6 +242,11 @@ server_request({server, Pid, Generation, _}, Kind, Timeout) ->
 server_request(_, _, _) -> {error, #{code => invalid_server}}.
 
 -doc false.
+-spec send_request(t(), close | retired) -> gen_server:request_id().
+send_request({server, Pid, Generation, _}, Kind) when Kind =:= close; Kind =:= retired ->
+    gen_server:send_request(Pid, {Generation, Kind, make_ref()}).
+
+-doc false.
 -spec start_link(pid(), reference(), map()) -> gen_server:start_ret().
 start_link(Owner, Generation, Config) ->
     gen_server:start_link(?MODULE, {Owner, Generation, Config}, []).
@@ -279,16 +284,23 @@ handle_call({Generation, observation_context, _}, _,
 handle_call({Generation, Kind, _}, _, #{generation := Generation} = State)
   when Kind =:= origin; Kind =:= version; Kind =:= observation_context ->
     {reply, {error, #{code => stale_reference}}, State};
-handle_call({Generation, close, _}, _, #{generation := Generation, phase := closed} = State) ->
+handle_call({Generation, Kind, _}, _, #{generation := Generation, phase := closed} = State)
+  when Kind =:= close; Kind =:= retired ->
     {reply, ok, State};
-handle_call({Generation, close, Tag}, From, #{generation := Generation} = State) ->
-    case map_size(maps:get(close_waiters, State)) < 16 of
-        false -> {reply, {error, #{code => too_many_waiters}}, State};
-        true ->
+handle_call({Generation, Kind, Tag}, From, #{generation := Generation} = State)
+  when Kind =:= close; Kind =:= retired ->
+    Ready = case Kind of
+        close -> advance(begin_close(State));
+        retired -> State
+    end,
+    case {maps:get(phase, Ready), map_size(maps:get(close_waiters, Ready)) < 16} of
+        {closed, _} -> {reply, ok, Ready};
+        {_, false} -> {reply, {error, #{code => too_many_waiters}}, Ready};
+        {_, true} ->
             {Pid, _} = From,
-            Waiters = maps:get(close_waiters, State),
-            Next = State#{close_waiters => Waiters#{Tag => {From, monitor(process, Pid)}}},
-            {noreply, advance(begin_close(Next))}
+            Waiters = maps:get(close_waiters, Ready),
+            Next = Ready#{close_waiters => Waiters#{Tag => {Kind, From, monitor(process, Pid)}}},
+            {noreply, Next}
     end;
 handle_call({Generation, operation, Id, Kind, Tag}, From, #{generation := Generation} = State) ->
     case ensure_operation(Id, State) of
@@ -726,7 +738,7 @@ owner_down(Monitor, State) ->
             end, Acc, maps:get(waiters, Op))
         end
     end, State, maps:get(operations, State)),
-    maps:fold(fun(Tag, {_, Ref}, Acc) ->
+    maps:fold(fun(Tag, {_, _, Ref}, Acc) ->
         case Ref =:= Monitor of true -> remove_close_waiter(Tag, Acc); false -> Acc end
     end, Next, maps:get(close_waiters, Next)).
 
@@ -759,13 +771,16 @@ advance(State) ->
     end.
 
 reply_close(Reply, State) ->
-    maps:fold(fun(Tag, {From, _}, Acc) ->
-        gen_server:reply(From, Reply), remove_close_waiter(Tag, Acc)
+    maps:fold(fun(Tag, {Kind, From, _}, Acc) ->
+        case Kind =:= retired andalso Reply =/= ok of
+            true -> Acc;
+            false -> gen_server:reply(From, Reply), remove_close_waiter(Tag, Acc)
+        end
     end, State, maps:get(close_waiters, State)).
 
 remove_close_waiter(Tag, #{close_waiters := Waiters} = State) ->
     case maps:take(Tag, Waiters) of
-        {{_, Monitor}, Rest} -> demonitor(Monitor, [flush]), State#{close_waiters => Rest};
+        {{_, _, Monitor}, Rest} -> demonitor(Monitor, [flush]), State#{close_waiters => Rest};
         error -> State
     end.
 
