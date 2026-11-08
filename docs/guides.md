@@ -25,4 +25,5 @@ source, checks immutability and cleans up.
 - [Querying](querying.md): local values, portable criteria and explicit source plans.
 - [Fields](fields.md): generated entity/relationship/operator reference.
 - [API browser](api.md): native source docs, types, specs and source links.
+- [Architecture decision record](adr-0001-architecture.md): selected design, alternatives and consequences.
 - [Support and gaps](compatibility.md): tested cells, current capabilities and open gates.

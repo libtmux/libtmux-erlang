@@ -3,6 +3,9 @@
 This port provides an Erlang core and a workspace consumer. An MCP package,
 server or SDK integration is excluded from implementation and release scope.
 
+The [architecture decision record](adr-0001-architecture.md) explains the
+selected design, alternatives, consequences and conditions for reconsideration.
+
 ## OTP application boundaries
 
 Develop the applications together in the Rebar3 umbrella. Each application is
