@@ -16,11 +16,14 @@ Relative cwd values resolve against the canonical file directory. Endpoint
 names remain host-configuration keys; loading never contacts tmux or launches
 programs.
 
-The [workspace guide](../../docs/workspaces.md) provides a real input file,
+The [workspace guide](https://github.com/libtmux/libtmux-erlang/blob/master/docs/workspaces.md)
+provides a real input file,
 complete runnable program and checked output. The outer suite repeats that
 program using installed core and workspace OTP archives.
 
 The application uses the core's public JSON API and OTP libraries.
-[Project policy](../../docs/project-policy.md) defines package boundaries.
-Planning, applying changes, source-package delivery and a workspace CLI remain
-implementation work. No registry release or CLI installation is advertised.
+[Project policy](https://github.com/libtmux/libtmux-erlang/blob/master/docs/project-policy.md)
+defines package boundaries. The source-package check installs workspace and
+its core dependency through a signed local registry and executes this loader.
+Planning, applying changes and a workspace CLI remain implementation work.
+No registry release or CLI installation is advertised.

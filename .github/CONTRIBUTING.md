@@ -153,6 +153,29 @@ seed, whole-command times and logs under _build/checks/helper-native/. A crash
 input is retained there. CI runs this check on Linux x86_64 and arm64.
 This bounded corpus is regression evidence, not exhaustive protocol proof.
 
+Prepare the pinned, test-only Hex package tools before timing installation
+checks. This downloads verified tool archives and compiles the registry helper;
+it does not publish packages or change the user's Rebar3 configuration:
+
+```console
+$ mise exec -- python3 tools/check_source_package.py --prepare
+```
+
+Run the source-installation outer check with the selected supported tmux:
+
+```console
+$ time mise exec -- python3 tools/check_source_package.py
+```
+
+It builds core and workspace separately with `rebar3 hex build package`, then
+serves those exact tarballs through a signed local registry. A fresh consumer
+declares only workspace, resolves core transitively and builds the C helper.
+A missing compiler must fail installation before the successful build. The
+same installed examples and native-record checks used by the compiled archive
+run against this installation. Tarballs, source/tool hashes, logs and timings
+remain under _build/source-package-check/. CI runs this on both architectures
+with tmux 3.3 and 3.8. Registry publication remains a separate gate.
+
 Common Test selects tmux from LIBTMUX_TEST_TMUX, or PATH when unset. Set that
 variable to an absolute executable path to qualify a particular release.
 The fixture owns a foreground server on a private socket. A test-only Linux

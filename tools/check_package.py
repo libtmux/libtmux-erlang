@@ -65,6 +65,109 @@ def assemble_archive(root: Path, app_name: str, artifact_dir: Path) -> tuple[Pat
     return archive, prefix
 
 
+def exercise_consumer(root: Path, temp: Path, installed_ebin: Path,
+                      workspace_ebin: Path, *, dialyzer: bool = False) -> list[dict]:
+    """Run the same installed public consumers for binary and source artifacts."""
+    commands = []
+    consumer_ebin = temp / "consumer-ebin"
+    consumer_ebin.mkdir()
+    shutil.copyfile(root / "examples/native_consumer.erl", temp / "native_consumer.erl")
+    shutil.copyfile(root / "test/tmux_test_fixture.erl", temp / "tmux_test_fixture.erl")
+    shutil.copyfile(root / "test/tmux_fixture_watch.py", consumer_ebin / "tmux_fixture_watch.py")
+    for directory in (temp / "tools", temp / "test", temp / "examples"):
+        directory.mkdir()
+    shutil.copyfile(root / "tools/run_examples.escript", temp / "tools/run_examples.escript")
+    for name in ("tmux_test_fixture.erl", "tmux_fixture_watch.py"):
+        shutil.copyfile(root / "test" / name, temp / "test" / name)
+    for name in ("filter_demo", "inspect_demo", "readme_demo", "linked_graph", "job_demo", "options_demo", "buffer_demo", "pane_demo", "config_demo", "pipe_demo", "hook_demo", "key_demo", "command_demo", "control_demo", "workspace_demo"):
+        shutil.copyfile(root / "examples" / (name + ".erl"), temp / "examples" / (name + ".erl"))
+    shutil.copyfile(root / "examples/workspace.json", temp / "examples/workspace.json")
+    shutil.copyfile(root / "examples/terminal_job.py", temp / "examples/terminal_job.py")
+    env = dict(os.environ)
+    env.pop("ERL_LIBS", None)
+    env.pop("TMUX", None)
+    env.pop("TMUX_PANE", None)
+    tmux = env.get("LIBTMUX_TEST_TMUX") or shutil.which("tmux")
+    if not tmux or not Path(tmux).is_absolute():
+        raise RuntimeError("The installed endpoint check requires an absolute tmux executable")
+    env["LIBTMUX_TEST_TMUX"] = tmux
+    env["ERL_CRASH_DUMP"] = str(temp / "erl_crash.dump")
+    commands.append(run([
+        "escript", "tools/run_examples.escript", "--ebin", str(installed_ebin),
+        "--ebin", str(workspace_ebin)
+    ], temp, env, json_output=True))
+    commands.append(run([
+        "erlc", "-Werror", "+debug_info", "-pa", str(installed_ebin),
+        "-o", str(consumer_ebin), "native_consumer.erl", "tmux_test_fixture.erl"
+    ], temp, env))
+    commands.append(run([
+        "erl", "-noshell", "-noinput", "-pa", str(installed_ebin),
+        "-pa", str(consumer_ebin), "-eval",
+        "ok = native_consumer:run(), halt(0)."
+    ], temp, env))
+    # A separate VM retains a native value whose captured definition lacks
+    # the new field. Changing only model_version on a new row misses this.
+    legacy = temp / "legacy"
+    legacy.mkdir()
+    (legacy / "tmux_model.erl").write_text(
+        '-module(tmux_model).\n-export([old_pane/0]).\n'
+        '-export_record([pane]).\n'
+        '-record #pane{id, origin = none, snapshot_id = none, model_version = 1}.\n'
+        'old_pane() -> #pane{id = <<"%1">>}.\n'
+    )
+    commands.append(run([
+        "erl", "-noshell", "-noinput", "-pa", str(installed_ebin), "-eval",
+        '{tmux_model, Current, Name} = code:get_object_code(tmux_model), '
+        '{ok, tmux_model, Legacy} = compile:file("legacy/tmux_model.erl", [binary]), '
+        '{module, tmux_model} = code:load_binary(tmux_model, "legacy", Legacy), '
+        'Old = tmux_model:old_pane(), Table = ets:new(retained_rows, []), '
+        'true = ets:insert(Table, {pane, Old}), '
+        '{module, tmux_model} = code:load_binary(tmux_model, Name, Current), '
+        '{error, #{code := invalid_row}} = tmux_model:validate(Old), '
+        '[{pane, Retained}] = ets:lookup(Table, pane), '
+        '{error, #{code := invalid_row}} = tmux_model:validate(Retained), '
+        '{ok, Fresh} = tmux_model:pane(#{id => <<"%1">>}), '
+        '2 = tmux_model:model_version(Fresh), '
+        '{ok, Fresh} = tmux_model:validate(Fresh), '
+        'true = ets:delete(Table), halt(0).'
+    ], temp, env))
+    installed_helper = installed_ebin.parent / "priv/tmux_owned_io"
+    commands.append(run(
+        [str(installed_helper), "--exec-one", "/bin/true"], temp, env
+    ))
+    commands.append(run([
+        "erl", "-noshell", "-noinput", "-pa", str(installed_ebin), "-eval",
+        '{ok, #{stdout := <<0,255,10>>, stderr := <<>>, exit_status := 0, '
+        'cleanup := complete}} = tmux_transport:run(<<"/bin/cat">>, [], '
+        '#{stdin => <<0,255,10>>}), '
+        'ok = application:stop(libtmux_erlang), halt(0).'
+    ], temp, env))
+    commands.append(run([
+        # OTP makes a bare top-level app path absolute; ./ retains the
+        # relative priv path needed to exercise child-cwd independence.
+        "erl", "-noshell", "-noinput", "-pa", "./" + str(installed_ebin.relative_to(temp)),
+        "-pa", str(consumer_ebin), "-eval",
+        'Executable = unicode:characters_to_binary(os:getenv("LIBTMUX_TEST_TMUX")), '
+        '{ok, _} = application:ensure_all_started(libtmux_erlang), '
+        '{ok, Fixture} = tmux_test_fixture:start(Executable), '
+        'try #{socket := Socket} = tmux_test_fixture:info(Fixture), '
+        'ok = native_consumer:run_endpoint(Socket, Executable) '
+        'after ok = tmux_test_fixture:close(Fixture) end, '
+        'ok = application:stop(libtmux_erlang), halt(0).'
+    ], temp, env))
+    if dialyzer:
+        plts = list((root / "_build/default").glob("*_plt"))
+        if len(plts) != 1:
+            raise RuntimeError("Run mise exec -- rebar3 dialyzer first")
+        commands.append(run([
+            "dialyzer", "--plt", str(plts[0]),
+            str(consumer_ebin / "native_consumer.beam"),
+            str(consumer_ebin / "tmux_test_fixture.beam"),
+            "-r", str(installed_ebin), "-r", str(workspace_ebin)
+        ], temp, env))
+    return commands
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--dialyzer", action="store_true")
@@ -87,102 +190,8 @@ def main() -> None:
                 bundle.extractall(temp, filter="data")
         installed_ebin = temp / prefix / "ebin"
         workspace_ebin = temp / workspace_prefix / "ebin"
-        consumer_ebin = temp / "consumer-ebin"
-        consumer_ebin.mkdir()
-        shutil.copyfile(root / "examples/native_consumer.erl", temp / "native_consumer.erl")
-        shutil.copyfile(root / "test/tmux_test_fixture.erl", temp / "tmux_test_fixture.erl")
-        shutil.copyfile(root / "test/tmux_fixture_watch.py", consumer_ebin / "tmux_fixture_watch.py")
-        for directory in (temp / "tools", temp / "test", temp / "examples"):
-            directory.mkdir()
-        shutil.copyfile(root / "tools/run_examples.escript", temp / "tools/run_examples.escript")
-        for name in ("tmux_test_fixture.erl", "tmux_fixture_watch.py"):
-            shutil.copyfile(root / "test" / name, temp / "test" / name)
-        for name in ("filter_demo", "inspect_demo", "readme_demo", "linked_graph", "job_demo", "options_demo", "buffer_demo", "pane_demo", "config_demo", "pipe_demo", "hook_demo", "key_demo", "command_demo", "control_demo", "workspace_demo"):
-            shutil.copyfile(root / "examples" / (name + ".erl"), temp / "examples" / (name + ".erl"))
-        shutil.copyfile(root / "examples/workspace.json", temp / "examples/workspace.json")
-        shutil.copyfile(root / "examples/terminal_job.py", temp / "examples/terminal_job.py")
-        env = dict(os.environ)
-        env.pop("ERL_LIBS", None)
-        env.pop("TMUX", None)
-        env.pop("TMUX_PANE", None)
-        tmux = env.get("LIBTMUX_TEST_TMUX") or shutil.which("tmux")
-        if not tmux or not Path(tmux).is_absolute():
-            raise RuntimeError("The installed endpoint check requires an absolute tmux executable")
-        env["LIBTMUX_TEST_TMUX"] = tmux
-        env["ERL_CRASH_DUMP"] = str(temp / "erl_crash.dump")
-        commands.append(run([
-            "escript", "tools/run_examples.escript", "--ebin", str(installed_ebin),
-            "--ebin", str(workspace_ebin)
-        ], temp, env, json_output=True))
-        commands.append(run([
-            "erlc", "-Werror", "+debug_info", "-pa", str(installed_ebin),
-            "-o", str(consumer_ebin), "native_consumer.erl", "tmux_test_fixture.erl"
-        ], temp, env))
-        commands.append(run([
-            "erl", "-noshell", "-noinput", "-pa", str(installed_ebin),
-            "-pa", str(consumer_ebin), "-eval",
-            "ok = native_consumer:run(), halt(0)."
-        ], temp, env))
-        # A separate VM retains a native value whose captured definition lacks
-        # the new field. Changing only model_version on a new row misses this.
-        legacy = temp / "legacy"
-        legacy.mkdir()
-        (legacy / "tmux_model.erl").write_text(
-            '-module(tmux_model).\n-export([old_pane/0]).\n'
-            '-export_record([pane]).\n'
-            '-record #pane{id, origin = none, snapshot_id = none, model_version = 1}.\n'
-            'old_pane() -> #pane{id = <<"%1">>}.\n'
-        )
-        commands.append(run([
-            "erl", "-noshell", "-noinput", "-pa", str(installed_ebin), "-eval",
-            '{tmux_model, Current, Name} = code:get_object_code(tmux_model), '
-            '{ok, tmux_model, Legacy} = compile:file("legacy/tmux_model.erl", [binary]), '
-            '{module, tmux_model} = code:load_binary(tmux_model, "legacy", Legacy), '
-            'Old = tmux_model:old_pane(), Table = ets:new(retained_rows, []), '
-            'true = ets:insert(Table, {pane, Old}), '
-            '{module, tmux_model} = code:load_binary(tmux_model, Name, Current), '
-            '{error, #{code := invalid_row}} = tmux_model:validate(Old), '
-            '[{pane, Retained}] = ets:lookup(Table, pane), '
-            '{error, #{code := invalid_row}} = tmux_model:validate(Retained), '
-            '{ok, Fresh} = tmux_model:pane(#{id => <<"%1">>}), '
-            '2 = tmux_model:model_version(Fresh), '
-            '{ok, Fresh} = tmux_model:validate(Fresh), '
-            'true = ets:delete(Table), halt(0).'
-        ], temp, env))
-        installed_helper = temp / prefix / "priv/tmux_owned_io"
-        commands.append(run(
-            [str(installed_helper), "--exec-one", "/bin/true"], temp, env
-        ))
-        commands.append(run([
-            "erl", "-noshell", "-noinput", "-pa", str(installed_ebin), "-eval",
-            '{ok, #{stdout := <<0,255,10>>, stderr := <<>>, exit_status := 0, '
-            'cleanup := complete}} = tmux_transport:run(<<"/bin/cat">>, [], '
-            '#{stdin => <<0,255,10>>}), '
-            'ok = application:stop(libtmux_erlang), halt(0).'
-        ], temp, env))
-        commands.append(run([
-            # OTP makes a bare top-level app path absolute; ./ retains the
-            # relative priv path needed to exercise child-cwd independence.
-            "erl", "-noshell", "-noinput", "-pa", "./" + str(installed_ebin.relative_to(temp)),
-            "-pa", str(consumer_ebin), "-eval",
-            'Executable = unicode:characters_to_binary(os:getenv("LIBTMUX_TEST_TMUX")), '
-            '{ok, _} = application:ensure_all_started(libtmux_erlang), '
-            '{ok, Fixture} = tmux_test_fixture:start(Executable), '
-            'try #{socket := Socket} = tmux_test_fixture:info(Fixture), '
-            'ok = native_consumer:run_endpoint(Socket, Executable) '
-            'after ok = tmux_test_fixture:close(Fixture) end, '
-            'ok = application:stop(libtmux_erlang), halt(0).'
-        ], temp, env))
-        if args.dialyzer:
-            plts = list((root / "_build/default").glob("*_plt"))
-            if len(plts) != 1:
-                raise RuntimeError("Run mise exec -- rebar3 dialyzer first")
-            commands.append(run([
-                "dialyzer", "--plt", str(plts[0]),
-                str(consumer_ebin / "native_consumer.beam"),
-                str(consumer_ebin / "tmux_test_fixture.beam"),
-                "-r", str(installed_ebin), "-r", str(workspace_ebin)
-            ], temp, env))
+        commands.extend(exercise_consumer(root, temp, installed_ebin,
+                                          workspace_ebin, dialyzer=args.dialyzer))
     assert not temp.exists()
     receipt = {
         "result": "PASS",

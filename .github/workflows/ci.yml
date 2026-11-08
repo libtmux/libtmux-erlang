@@ -82,6 +82,12 @@ jobs:
         run: python3 tools/check.py mid
       - name: Compile, helper, Dialyzer, owned integration and archive consumer
         run: python3 tools/check.py outer
+      - name: Prepare pinned source-package tools
+        if: matrix.tmux == '3.3' || matrix.tmux == '3.8'
+        run: python3 tools/check_source_package.py --prepare
+      - name: Build and install exact Hex source artifacts
+        if: matrix.tmux == '3.3' || matrix.tmux == '3.8'
+        run: python3 tools/check_source_package.py
       - name: Save tmux only after owned runtime qualification
         if: steps.tmux-cache.outputs.cache-hit != 'true'
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
@@ -97,6 +103,7 @@ jobs:
             _build/checks
             _build/test/logs
             _build/package-check/receipt.json
+            _build/source-package-check
           if-no-files-found: warn
           retention-days: 14
 

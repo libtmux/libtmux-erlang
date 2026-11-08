@@ -93,11 +93,27 @@ The workspace application loads and validates JSON files; the
 MCP packages, servers and SDK integration are excluded by
 [project policy](project-policy.md).
 
-Typed command coverage, generated capability inventory, source packaging,
+Typed command coverage, generated capability inventory, registry delivery,
 public cross-port filter conformance, published native API pages, shared-site documentation and
 independent implementation reviews remain open. Current test success does not
 pass those unfinished surfaces. No registry or documentation publication is
 claimed.
+
+## Source installation
+
+The [source-package check](../tools/check_source_package.py) builds each
+application separately with pinned `rebar3_hex` tooling. It serves the exact
+tarballs through a signed local registry, then creates a fresh Rebar3 consumer
+whose only dependency is workspace. Core must resolve transitively and compile
+its helper from packaged C source. Missing compiler support fails installation.
+The installed examples, native-record imports, model-upgrade check and owned
+transport checks run against that consumer.
+
+CI runs this gate on both supported architectures with tmux 3.3 and 3.8.
+Inspect its receipt for the commit being consumed. These local source artifacts
+retain the development version; the check neither publishes to Hex nor proves
+an independently retrieved registry release. The older compiled-archive check
+remains separate evidence for its own payload.
 
 ## Performance evidence
 

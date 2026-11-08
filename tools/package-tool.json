@@ -1,0 +1,19 @@
+{
+  "packages": [
+    {
+      "name": "rebar3_hex",
+      "version": "7.5.0",
+      "sha256": "62f57c91c6300bd496624b432bc36c7c08e29f4e7bb6fde814ab9e3775753ddd"
+    },
+    {
+      "name": "hex_core",
+      "version": "0.21.1",
+      "sha256": "1971d16d188c58cf0042e21f19b185eb4f3f5c89678472c735952b696a8fc888"
+    },
+    {
+      "name": "verl",
+      "version": "1.1.1",
+      "sha256": "0925e51cd92a0a8be271765b02430b2e2cff8ac30ef24d123bd0d58511e8fb18"
+    }
+  ]
+}
