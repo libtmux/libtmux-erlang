@@ -84,7 +84,8 @@ failure through the outer scope while still attempting outer cleanup.
 run_or_error(Function, Cleanup) ->
     case run(Function, Cleanup) of
         {ok, Value} -> Value;
-        {error, Failure} -> error({scope_cleanup_failed, Failure})
+        {error, Failure} -> erlang:error({scope_cleanup_failed, Failure}, none,
+            [{error_info, #{module => tmux_error}}])
     end.
 
 outcome(Function) ->

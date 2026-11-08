@@ -21,5 +21,16 @@ run() ->
     [Editor] = tmux_select:to_list(tmux_select:where(Filter, Panes)),
     {error, #{code := duplicate_key}} = tmux_filter:decode_json(
         <<"{\"version\":1,\"version\":2}">>),
+    Invalid = #{active => #{contains => <<"yes">>}},
+    try tmux_select:where(Invalid, Panes) of
+        _ -> error(expected_validation_error)
+    catch
+        error:{bad_filter, #{code := unsupported_operator} = Detail}:Stack ->
+            [active, contains] = maps:get(path, Detail),
+            Reason = {bad_filter, Detail},
+            Message = erl_error:format_exception(error, Reason, Stack),
+            Text = unicode:characters_to_binary(Message),
+            {_, _} = binary:match(Text, <<"Allowed:">>)
+    end,
     #{matched_ids => [tmux_model:get(id, Editor)],
       wire_round_trip => true, duplicate_keys_rejected => true}.

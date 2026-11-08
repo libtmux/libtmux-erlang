@@ -292,7 +292,9 @@ get(pid, #pane{pid = Value}) -> Value;
 get(title, #pane{title = Value}) -> Value;
 get(dead, #pane{dead = Value}) -> Value;
 get(exit_status, #pane{exit_status = Value}) -> Value;
-get(Field, Row) -> error({unknown_field, entity(Row), Field}).
+get(Field, Row) ->
+    erlang:error({unknown_field, entity(Row), Field}, none,
+        [{error_info, #{module => tmux_error}}]).
 
 -doc false.
 -spec bind(row(), reference(), reference()) -> row().

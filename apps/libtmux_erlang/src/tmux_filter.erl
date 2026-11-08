@@ -86,7 +86,8 @@ trusted criteria. Performs no tmux I/O. External input should use `new/2` or
 new_or_error(Entity, Criteria) ->
     case new(Entity, Criteria) of
         {ok, Filter} -> Filter;
-        {error, Detail} -> error({bad_filter, Detail})
+        {error, Detail} -> erlang:error({bad_filter, Detail}, none,
+            [{error_info, #{module => tmux_error}}])
     end.
 
 -doc """
@@ -206,8 +207,10 @@ predicate(Prepared) ->
         case matches(Prepared, Row) of
             {ok, Boolean} -> Boolean;
             {error, #{code := prepared_context_mismatch} = Detail} ->
-                error({prepared_context_mismatch, Detail});
-            {error, Detail} -> error({filter_evaluation_failed, Detail})
+                erlang:error({prepared_context_mismatch, Detail}, none,
+                    [{error_info, #{module => tmux_error}}]);
+            {error, Detail} -> erlang:error({filter_evaluation_failed, Detail}, none,
+                [{error_info, #{module => tmux_error}}])
         end
     end.
 

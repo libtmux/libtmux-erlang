@@ -150,7 +150,8 @@ where(Criteria, #query{entity = Entity, filter = Previous} = Query) ->
         _ ->
             case tmux_filter:conjoin(Previous, Filter) of
                 {ok, Result} -> Result;
-                {error, Detail} -> error({bad_filter, Detail})
+                {error, Detail} -> erlang:error({bad_filter, Detail}, none,
+                    [{error_info, #{module => tmux_error}}])
             end
     end,
     Query#query{filter = Combined}.
@@ -162,7 +163,8 @@ no I/O; invalid counts raise bad_query_limit.
 """.
 -spec limit(0..65536, t()) -> t().
 limit(Count, Query) when is_integer(Count, 0, 65536) -> Query#query{limit = Count};
-limit(Count, _) -> error({bad_query_limit, Count}).
+limit(Count, _) -> erlang:error({bad_query_limit, Count}, none,
+    [{error_info, #{module => tmux_error}}]).
 
 -doc """
 Enable or disable native candidate exclusion, returning a new query. The

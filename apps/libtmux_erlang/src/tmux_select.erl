@@ -97,7 +97,8 @@ from_list(Entity, Rows) ->
             Coverage = maps:map(fun(Field, _) -> field_coverage(Field, Rows) end, Fields),
             #selection{entity = Entity, rows = Rows, size = length(Rows),
                        context = {local, Coverage}};
-        {error, Detail} -> error({bad_selection, Detail})
+        {error, Detail} -> erlang:error({bad_selection, Detail}, none,
+            [{error_info, #{module => tmux_error}}])
     end.
 
 -doc """
@@ -149,7 +150,8 @@ matching({Module, State}, #selection{context = {snapshot, Snapshot}} = Selection
     case Module:prepare(State, Snapshot) of
         {ok, Predicate} when is_function(Predicate, 1) -> {ok, filter(Predicate, Selection)};
         {error, _} = Error -> Error;
-        _ -> error(invalid_matcher_result)
+        _ -> erlang:error(invalid_matcher_result, none,
+            [{error_info, #{module => tmux_error}}])
     end;
 matching({Module, _}, #selection{}) when is_atom(Module) ->
     {error, #{code => matcher_requires_snapshot}}.
@@ -251,7 +253,8 @@ for tagged cardinality errors.
 one_or_error(Selection) ->
     case one(Selection) of
         {ok, Row} -> Row;
-        {error, Reason} -> error(Reason)
+        {error, Reason} -> erlang:error(Reason, none,
+            [{error_info, #{module => tmux_error}}])
     end.
 -doc """
 Filter locally with complete validation, then return the sole row directly.
@@ -297,11 +300,19 @@ validate_rows(Entity, [Row | Rest], Index) ->
         {ok, Row} ->
             case tmux_model:entity(Row) of
                 Entity -> validate_rows(Entity, Rest, Index + 1);
-                _ -> error({bad_selection, #{code => wrong_row_entity, path => [Index]}})
+                _ ->
+                    Error = #{code => wrong_row_entity, path => [Index]},
+                    erlang:error({bad_selection, Error}, none,
+                        [{error_info, #{module => tmux_error}}])
             end;
-        {error, Detail} -> error({bad_selection, Detail#{path => [Index | maps:get(path, Detail, [])]}})
+        {error, Detail} ->
+            Error = Detail#{path => [Index | maps:get(path, Detail, [])]},
+            erlang:error({bad_selection, Error}, none,
+                [{error_info, #{module => tmux_error}}])
     end;
-validate_rows(_, _, Index) -> error({bad_selection, #{code => expected_array, path => [Index]}}).
+validate_rows(_, _, Index) ->
+    erlang:error({bad_selection, #{code => expected_array, path => [Index]}}, none,
+        [{error_info, #{module => tmux_error}}]).
 
 field_coverage(_, []) -> not_loaded;
 field_coverage(Field, Rows) ->
@@ -328,11 +339,16 @@ prepare_or_error(Criteria, Selection) ->
         {error, Detail} -> raise_filter(Detail)
     end.
 -spec raise_filter(map()) -> no_return().
-raise_filter(#{code := incomplete_snapshot} = Detail) -> error({incomplete_snapshot, Detail});
+raise_filter(#{code := incomplete_snapshot} = Detail) ->
+    erlang:error({incomplete_snapshot, Detail}, none,
+        [{error_info, #{module => tmux_error}}]);
 raise_filter(#{code := Code} = Detail) when Code =:= unsupported_regex_subject;
         Code =:= regex_subject_limit; Code =:= regex_resource_limit ->
-    error({filter_evaluation_failed, Detail});
-raise_filter(Detail) -> error({bad_filter, Detail}).
+    erlang:error({filter_evaluation_failed, Detail}, none,
+        [{error_info, #{module => tmux_error}}]);
+raise_filter(Detail) ->
+    erlang:error({bad_filter, Detail}, none,
+        [{error_info, #{module => tmux_error}}]).
 
 select_rows(_, [], Acc) -> {ok, lists:reverse(Acc)};
 select_rows(Prepared, [Row | Rest], Acc) ->
@@ -344,7 +360,8 @@ select_rows(Prepared, [Row | Rest], Acc) ->
 match(Prepared, Row) ->
     case tmux_filter:matches(Prepared, Row) of
         {ok, Boolean} -> Boolean;
-        {error, Detail} -> error({filter_evaluation_failed, Detail})
+        {error, Detail} -> erlang:error({filter_evaluation_failed, Detail}, none,
+            [{error_info, #{module => tmux_error}}])
     end.
 matching_prefix(Criteria, #selection{rows = Rows} = Selection, Limit) ->
     Prepared = prepare_or_error(Criteria, Selection),

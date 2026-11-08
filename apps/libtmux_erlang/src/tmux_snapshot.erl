@@ -116,7 +116,8 @@ collection raises incomplete_snapshot rather than appearing empty.
 rows(Entity, #{rows := Rows} = Snapshot) ->
     case require([{collection, Entity}], Snapshot) of
         ok -> maps:get(Entity, Rows);
-        {error, Detail} -> error({incomplete_snapshot, Detail})
+        {error, Detail} -> erlang:error({incomplete_snapshot, Detail}, none,
+            [{error_info, #{module => tmux_error}}])
     end.
 
 -doc """

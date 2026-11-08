@@ -240,7 +240,8 @@ argv(Command) ->
         {ok, Validated} ->
             {Name, Arguments} = parts(Validated),
             [Name | [escape_separator(Word) || Word <- Arguments]];
-        {error, Detail} -> error({invalid_command, Detail})
+        {error, Detail} -> erlang:error({invalid_command, Detail}, none,
+            [{error_info, #{module => tmux_error}}])
     end.
 
 -doc """

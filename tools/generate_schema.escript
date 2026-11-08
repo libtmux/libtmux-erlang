@@ -205,7 +205,7 @@ model(Entities) ->
      join(lists:append([[["get(", name(F), ", #", name(E), "{", name(F),
                           " = Value}) -> Value"]
                         || F <- maps:get(<<"fields">>, E)] || E <- Entities]), ";\n"),
-     ";\nget(Field, Row) -> error({unknown_field, entity(Row), Field}).\n\n",
+     ";\nget(Field, Row) ->\n    erlang:error({unknown_field, entity(Row), Field}, none,\n        [{error_info, #{module => tmux_error}}]).\n\n",
      "-doc false.\n",
      "-spec bind(row(), reference(), reference()) -> row().\n",
      join([["bind(Row = #", N, "{}, Origin, Snapshot)\n",

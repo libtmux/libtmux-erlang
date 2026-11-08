@@ -89,3 +89,16 @@ The Common Test diagnostics suite installs an owned Logger handler, exercises
 real helper and tmux operations, and checks reference correlation, capture
 rejection, read-credit withholding, setup failure, cleanup failure, bounded
 reports, payload exclusion and disabled logging.
+
+## Local programming errors
+
+Library-raised validation, coverage, cardinality and explicit raising-helper
+exceptions carry native EEP-54 metadata. `m:tmux_error` adds explanations to
+the shell and `erl_error:format_exception/3`, including the input path,
+allowed names or missing observations when available. Exception reasons and
+tagged result APIs keep their structured data. Application callback exceptions
+retain their original stack; the library does not relabel them as filter
+failures. This formatting performs no I/O and is separate from Logger reports.
+
+The [local filter program](querying.md#portable-input) checks a malformed
+criterion and formats its native exception through the installed package.

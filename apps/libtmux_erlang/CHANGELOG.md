@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Local library exceptions include native EEP-54 explanations for validation,
+  missing observations and cardinality errors. Reasons and callback stacks
+  retain their existing contracts.
+
 - Emit bounded OTP Logger reports for client results, operation outcomes,
   capture rejection, held read credit and owned-daemon failures. Reports omit
   command payloads, terminal output and resource paths.
