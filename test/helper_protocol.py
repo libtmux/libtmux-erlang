@@ -7,6 +7,7 @@ import fcntl
 import os
 from pathlib import Path
 import selectors
+import shlex
 import signal
 import struct
 import subprocess
@@ -16,7 +17,9 @@ import time
 import unittest
 
 
-HELPER = Path(__file__).resolve().parents[1] / "apps/libtmux_erlang/priv/tmux_owned_io"
+ROOT = Path(__file__).resolve().parents[1]
+HELPER = Path(os.environ.get("LIBTMUX_TEST_HELPER",
+                            ROOT / "apps/libtmux_erlang/priv/tmux_owned_io"))
 
 
 def string(value: bytes) -> bytes:
@@ -184,8 +187,10 @@ pid_t __wrap_fork(void) { _exit(99); }
 ''')
     executable = root / "tmux_owned_io"
     subprocess.run([
-        "cc", "-std=c11", "-Wall", "-Wextra", "-Werror", "-Wpedantic",
-        str(HELPER.parent.parent / "c_src/owned_io.c"), str(shim),
+        os.environ.get("LIBTMUX_TEST_CC", "cc"),
+        *shlex.split(os.environ.get("LIBTMUX_TEST_CFLAGS", "")),
+        "-std=c11", "-Wall", "-Wextra", "-Werror", "-Wpedantic",
+        str(ROOT / "apps/libtmux_erlang/c_src/owned_io.c"), str(shim),
         "-Wl,--wrap=fopen", "-Wl,--wrap=fork", "-o", str(executable)
     ], check=True, capture_output=True)
     return executable
