@@ -94,6 +94,9 @@ run_endpoint(Socket, Executable) ->
                         {ok, _} = tmux_session:kill(Destination)
                     end
                 end),
+            {ok, _} = tmux_session:rename(Session, <<"archive-#{pid};">>),
+            {ok, Renamed} = tmux_session:get(Server, SessionId0),
+            <<"archive-#{pid};">> = tmux_model:get(name, Renamed),
             {ok, Window} = tmux_window:create(
                 Session, #{launch => #{argv => [<<"/bin/cat">>]}}),
             {ok, _} = tmux_option:set(Session, <<"@workspace">>, <<"archive">>),
@@ -121,6 +124,20 @@ run_endpoint(Socket, Executable) ->
             {ok, _} = tmux_window:rename(Window, <<"consumer-#{pane_id};">>),
             {ok, Current} = tmux_window:get(Server, tmux_model:get(id, Window)),
             <<"consumer-#{pane_id};">> = tmux_model:get(name, Current),
+            OriginalLayout = tmux_model:get(layout, Current),
+            {ok, Version} = tmux_server:version(Server),
+            case tmux_version:at_least(Version, {3, 8}) of
+                true ->
+                    {ok, #{<<"V">> := 2, <<"L">> := LayoutRoot}} =
+                        tmux_json:decode(OriginalLayout),
+                    true = is_map(LayoutRoot);
+                false -> ok
+            end,
+            {ok, _} = tmux_window:select_layout(Window, tiled),
+            {ok, _} = tmux_window:select_layout(Window, OriginalLayout),
+            {ok, RestoredWindow} =
+                tmux_window:get(Server, tmux_model:get(id, Window)),
+            OriginalLayout = tmux_model:get(layout, RestoredWindow),
             {ok, Snapshot} = tmux_server:snapshot(Server),
             {ok, CatPane} = tmux_select:one(
                 #{window_id => tmux_model:get(id, Window),
@@ -179,7 +196,63 @@ run_endpoint(Socket, Executable) ->
             {ok, Fetched} = tmux_query:fetch(Query),
             [Id] = pane_ids(tmux_select:to_list(Fetched)),
             #{query := #{candidate_count := 1, pushed_down := true}} =
-                tmux_select:summary(Fetched)
+                tmux_select:summary(Fetched),
+            {ok, InputWindow} = tmux_window:create(Session,
+                #{launch => #{argv => [<<"/bin/cat">>]}}),
+            InputWindowId = tmux_model:get(id, InputWindow),
+            {ok, InputSnapshot} = tmux_server:snapshot(Server),
+            {ok, InputPane} = tmux_select:one(#{window_id => InputWindowId},
+                tmux_select:panes(InputSnapshot)),
+            {ok, _} = tmux_pane:split(InputPane,
+                #{launch => #{shell => <<>>}}),
+            {ok, _} = tmux_option:set(
+                InputWindow, <<"remain-on-exit">>, <<"on">>),
+            {ok, _} = tmux_option:set(
+                InputWindow, <<"remain-on-exit-format">>, <<>>),
+            {ok, DoneSignal} = tmux_command:wait_for(
+                <<"archive-input-complete">>, signal),
+            {ok, _} = tmux_hook:set(InputWindow,
+                {<<"pane-died">>, 0}, DoneSignal),
+            {ok, InputWait} = tmux_command:wait_for(
+                <<"archive-input-complete">>, wait),
+            {ok, InputOperation} = tmux_operation:start(Server, InputWait, #{}),
+            try
+                {ok, _} = tmux_pane:send_text(InputPane, <<"archive input">>),
+                {ok, _} = tmux_pane:send_keys(
+                    InputPane, [enter, {control, <<"d">>}]),
+                {ok, #{cleanup := complete}} =
+                    tmux_operation:await(InputOperation, 900),
+                {ok, CompletedInput} = tmux_pane:get(
+                    Server, tmux_model:get(id, InputPane)),
+                true = tmux_model:get(dead, CompletedInput),
+                0 = tmux_model:get(exit_status, CompletedInput),
+                {ok, _} = tmux_pane:kill(CompletedInput),
+                {error, #{code := target_gone}} = tmux_pane:get(
+                    Server, tmux_model:get(id, InputPane)),
+                {ok, _} = tmux_window:kill(InputWindow),
+                {error, #{code := target_gone}} =
+                    tmux_window:get(Server, InputWindowId)
+            after
+                {ok, _} = tmux_operation:cancel(InputOperation),
+                case tmux_operation:await(InputOperation, 900) of
+                    {ok, #{cleanup := complete}} -> ok;
+                    {error, #{cleanup := complete}} -> ok
+                end
+            end,
+            HookName = <<"after-split-window">>,
+            {ok, _} = tmux_option:set(Session, <<"@manual-hook">>, <<>>),
+            {ok, FirstHook} = tmux_command:raw(<<"set-option">>,
+                [<<"-a">>, <<"-t">>, SessionId0, <<"@manual-hook">>, <<"A">>]),
+            {ok, SecondHook} = tmux_command:raw(<<"set-option">>,
+                [<<"-a">>, <<"-t">>, SessionId0, <<"@manual-hook">>, <<"B">>]),
+            {ok, _} = tmux_hook:set(Session, {HookName, 7}, FirstHook),
+            {ok, _} = tmux_hook:append(Session, HookName, SecondHook),
+            {ok, _} = tmux_hook:run(Session, HookName),
+            {ok, <<"BA">>} = tmux_option:get(Session, <<"@manual-hook">>, #{}),
+            {ok, _} = tmux_hook:clear(Session, HookName),
+            {ok, #{}} = tmux_hook:get(Session, HookName, #{}),
+            {ok, _} = tmux_hook:unset(Session, HookName),
+            none = tmux_hook:get(Session, HookName, #{})
         after
             {ok, _} = tmux_session:kill(Session)
         end,
