@@ -180,9 +180,5 @@ require_layout(base, _) -> ok;
 require_layout(json_v2, Server) ->
     maybe
         {ok, Version} ?= tmux_server:version(Server),
-        case tmux_version:at_least(Version, {3, 8}) of
-            true -> ok;
-            false -> {error, #{code => unsupported_capability,
-                capability => layout_json, minimum => {3, 8}}}
-        end
+        tmux_capability:require(Version, layout_json)
     end.

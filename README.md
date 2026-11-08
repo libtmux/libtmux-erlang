@@ -159,6 +159,8 @@ session/index membership.
   acknowledgement and remove the local hook.
 - [Key tables](docs/keys.md): register application bindings, inspect native
   listings and remove the owned table.
+- [Native commands](docs/commands-reference.md): source-derived parser metadata
+  and feature minimums, separate from library API and runtime qualification.
 - [API browser and source docs](docs/api.md): build searchable native reference
   pages with specs, types and links to the exact source revision.
 

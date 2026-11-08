@@ -42,6 +42,7 @@ source-extraction path rejects native-record attributes.
 | Read local or inherited options and change explicit tables | `m:tmux_option` |
 | Register, inspect and explicitly run native hooks | `m:tmux_hook` |
 | Register and remove keys in explicit server tables | `m:tmux_key` |
+| Inspect native command declarations and feature minimums | `m:tmux_capability` |
 | Store byte buffers and paste into a pane | `m:tmux_buffer` |
 | Read a captured graph | `m:tmux_snapshot`, `m:tmux_model` |
 | Filter captured data | `m:tmux_select`, `m:tmux_filter`, `m:tmux_matcher` |

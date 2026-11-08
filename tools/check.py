@@ -34,6 +34,8 @@ def main() -> None:
             ["escript", "tools/check_api_docs.escript", "--test"],
             ["python3", "tools/check_docs.py"],
             ["python3", "tools/check_example_width.py"],
+            ["python3", "tools/generate_commands.py", "--check"],
+            ["python3", "test/command_catalogue_tests.py"],
             ["git", "diff", "--check"],
         ],
         "outer": [

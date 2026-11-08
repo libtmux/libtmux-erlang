@@ -39,6 +39,13 @@ run() ->
         {ok, Pane} = tmux_select:one(Regex, Selection),
         {error, #{code := duplicate_key}} =
             tmux_filter:decode_json(<<"{\"version\":1,\"version\":2}">>),
+        {ok, Floor} = tmux_version:parse(<<"tmux 3.3">>),
+        {ok, #{argument_spec := KeyFlags}} =
+            tmux_capability:command(Floor, <<"send-keys">>),
+        nomatch = binary:match(KeyFlags, <<"K">>),
+        ok = tmux_capability:require(Floor, native_list_filter),
+        {error, #{code := unsupported_capability}} =
+            tmux_capability:require(Floor, layout_json),
         ok = ct_doctest:module(?MODULE),
         ok
     after

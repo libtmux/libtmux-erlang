@@ -18,6 +18,7 @@ source, checks immutability and cleans up.
 - [Hooks and completion](hooks.md): store native commands and await their actual effect.
 - [Key tables](keys.md): register application bindings and remove owned tables.
 - [Option catalogue](options-reference.md): versioned canonical names, scopes and parser types.
+- [Native command catalogue](commands-reference.md): parser declarations and feature minimums.
 - [Querying](querying.md): local values, portable criteria and explicit source plans.
 - [Fields](fields.md): generated entity/relationship/operator reference.
 - [API browser](api.md): native source docs, types, specs and source links.

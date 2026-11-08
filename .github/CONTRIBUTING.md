@@ -118,6 +118,18 @@ This maintainer operation needs a C preprocessor to expand hook macros. The
 mid loop only checks the committed JSON against generated Erlang/reference
 files; consumers need neither the tmux checkout nor this generator.
 
+The native command catalogue records parser declarations and selected feature
+minimums from those same pins. Refresh its data and reference together:
+
+```console
+$ python3 tools/generate_commands.py \
+    --refresh-from /path/to/tmux
+```
+
+The mid loop checks source-pin identity and generated drift without reading a
+tmux checkout. Native command discovery does not establish facade coverage,
+complete argument validation or runtime qualification.
+
 The core application builds its Linux helper with make and a C11 compiler.
 The pinned source and its license live under apps/libtmux_erlang/c_src/.
 The helper checks use events and PID descriptors to verify owned retirement;
