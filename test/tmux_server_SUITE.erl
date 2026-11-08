@@ -2,11 +2,13 @@
 -compile(nowarn_missing_spec).
 -export([all/0, init_per_suite/1, end_per_suite/1,
          borrowed_commands/1, cancellation/1, operation_owner/1, stale_endpoint/1,
+         replacement_endpoint/1,
          ownership_transfer/1, endpoint_owner/1, admission_limits/1, result_retention/1,
          admission_expiry/1, registry_restart/1]).
 
 %% Outer: real tmux commands, operation ownership and borrowed-server survival.
 all() -> [borrowed_commands, cancellation, operation_owner, stale_endpoint,
+          replacement_endpoint,
           ownership_transfer, endpoint_owner, admission_limits, result_retention,
           admission_expiry, registry_restart].
 
@@ -108,6 +110,47 @@ stale_endpoint(Config) ->
             tmux_server:command(Server, raw(<<"new-session">>, [<<"-d">>]), #{}),
         {error, #{code := stale_reference}} = tmux_server:from_origin(Origin),
         {ok, #{operations := 0, active_bytes := 0}} = tmux_server:status(Server)
+    end).
+
+replacement_endpoint(Config) ->
+    with_server(Config, fun(OldServer, Fixture) ->
+        #{socket := Socket, server_pid := OldPid} = tmux_test_fixture:info(Fixture),
+        {ok, OldSession} = tmux_session:create(OldServer,
+            #{name => <<"original">>, launch => #{argv => [<<"cat">>]}}),
+        {ok, OldSnapshot} = tmux_server:snapshot(OldServer),
+        [OldWindow] = tmux_snapshot:windows(OldSnapshot),
+        [OldPane] = tmux_snapshot:panes(OldSnapshot),
+        #tmux_model:session{id = SessionId} = OldSession,
+        #tmux_model:window{id = WindowId} = OldWindow,
+        #tmux_model:pane{id = PaneId} = OldPane,
+        {ok, Origin} = tmux_server:origin(OldServer),
+        ok = tmux_test_fixture:replace(Fixture),
+        #{socket := Socket, server_pid := NewPid} = tmux_test_fixture:info(Fixture),
+        true = NewPid =/= OldPid,
+        Executable = proplists:get_value(executable, Config),
+        {ok, NewServer} = tmux_server:open(#{socket_path => Socket,
+                                           executable => Executable}),
+        try
+            {ok, #tmux_model:session{id = SessionId}} = tmux_session:create(NewServer,
+                #{name => <<"replacement">>, launch => #{argv => [<<"cat">>]}}),
+            {ok, NewSnapshot} = tmux_server:snapshot(NewServer),
+            [#tmux_model:window{id = WindowId}] = tmux_snapshot:windows(NewSnapshot),
+            [#tmux_model:pane{id = PaneId}] = tmux_snapshot:panes(NewSnapshot),
+            {error, #{code := stale_server, submitted := false}} =
+                tmux_session:rename(OldSession, <<"forbidden">>),
+            {error, #{code := stale_reference}} = tmux_window:kill(OldWindow),
+            {error, #{code := stale_reference}} = tmux_pane:kill(OldPane),
+            {error, #{code := stale_reference}} = tmux_server:from_origin(Origin),
+            ok = tmux_server:close(OldServer),
+            Expected = <<(integer_to_binary(NewPid))/binary, $\n>>,
+            {ok, #{stdout := Expected}} = tmux_test_fixture:command(Fixture,
+                [<<"display-message">>, <<"-p">>, <<"#{pid}">>]),
+            {ok, #tmux_model:session{name = <<"replacement">>}} =
+                tmux_session:get(NewServer, SessionId),
+            {ok, #tmux_model:window{id = WindowId}} = tmux_window:get(NewServer, WindowId),
+            {ok, #tmux_model:pane{id = PaneId}} = tmux_pane:get(NewServer, PaneId)
+        after ok = tmux_server:close(NewServer)
+        end
     end).
 
 ownership_transfer(Config) ->

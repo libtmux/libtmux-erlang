@@ -1,13 +1,14 @@
 -module(tmux_test_fixture).
 -compile(nowarn_missing_spec).
 -behaviour(gen_server).
--export([start/1, info/1, command/2, start_command/2, close/1, ensure_closed/1,
+-export([start/1, info/1, command/2, start_command/2, replace/1, close/1, ensure_closed/1,
          process_identity/1, same_process/2, track_process/2, with_server/2,
          with_client/4, client_session/1]).
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2]).
 
 start(Executable) -> gen_server:start(?MODULE, {self(), Executable}, []).
 info(Fixture) -> gen_server:call(Fixture, info, 900).
+replace(Fixture) -> gen_server:call(Fixture, replace, 1000).
 close(Fixture) -> gen_server:call(Fixture, close, 1000).
 track_process(Fixture, Pid) -> gen_server:call(Fixture, {track_process, Pid}, 900).
 
@@ -160,6 +161,21 @@ watch_line(Watcher, Line) ->
     end.
 
 handle_call(info, _From, State) -> {reply, maps:without([transport, owner_monitor], State), State};
+handle_call(replace, _From, #{executable := Executable, directory := Directory,
+                            socket := Socket} = State) ->
+    ok = retire(State),
+    case file:delete(Socket) of
+        ok -> ok;
+        {error, enoent} -> ok
+    end,
+    try create(Executable, Directory) of
+        Replacement ->
+            Next = maps:merge(State, Replacement#{tracked_processes => #{}}),
+            {reply, ok, Next}
+    catch Class:Reason:Stack ->
+        ok = file:del_dir_r(Directory),
+        {stop, normal, {error, {Class, Reason, Stack}}, State#{cleaned => true}}
+    end;
 handle_call({track_process, Pid}, _From, State) ->
     Identity = process_identity(Pid),
     Tracked = maps:get(tracked_processes, State),
@@ -177,7 +193,12 @@ handle_info(_, State) -> {noreply, State}.
 terminate(_, #{cleaned := true}) -> ok;
 terminate(_, State) -> _ = cleanup(State), ok.
 
-cleanup(#{transport := Handle, directory := Directory, server_pid := Server,
+cleanup(#{directory := Directory} = State) ->
+    ok = retire(State),
+    ok = file:del_dir_r(Directory),
+    State#{cleaned => true}.
+
+retire(#{transport := Handle, server_pid := Server,
           server_identity := ServerIdentity, helper_pid := Helper,
           helper_identity := HelperIdentity} = State) ->
     ok = tmux_transport:close(Handle),
@@ -186,8 +207,7 @@ cleanup(#{transport := Handle, directory := Directory, server_pid := Server,
     maps:foreach(fun(Pid, Identity) ->
         false = same_process(Pid, Identity)
     end, maps:get(tracked_processes, State)),
-    ok = file:del_dir_r(Directory),
-    State#{cleaned => true}.
+    ok.
 
 process_identity(Pid) ->
     {ok, Stat} = file:read_file("/proc/" ++ integer_to_list(Pid) ++ "/stat"),
