@@ -18,20 +18,16 @@ run(Arguments) ->
     Started = erlang:monotonic_time(microsecond),
     ok = logger:set_primary_config(level, warning),
     ok = file:set_cwd(filename:dirname(filename:dirname(filename:absname(escript:script_name())))),
-    {CodePaths, Selected} = case Arguments of
-        ["--ebin", Ebin | Tail] -> {[Ebin], Tail};
-        _ -> {filelib:wildcard("_build/default/lib/*/ebin"), Arguments}
-    end,
+    {CodePaths, Selected} = code_paths(Arguments, []),
     ok = code:add_pathsa(CodePaths),
     {ok, _} = application:ensure_all_started(libtmux_erlang),
     Executable = case os:getenv("LIBTMUX_TEST_TMUX") of
         false -> os:find_executable("tmux"); Path -> Path
     end,
-    true = is_list(Executable),
     Modules = case Selected of
         [] -> [filter_demo, inspect_demo, readme_demo, linked_graph, job_demo,
                options_demo, buffer_demo, pane_demo, config_demo, pipe_demo,
-               hook_demo, key_demo, command_demo, control_demo];
+               hook_demo, key_demo, command_demo, control_demo, workspace_demo];
         ["filter"] -> [filter_demo];
         ["inspect"] -> [inspect_demo];
         ["readme"] -> [readme_demo];
@@ -45,7 +41,12 @@ run(Arguments) ->
         ["hooks"] -> [hook_demo];
         ["keys"] -> [key_demo];
         ["commands"] -> [command_demo];
-        ["control"] -> [control_demo]
+        ["control"] -> [control_demo];
+        ["workspace"] -> [workspace_demo]
+    end,
+    case lists:any(fun(M) -> M =/= filter_demo andalso M =/= workspace_demo end, Modules) of
+        true -> true = is_list(Executable);
+        false -> ok
     end,
     Suffix = binary:encode_hex(crypto:strong_rand_bytes(10), lowercase),
     Scratch = binary_to_list(<<"/tmp/ltm-examples-", Suffix/binary>>),
@@ -61,7 +62,7 @@ run(Arguments) ->
                 Failure -> error({example_compile_failed, Source, Failure})
             end
         end, ["test/tmux_test_fixture.erl" | ["examples/" ++ atom_to_list(M) ++ ".erl" || M <- Modules]]),
-        Results = [example(Module, list_to_binary(Executable)) || Module <- Modules],
+        Results = [example(Module, Executable) || Module <- Modules],
         #{result => 'PASS', examples => Results,
           microseconds => erlang:monotonic_time(microsecond) - Started}
     after
@@ -69,18 +70,23 @@ run(Arguments) ->
         ok = application:stop(libtmux_erlang)
     end.
 
-example(filter_demo, _) ->
-    #{module => filter_demo, output => filter_demo:run(),
+code_paths(["--ebin", Ebin | Tail], Paths) -> code_paths(Tail, [Ebin | Paths]);
+code_paths(Tail, []) -> {filelib:wildcard("_build/default/lib/*/ebin"), Tail};
+code_paths(Tail, Paths) -> {lists:reverse(Paths), Tail}.
+
+example(Module, _) when Module =:= filter_demo; Module =:= workspace_demo ->
+    #{module => Module, output => Module:run(),
       sessions_removed => true, owned_cleanup => complete,
       transport => not_used};
 example(readme_demo, Executable) ->
-    #{module => readme_demo, output => readme_demo:run(Executable),
+    #{module => readme_demo, output => readme_demo:run(list_to_binary(Executable)),
       sessions_removed => true, owned_cleanup => complete};
 example(Module, Executable) ->
-    {ok, Fixture} = tmux_test_fixture:start(Executable),
+    BinaryExecutable = list_to_binary(Executable),
+    {ok, Fixture} = tmux_test_fixture:start(BinaryExecutable),
     Result = try
         #{socket := Socket} = tmux_test_fixture:info(Fixture),
-        Output = Module:run(Socket, Executable),
+        Output = Module:run(Socket, BinaryExecutable),
         {ok, #{stdout := <<>>, exit_status := 0}} = tmux_test_fixture:command(Fixture,
             [<<"list-sessions">>, <<"-F">>, <<"#{session_id}">>]),
         Output

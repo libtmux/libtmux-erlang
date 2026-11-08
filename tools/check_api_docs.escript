@@ -4,9 +4,12 @@
 
 main(Arguments) ->
     Profile = case Arguments of [] -> "default"; ["--test"] -> "test" end,
-    true = code:add_patha("_build/" ++ Profile ++ "/lib/libtmux_erlang/ebin"),
-    ok = application:load(libtmux_erlang),
-    {ok, Modules} = application:get_key(libtmux_erlang, modules),
+    ok = code:add_pathsa(filelib:wildcard("_build/" ++ Profile ++ "/lib/*/ebin")),
+    Modules = lists:append([begin
+        ok = application:load(App),
+        {ok, Members} = application:get_key(App, modules),
+        Members
+    end || App <- [libtmux_erlang, libtmux_erlang_workspace]]),
     Results = [module(M) || M <- Modules],
     Public = [R || R <- Results, R =/= hidden],
     Missing = lists:append([maps:get(missing,R) || R <- Public]),

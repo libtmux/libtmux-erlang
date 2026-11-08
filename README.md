@@ -146,6 +146,8 @@ session/index membership.
   them explicitly and inspect fresh state without changing captured rows.
 - [Control attachments](docs/control.md): verify connection identity, inspect
   attachment effects and retire the client explicitly.
+- [Load a workspace file](docs/workspaces.md): validate desired sessions,
+  windows and panes, resolve working directories and inspect stable keys.
 - [Run a job and capture its result](docs/jobs.md): wait for a pane's completion
   event, check its exit status, capture bytes, and cancel a separate operation.
 - [Local filters and source queries](docs/querying.md): Boolean criteria,

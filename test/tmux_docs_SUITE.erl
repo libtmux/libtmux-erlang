@@ -5,11 +5,14 @@
 all() -> [native_examples].
 
 native_examples(_Config) ->
-    case application:load(libtmux_erlang) of
-        ok -> ok;
-        {error, {already_loaded, libtmux_erlang}} -> ok
-    end,
-    {ok, Modules} = application:get_key(libtmux_erlang, modules),
+    Modules = lists:append([begin
+        case application:load(App) of
+            ok -> ok;
+            {error, {already_loaded, App}} -> ok
+        end,
+        {ok, Members} = application:get_key(App, modules),
+        Members
+    end || App <- [libtmux_erlang, libtmux_erlang_workspace]]),
     lists:foreach(fun(Module) ->
         %% Prose-only contracts need no artificial example. Every advertised
         %% Erlang code block must contain a runnable shell transcript.

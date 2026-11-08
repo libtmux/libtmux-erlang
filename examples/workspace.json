@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "id": "demo",
+  "endpoint": "dev",
+  "sessions": [
+    {
+      "name": "editor",
+      "windows": [
+        {
+          "name": "api",
+          "layout": "even-horizontal",
+          "panes": [
+            {"cwd": ".", "argv": ["rebar3", "shell"]},
+            {"cwd": ".", "shell": "exec erl"}
+          ]
+        }
+      ]
+    }
+  ]
+}

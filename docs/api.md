@@ -1,7 +1,7 @@
 # Build and browse the native API
 
-Public contracts live in Erlang `-moduledoc`, `-doc` and specs. OTP's compiler
-stores EEP-48 documentation chunks; ExDoc renders them into searchable module,
+Core and workspace contracts live in Erlang `-moduledoc`, `-doc` and specs.
+OTP's compiler stores EEP-48 documentation chunks; ExDoc renders searchable module,
 function and type pages. Source links open captured files with line anchors
 and content digests. An unchanged file also links to its exact Git commit;
 changed files are labelled as working-tree previews.
@@ -51,6 +51,7 @@ source-extraction path rejects native-record attributes.
 | Render/load configuration and build channel waits or signals | `tmux_command:to_config/1`, `tmux_command:source_file/2`, `tmux_command:wait_for/2` |
 | Connect a shell consumer to live pane bytes | `tmux_pane:pipe/3`, `tmux_pane:stop_pipe/1` |
 | Inspect schema and wire validation | `m:tmux_schema`, `m:tmux_json`, `m:tmux_version` |
+| Load and inspect desired workspace files | `m:tmux_workspace` |
 | Inspect observed process identities | `m:tmux_identity` |
 
 The [field reference](fields.md) is generated from the same registry and

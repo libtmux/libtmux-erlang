@@ -10,11 +10,17 @@
 </div>
 <!-- /libtmux-logo -->
 
-This application is under development. See the [core library](../../README.md)
-for implemented behavior and qualification status.
+Load versioned JSON workspace files and inspect validated desired sessions,
+windows and panes with `tmux_workspace:load/1` and `tmux_workspace:to_map/1`.
+Relative cwd values resolve against the canonical file directory. Endpoint
+names remain host-configuration keys; loading never contacts tmux or launches
+programs.
 
-The planned workspace loader, planner and CLI use the core's public API and
-OTP libraries. The application metadata declares that core dependency.
-[Project policy](../../docs/project-policy.md) defines package and runtime
-boundaries. Workspace CLI installation and usage will be documented once the
-installed consumer is implemented and qualified.
+The [workspace guide](../../docs/workspaces.md) provides a real input file,
+complete runnable program and checked output. The outer suite repeats that
+program using installed core and workspace OTP archives.
+
+The application uses the core's public JSON API and OTP libraries.
+[Project policy](../../docs/project-policy.md) defines package boundaries.
+Planning, applying changes, source-package delivery and a workspace CLI remain
+implementation work. No registry release or CLI installation is advertised.

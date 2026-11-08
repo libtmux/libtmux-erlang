@@ -42,9 +42,10 @@ missing target positionally.
 
 ## Not yet shipped
 
-Control command submission and groups, output subscriptions/streams
-and the workspace file-loader/CLI remain implementation work. The workspace
-OTP application exists in the umbrella; it does not provide a usable CLI yet.
+Control command submission and groups, output subscriptions/streams,
+workspace planning/apply and a workspace CLI remain implementation work.
+The workspace application loads and validates JSON files; the
+[workspace guide](workspaces.md) includes its executable reader example.
 
 MCP packages, servers and SDK integration are excluded by
 [project policy](project-policy.md).

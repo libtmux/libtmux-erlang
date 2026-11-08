@@ -55,8 +55,9 @@ def main():
     env = dict(os.environ)
     env.setdefault("ERL_FLAGS", "+S 4:4")
     subprocess.run(["rebar3", "compile"], check=True, env=env, timeout=30)
-    ebin = Path("_build/default/lib/libtmux_erlang/ebin")
-    if not (ebin / "libtmux_erlang.app").is_file():
+    app_ebins = [Path("_build/default/lib") / app / "ebin"
+                 for app in ("libtmux_erlang", "libtmux_erlang_workspace")]
+    if any(not (path / (path.parent.name + ".app")).is_file() for path in app_ebins):
         raise SystemExit("Compile first: rebar3 compile")
     head = subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()
     status = subprocess.check_output(["git", "status", "--porcelain", "--untracked-files=all"], text=True)
@@ -66,6 +67,9 @@ def main():
     if output.exists():
         shutil.rmtree(output)
     output.mkdir(parents=True)
+    beams = [beam for app_ebin in app_ebins for beam in sorted(app_ebin.glob("*.beam"))]
+    if len(beams) != len({beam.name for beam in beams}):
+        raise RuntimeError("Duplicate documentation module across applications")
     sources, media = {}, {}
 
     def image_url(target, page):
@@ -167,7 +171,7 @@ def main():
         "{extras, [" + ",".join("<<" + json.dumps(p.as_posix()) + ">>" for p in staged) + "]}.\n"
     )
     version = "0.0.0+working-tree" if dirty else "0.0.0+" + head[:12]
-    command = ["escript", str(executable), "libtmux for Erlang", version, str(ebin),
+    command = ["escript", str(executable), "libtmux for Erlang", version, *map(str, app_ebins),
                "--config", str(config), "--formatter", "html", "--output", str(output),
                "--source-ref", head, "--warnings-as-errors"]
     subprocess.run(command, check=True, env=env, timeout=60)
@@ -180,7 +184,13 @@ def main():
     for page in output.glob("*.html"):
         def replace_source(match):
             path, line = unquote(match[1]), match[2]
-            original = Path(path.removeprefix("_build/docs/pages/")) if path.startswith("_build/docs/pages/") else Path("apps/libtmux_erlang/src") / path
+            if path.startswith("_build/docs/pages/"):
+                original = Path(path.removeprefix("_build/docs/pages/"))
+            else:
+                candidates = list(Path("apps").glob("*/src/" + path))
+                if len(candidates) != 1:
+                    raise RuntimeError("Ambiguous documentation source: " + path)
+                original = candidates[0]
             return source_page(original) + "#L" + line
         rendered = re.sub(r'https://source\.invalid/([^"#]+)#L([0-9]+)', replace_source, page.read_text())
         page.write_text(rendered.replace("</head>", '<link rel="icon" href="data:,">\n</head>'))
@@ -192,7 +202,7 @@ def main():
                "status": status.splitlines(), "diff_sha256": hashlib.sha256(diff).hexdigest(),
                "source_files": sources, "media": media,
                "input_files": input_files,
-               "beams": {p.name: hashlib.sha256(p.read_bytes()).hexdigest() for p in sorted(ebin.glob("*.beam"))},
+               "beams": {p.name: hashlib.sha256(p.read_bytes()).hexdigest() for p in beams},
                "seconds": round(time.monotonic() - started, 6), "output": output.as_posix(),
                "source": "compiler EEP-48 chunks; no legacy EDoc source extraction"}
     Path("_build/checks").mkdir(parents=True, exist_ok=True)

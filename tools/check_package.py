@@ -40,30 +40,19 @@ def run(command: list[str], cwd: Path, env: dict[str, str], *, json_output: bool
     return receipt
 
 
-def main() -> None:
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--dialyzer", action="store_true")
-    args = parser.parse_args()
-    started = time.monotonic()
-    root = Path(__file__).resolve().parent.parent
-    artifact_dir = root / "_build/package-check"
-    artifact_dir.mkdir(parents=True, exist_ok=True)
-    (artifact_dir / "receipt.json").unlink(missing_ok=True)
-    app = root / "_build/default/lib/libtmux_erlang"
+def assemble_archive(root: Path, app_name: str, artifact_dir: Path) -> tuple[Path, str]:
+    app = root / "_build/default/lib" / app_name
     beams = sorted((app / "ebin").glob("*"))
-    if not beams or not (app / "ebin/libtmux_erlang.app").is_file():
+    if not beams or not (app / "ebin" / (app_name + ".app")).is_file():
         raise RuntimeError("Run mise exec -- rebar3 compile first")
-
-    archive = artifact_dir / "libtmux_erlang-otp.tar.gz"
-    prefix = "libtmux_erlang-0.0.0+development"
+    archive = artifact_dir / (app_name + "-otp.tar.gz")
+    prefix = app_name + "-0.0.0+development"
     members = [("ebin/" + path.name, path) for path in beams if path.is_file()]
-    members.append(("LICENSE", root / "apps/libtmux_erlang/LICENSE"))
+    for name in ("LICENSE", "CHANGELOG.md"):
+        members.append((name, root / "apps" / app_name / name))
     if (app / "priv").is_dir():
-        members.extend(
-            (path.relative_to(app).as_posix(), path)
-            for path in sorted((app / "priv").rglob("*"))
-            if path.is_file()
-        )
+        members.extend((path.relative_to(app).as_posix(), path)
+                       for path in sorted((app / "priv").rglob("*")) if path.is_file())
     with archive.open("wb") as raw:
         with gzip.GzipFile(filename="", fileobj=raw, mode="wb", mtime=0) as packed:
             with tarfile.open(fileobj=packed, mode="w|") as bundle:
@@ -73,13 +62,31 @@ def main() -> None:
                     entry.size = len(data)
                     entry.mode = 0o755 if os.access(path, os.X_OK) else 0o644
                     bundle.addfile(entry, io.BytesIO(data))
+    return archive, prefix
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--dialyzer", action="store_true")
+    args = parser.parse_args()
+    started = time.monotonic()
+    root = Path(__file__).resolve().parent.parent
+    artifact_dir = root / "_build/package-check"
+    artifact_dir.mkdir(parents=True, exist_ok=True)
+    (artifact_dir / "receipt.json").unlink(missing_ok=True)
+    archives = {name: assemble_archive(root, name, artifact_dir) for name in
+                ("libtmux_erlang", "libtmux_erlang_workspace")}
+    archive, prefix = archives["libtmux_erlang"]
+    workspace_archive, workspace_prefix = archives["libtmux_erlang_workspace"]
 
     commands = []
     with tempfile.TemporaryDirectory(prefix="tmux-erlang-consumer-") as directory:
         temp = Path(directory)
-        with tarfile.open(archive, "r:gz") as bundle:
-            bundle.extractall(temp, filter="data")
+        for packed, _ in archives.values():
+            with tarfile.open(packed, "r:gz") as bundle:
+                bundle.extractall(temp, filter="data")
         installed_ebin = temp / prefix / "ebin"
+        workspace_ebin = temp / workspace_prefix / "ebin"
         consumer_ebin = temp / "consumer-ebin"
         consumer_ebin.mkdir()
         shutil.copyfile(root / "examples/native_consumer.erl", temp / "native_consumer.erl")
@@ -90,8 +97,9 @@ def main() -> None:
         shutil.copyfile(root / "tools/run_examples.escript", temp / "tools/run_examples.escript")
         for name in ("tmux_test_fixture.erl", "tmux_fixture_watch.py"):
             shutil.copyfile(root / "test" / name, temp / "test" / name)
-        for name in ("filter_demo", "inspect_demo", "readme_demo", "linked_graph", "job_demo", "options_demo", "buffer_demo", "pane_demo", "config_demo", "pipe_demo", "hook_demo", "key_demo", "command_demo", "control_demo"):
+        for name in ("filter_demo", "inspect_demo", "readme_demo", "linked_graph", "job_demo", "options_demo", "buffer_demo", "pane_demo", "config_demo", "pipe_demo", "hook_demo", "key_demo", "command_demo", "control_demo", "workspace_demo"):
             shutil.copyfile(root / "examples" / (name + ".erl"), temp / "examples" / (name + ".erl"))
+        shutil.copyfile(root / "examples/workspace.json", temp / "examples/workspace.json")
         shutil.copyfile(root / "examples/terminal_job.py", temp / "examples/terminal_job.py")
         env = dict(os.environ)
         env.pop("ERL_LIBS", None)
@@ -103,7 +111,8 @@ def main() -> None:
         env["LIBTMUX_TEST_TMUX"] = tmux
         env["ERL_CRASH_DUMP"] = str(temp / "erl_crash.dump")
         commands.append(run([
-            "escript", "tools/run_examples.escript", "--ebin", str(installed_ebin)
+            "escript", "tools/run_examples.escript", "--ebin", str(installed_ebin),
+            "--ebin", str(workspace_ebin)
         ], temp, env, json_output=True))
         commands.append(run([
             "erlc", "-Werror", "+debug_info", "-pa", str(installed_ebin),
@@ -146,13 +155,15 @@ def main() -> None:
                 "dialyzer", "--plt", str(plts[0]),
                 str(consumer_ebin / "native_consumer.beam"),
                 str(consumer_ebin / "tmux_test_fixture.beam"),
-                "-r", str(installed_ebin)
+                "-r", str(installed_ebin), "-r", str(workspace_ebin)
             ], temp, env))
     assert not temp.exists()
     receipt = {
         "result": "PASS",
         "scope": "Compiled OTP archive, native records, doctest, helper adapter, owned startup and borrowed endpoint",
         "archive_sha256": hashlib.sha256(archive.read_bytes()).hexdigest(),
+        "workspace_archive_sha256": hashlib.sha256(workspace_archive.read_bytes()).hexdigest(),
+        "public_workspace_loader": "PASS: installed workspace OTP archive loads a real JSON file, inspects desired graph and proves file cleanup; plan/apply/CLI remain unimplemented",
         "commands": commands,
         "temporary_consumer_removed": True,
         "seconds": round(time.monotonic() - started, 6),

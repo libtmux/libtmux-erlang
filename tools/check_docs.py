@@ -65,7 +65,8 @@ def main():
     root = Path(__file__).resolve().parent.parent
     os.chdir(root)
     started = time.monotonic()
-    files = [Path("README.md"), *sorted(Path("docs").glob("*.md"))]
+    files = [Path("README.md"), *sorted(Path("docs").glob("*.md")),
+             *sorted(Path("apps").glob("*/README.md"))]
     outputs = {}
     if args.examples_receipt:
         result = json.loads(args.examples_receipt.read_text())
@@ -73,9 +74,9 @@ def main():
         for example in result["examples"]:
             assert example["owned_cleanup"] == "complete" and example["sessions_removed"]
             outputs[example["module"]] = example["output"]
-    programs, terms, displayed_outputs, console = [], [], [], 0
+    programs, terms, displayed_outputs, inputs, console = [], [], [], [], 0
     native_lines = 0
-    for path in sorted(Path("apps/libtmux_erlang/src").glob("*.erl")):
+    for path in sorted(Path("apps").glob("*/src/*.erl")):
         for block in re.finditer(r"^```erlang\n(.*?)^```", path.read_text(), re.M | re.S):
             for line in block[1].splitlines():
                 # ct_doctest uses numbered prompts; replies are compared output.
@@ -107,6 +108,13 @@ def main():
                     assert before.endswith("<!-- erlang-term -->"), (path, "unclassified Erlang block")
                     terms.append(body)
             elif language == "json":
+                source = re.search(r"<!-- example-input: ([^ ]+) -->$", before)
+                if source:
+                    input_path = Path(source[1])
+                    assert body.rstrip() == input_path.read_text().rstrip(), (path, "input drift")
+                    json.loads(body)
+                    inputs.append(input_path.as_posix())
+                    continue
                 marker = re.search(r"<!-- example-output: ([^ ]+) -->$", before)
                 assert marker, (path, "unclassified JSON block")
                 expected = json.loads(body)
@@ -129,6 +137,7 @@ def main():
     receipt = {"result": "PASS", "files": len(files), "programs": sorted(set(programs)),
                "configuration_blocks": len(terms), "console_units": console,
                "native_code_lines": native_lines,
+               "input_files": sorted(set(inputs)),
                "displayed_outputs": displayed_outputs,
                "runtime_output": "PASS" if args.examples_receipt else "UNVERIFIED in this static check",
                "seconds": round(time.monotonic() - started, 6)}
