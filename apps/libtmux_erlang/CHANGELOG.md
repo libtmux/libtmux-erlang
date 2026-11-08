@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Emit bounded OTP Logger reports for client results, operation outcomes,
+  capture rejection, held read credit and owned-daemon failures. Reports omit
+  command payloads, terminal output and resource paths.
+
 - Scoped server lifetimes preserve callback and cleanup outcomes together,
   including recovery handles after incomplete cleanup. Nested resource scopes
   preserve failures in examples without masking the original diagnostic.

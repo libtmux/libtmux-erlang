@@ -286,7 +286,9 @@ same_namespace(#{directory := Directory, directory_identity := DirIdentity,
                  socket := Socket, socket_identity := SocketIdentity}) ->
     same_path(Directory, DirIdentity) andalso same_path(Socket, SocketIdentity).
 
-fail(Error, #{failure := none} = State) -> begin_stop(State#{failure => Error});
+fail(Error, #{failure := none} = State) ->
+    ok = tmux_log:owned(owned_server_failure, State, Error),
+    begin_stop(State#{failure => Error});
 fail(_, State) -> begin_stop(State).
 
 begin_stop(#{phase := stopped} = State) -> State;
@@ -379,6 +381,10 @@ incomplete(State) ->
                                native_processes], State),
         recovery_report => maps:get(recovery_report, Reported)},
     Result = {error, Detail},
+    case maps:get(stop_result, State) of
+        none -> ok = tmux_log:owned(owned_server_cleanup_incomplete, State, Detail);
+        _ -> ok
+    end,
     maybe_ready(Result, reply_kind(stop, Result, Reported#{stop_result => Result})).
 
 %% Recovery reports are observations, never permission to signal a PID or path.
@@ -409,8 +415,9 @@ handoff(State) ->
     end,
     case Result of
         {ok, _} -> State#{recovery_report => Result};
-        Error ->
-            logger:error("Owned tmux recovery report could not be written: ~p", [Error]),
+        _Error ->
+            ok = tmux_log:owned(owned_server_recovery_report_failed, State,
+                #{code => recovery_report_write_failed}),
             State#{recovery_report => {error, recovery_report_write_failed}}
     end.
 

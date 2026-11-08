@@ -359,8 +359,10 @@ Validate more precise query/constructor/error specs through an external
 Dialyzer consumer with deliberate entity mixups. Generated recursive filters
 and linked graphs should agree with a small reference evaluator.
 
-Use bounded OTP logger reports for transport failures, cleanup, IPC duration,
-capture rejection and credit saturation. Give structured programming errors
+Use bounded [OTP Logger reports](diagnostics.md) for transport failures,
+cleanup, IPC duration, capture rejection and held read credit. The implemented
+one-shot and attachment lanes emit these reports; later lanes must preserve
+their data and cost boundaries. Give structured programming errors
 useful native error formatting. Keep payloads and environment secrets out of
 ordinary diagnostics, and keep optional telemetry outside core dependencies.
 

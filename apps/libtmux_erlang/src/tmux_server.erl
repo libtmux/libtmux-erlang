@@ -653,6 +653,7 @@ ensure_operation(Id, #{operations := Operations, admission := Admission} = State
 
 new_operation(Owner, Deadline) ->
     #{owner => Owner, monitor => monitor(process, Owner), phase => queued,
+      started_us => erlang:monotonic_time(microsecond),
       stage => pending, spec => none, deadline => Deadline, timer => none,
       handle => none, cost => 0, cancel => none, result => none,
       retired => false, waiters => #{}}.
@@ -892,7 +893,12 @@ incomplete(Id, Detail, State) ->
     Op = operation(Id, State),
     Outcome = case maps:get(stage, Op) of command -> unknown; _ -> cancelled_before_send end,
     Result = {error, Detail#{code => cleanup_incomplete, cleanup => incomplete, outcome => Outcome}},
-    notify(Id, put_operation(Id, Op#{phase => responded, result => Result}, State)).
+    Responded = Op#{phase => responded, result => Result},
+    case maps:get(result, Op) of
+        none -> ok = tmux_log:operation(maps:get(generation, State), Id, Responded, Result);
+        _ -> ok
+    end,
+    notify(Id, put_operation(Id, Responded, State)).
 
 finish(Id, Result, State) ->
     Op = operation(Id, State),
@@ -907,6 +913,7 @@ finish(Id, Result, State) ->
             Bytes = result_size(Result),
             Retired = Op#{phase => retired, result => Result, retired => true, spec => none,
                           handle => none, cost => 0, expires => Expires, result_bytes => Bytes},
+            ok = tmux_log:operation(maps:get(generation, State), Id, Retired, Result),
             Next = State#{active_bytes => maps:get(active_bytes, State) - maps:get(cost, Op),
                           result_bytes => maps:get(result_bytes, State) + Bytes,
                           queue => queue:filter(fun(Queued) -> Queued =/= Id end, maps:get(queue, State)),

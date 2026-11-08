@@ -145,6 +145,7 @@ init({Owner, Token, Config}) ->
     Input = maps:get(stdin, Config),
     State = #{owner => Owner, owner_monitor => monitor(process, Owner), owner_alive => true,
               token => Token, config => Config, mode => maps:get(mode, Config),
+              started_us => erlang:monotonic_time(microsecond),
               phase => queued, port => none,
               helper_pid => none, child_pid => none, sent => false,
               stdout => stream(maps:get(max_stdout, Config)),
@@ -364,6 +365,7 @@ event({data, Stream, Bytes}, #{mode := channel} = State) ->
     case byte_size(Bytes) =< Credit andalso Credit > 0 andalso Seq =:= Acked of
         false -> stop_child(#{code => invalid_helper_frame}, State);
         true ->
+            ok = tmux_log:credit(State, Stream, Seq + 1, byte_size(Bytes)),
             channel_event({data, Stream, Seq + 1, Bytes}, State),
             State#{Stream => Slot#{credit => 0, sequence => Seq + 1,
                                   size => Size + byte_size(Bytes)}}
@@ -589,6 +591,12 @@ incomplete(Cause, State) ->
     publish({error, Error}, Next).
 
 publish(Result, State) ->
+    case {maps:get(result, State), maps:get(cleanup, State)} of
+        {none, _} -> ok = tmux_log:transport(State, Result);
+        {{_, #{cleanup := Old}}, New} when Old =/= New ->
+            ok = tmux_log:transport(State, Result);
+        _ -> ok
+    end,
     Next = notify_result(State#{result => Result}),
     case maps:get(cleanup, Next) =:= complete andalso maps:get(retention_timer, Next) =:= none of
         true -> Next#{retention_timer => erlang:start_timer(60000, self(), expire),

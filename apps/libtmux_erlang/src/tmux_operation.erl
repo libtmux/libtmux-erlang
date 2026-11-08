@@ -18,7 +18,9 @@ not establish a tmux aftereffect.
 
 See `t:completed/0` and `t:failure/0` for
 command outcomes and `t:state/0` for lifecycle status. The [job
-guide](jobs.md) shows the complete workflow.
+guide](jobs.md) shows the complete workflow. Bounded OTP Logger reports
+correlate outcomes by operation and endpoint generation; see
+[runtime diagnostics](diagnostics.md) for levels, fields and data boundaries.
 """.
 -export([start/3, await/2, await_started/2, status/1, cancel/1, transfer/2]).
 -export_type([t/0, completed/0, failure/0, state/0, outcome/0, cleanup/0]).

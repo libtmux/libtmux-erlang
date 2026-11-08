@@ -30,7 +30,15 @@ capture(Server, Options, Query) ->
     maybe
         {ok, State0} ?= read_state(Server, Options),
         {ok, Context} ?= tmux_server:observation_context(Server),
-        Metadata = Context#{id => make_ref(), graph => complete,
+        Id = make_ref(),
+        Result = capture_context(Server, Query, State0, Context, Id),
+        ok = tmux_log:capture(Context, Id, maps:get(started, State0), Result),
+        Result
+    end.
+
+capture_context(Server, Query, State0, Context, Id) ->
+    maybe
+        Metadata = Context#{id => Id, graph => complete,
                             capture_started => maps:get(started, State0)},
         {ok, First, State1} ?= spine(State0),
         {ok, Base} ?= tmux_snapshot:build(maps:get(rows, First), Metadata),

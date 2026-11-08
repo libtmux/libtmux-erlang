@@ -20,6 +20,6 @@ stop(_State) -> ok.
 prep_stop(State) ->
     case tmux_owned_server:prepare_stop() of
         ok -> ok;
-        {error, Report} -> logger:error("Owned tmux cleanup remains incomplete: ~p", [Report])
+        {error, Report} -> tmux_log:shutdown(Report)
     end,
     State.

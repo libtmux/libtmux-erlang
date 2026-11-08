@@ -18,6 +18,10 @@ earlier candidate exclusion. Numeric candidate fields come from the restricted
 scalar codec and must agree with the capture's scalar observations. Text and
 relationships remain local.
 
+Captures emit bounded OTP Logger reports with their snapshot ID and endpoint
+generation. See [runtime diagnostics](diagnostics.md) for observation cost,
+rejection reports and configuration.
+
 ```erlang
 1> Q0 = tmux_query:panes(unopened), ok.
 ok

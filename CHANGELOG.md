@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Document runtime Logger domains, correlated outcomes, capture costs and
+  report data boundaries.
+
 - Example attempts invalidate older success receipts before running and
   record caught failures explicitly.
 
