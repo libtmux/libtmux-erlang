@@ -54,10 +54,10 @@ Run the complete program below on a private tmux server:
 $ mise exec -- escript tools/run_examples.escript readme
 ```
 
-The runner needs Python 3.12+ for its readiness watcher. It allocates a unique
-socket, verifies the example's assertions, and retires its owned server and
-clients. It leaves your existing tmux sessions alone. The Erlang program uses
-only public core APIs; the archive check also runs it outside this checkout.
+The program starts an empty daemon on a unique private socket, verifies its
+assertions, and retires the owned server and clients. It leaves your existing
+tmux sessions alone. It uses only public core APIs and OTP runtime libraries;
+the archive check also runs it outside this checkout.
 Save it as `readme_demo.erl` when reusing it in an application.
 
 <!-- example: examples/readme_demo.erl -->
@@ -65,13 +65,13 @@ Save it as `readme_demo.erl` when reusing it in an application.
 ```erlang
 -module(readme_demo).
 -moduledoc "Create a workspace, query its graph and preserve captured values.".
--export([run/2]).
+-export([run/1]).
 -import_record(tmux_model, [pane]).
 
--spec run(binary(), binary()) -> map().
-run(Socket, Executable) ->
-    Endpoint = #{socket_path => Socket, executable => Executable},
-    {ok, Server} = tmux_server:open(Endpoint),
+-spec run(binary()) -> map().
+run(Executable) ->
+    {ok, Server, Ownership} =
+        tmux_server:start_owned(#{executable => Executable}),
     try
         {ok, Session} = tmux_session:create(Server, #{name => <<"workspace">>,
             window_name => <<"editor">>, width => 120, height => 30,
@@ -112,7 +112,7 @@ run(Socket, Executable) ->
             {ok, _} = tmux_session:kill(Session)
         end
     after
-        ok = tmux_server:close(Server)
+        ok = tmux_server:stop_owned(Ownership)
     end.
 ```
 
@@ -140,6 +140,8 @@ session/index membership.
 
 - [Linked windows and relationship queries](docs/graph.md): build two sessions,
   link a shared window twice, and verify physical and membership counts.
+- [Daemon ownership](docs/ownership.md): choose private startup or a borrowed
+  socket, keep their lifetimes explicit and handle incomplete cleanup.
 - [Run a job and capture its result](docs/jobs.md): wait for a pane's completion
   event, check its exit status, capture bytes, and cancel a separate operation.
 - [Local filters and source queries](docs/querying.md): Boolean criteria,

@@ -151,7 +151,7 @@ def main() -> None:
     assert not temp.exists()
     receipt = {
         "result": "PASS",
-        "scope": "Compiled OTP archive, native records, doctest, helper adapter and public borrowed endpoint",
+        "scope": "Compiled OTP archive, native records, doctest, helper adapter, owned startup and borrowed endpoint",
         "archive_sha256": hashlib.sha256(archive.read_bytes()).hexdigest(),
         "commands": commands,
         "temporary_consumer_removed": True,
@@ -159,6 +159,7 @@ def main() -> None:
         "hex_source_package": "UNVERIFIED",
         "installed_helper_adapter": "PASS",
         "public_borrowed_endpoint": "PASS",
+        "public_owned_endpoint": "PASS: installed README uses private startup, graph operations and token-based retirement",
         "relative_code_path_child_cwd": "PASS",
         "public_domain_consumer": "PASS: session lifecycle, pane topology, literal names, window/pane deletion and session cleanup",
         "public_input_consumer": "PASS: text/native key delivery and normal job exit after EOF",

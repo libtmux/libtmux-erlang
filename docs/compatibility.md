@@ -26,6 +26,7 @@ macOS, native Windows and psmux are not advertised as qualified platforms.
 | Local query | Map predicates, Boolean callbacks, quantifiers, cardinality and bounded JSON |
 | Source query | Explicit plans/fetch, conservative candidates, full residuals and final limits |
 | Operations | Bounded one-shot submission, waits, cancellation, transfer and cleanup |
+| Daemon ownership | Empty private startup, separate ownership token, caller lifetime, explicit stop and identity-checked namespace cleanup |
 | Domain commands | Initial create/read/rename/kill calls, explicit client/session selection, checked window memberships, pane split/break/join/move/swap/resize, pane/window respawn, window layouts, literal/key input and capture |
 | Options | Explicit local/global tables, local or inherited reads, indexed writes/unsets and generated source metadata; hooks remain outside the option API |
 | Hooks | Versioned builtin arrays, indexed command values, inheritance and explicit execution contexts |

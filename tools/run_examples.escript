@@ -71,6 +71,9 @@ example(filter_demo, _) ->
     #{module => filter_demo, output => filter_demo:run(),
       sessions_removed => true, owned_cleanup => complete,
       transport => not_used};
+example(readme_demo, Executable) ->
+    #{module => readme_demo, output => readme_demo:run(Executable),
+      sessions_removed => true, owned_cleanup => complete};
 example(Module, Executable) ->
     {ok, Fixture} = tmux_test_fixture:start(Executable),
     Result = try

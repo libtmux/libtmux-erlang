@@ -1,6 +1,6 @@
 -module(tmux_server).
 -moduledoc """
-Open a borrowed tmux endpoint and execute explicit command values.
+Open tmux endpoints and execute explicit command values.
 
 `open/1` validates an absolute socket path and the
 executable/server versions. It never creates a tmux server or attaches a
@@ -8,6 +8,10 @@ control client. Each command rechecks the observed Linux process incarnation
 before dispatch. Replacement between that observation and a later client
 connection remains possible; same_connection requests are rejected until
 persistent dispatch qualifies.
+
+`start_owned/1` creates a separate private daemon and returns an ownership
+token for `stop_owned/1`. The [ownership guide](ownership.md) explains caller
+death, application shutdown and namespace cleanup.
 
 The calling process owns the endpoint. `close/1` cancels queued
 work, retires its clients and preserves the borrowed server. A cleanup failure
@@ -24,13 +28,21 @@ explicit waits; the [job guide](jobs.md) explains ownership and cleanup.
 """.
 -behaviour(gen_server).
 -export([open/1, command/3, close/1, status/1, origin/1, version/1, from_origin/1, bind/2,
-         snapshot/1, snapshot/2, observation_context/1]).
+         snapshot/1, snapshot/2, observation_context/1, start_owned/1, stop_owned/1]).
 -export([submit/3, start_link/3, init/1, handle_call/3, handle_cast/2,
-         handle_info/2, format_status/1, send_request/2]).
+         handle_info/2, format_status/1, send_request/2, open_observed/3]).
 -export_type([t/0]).
 -export_type([open_options/0, command_options/0, capture_options/0, state/0]).
+-export_type([owned_options/0, ownership/0]).
 -doc "An explicit absolute socket endpoint and optional absolute tmux executable path.".
 -type open_options() :: #{socket_path := binary(), executable => binary()}.
+-doc "Owned startup options. The finite startup budget defaults to 2500 milliseconds.".
+-type owned_options() :: #{executable => binary(), startup_timeout_ms => 1..600000}.
+-doc """
+Opaque ownership token for `stop_owned/1`. An ordinary endpoint or row origin
+does not convey this token. Trusted code can pass it to another process.
+""".
+-opaque ownership() :: {owned_server, pid(), reference()}.
 -doc """
 Command options: deadline_ms defaults to 2500, max_stdout to 1 MiB, max_stderr
 to 64 KiB, stdin to an empty binary and identity to observed. The deadline
@@ -81,14 +93,68 @@ open(Options) ->
             endpoint_args(Config, probe_args()), #{max_stdout => 128, max_stderr => 4096})),
         {ok, Pid, Version} ?= parse_probe(maps:get(stdout, Result)),
         {ok, Identity} ?= tmux_identity:observe(Pid),
-        Generation = make_ref(),
-        Child = #{id => Generation, start => {?MODULE, start_link,
-            [self(), Generation, Config#{identity => Identity, server_pid => Pid, version => Version}]},
-            restart => temporary, shutdown => 1000},
-        case supervisor:start_child(tmux_sup, Child) of
-            {ok, Owner} -> {ok, gen_server:call(Owner, handle, 900)};
-            {error, _} -> {error, #{code => endpoint_unavailable}}
+        create_endpoint(self(), Config#{identity => Identity, server_pid => Pid, version => Version})
+    end.
+
+-doc """
+Start an empty owned daemon in a fresh private Linux socket directory. Performs
+I/O and waits for bounded startup; no session or attached observer is created.
+Returns an ordinary endpoint and a separate `t:ownership/0` token. The caller
+owns the daemon lifetime: caller death or `stop_owned/1` retires its helper tree.
+`close/1` only closes the endpoint and preserves the daemon.
+
+The daemon starts without a user config, with `exit-empty` disabled. One idle,
+unattached bootstrap client keeps the owned helper tree alive. Startup includes
+readiness and endpoint incarnation binding, not just executable launch.
+Incomplete cleanup remains explicit; it is never permission to kill by path.
+An incomplete startup error includes an ownership token and captured resources
+for `stop_owned/1` recovery. The token does not serialize across VM lifetimes.
+""".
+-spec start_owned(owned_options()) -> {ok, t(), ownership()} | {error, map()}.
+start_owned(Options) -> tmux_owned_server:start(Options).
+
+-doc """
+Stop the daemon and endpoint associated with a `t:ownership/0` token. Performs
+I/O and returns ok only after endpoint/client/helper retirement and namespace
+cleanup are proved. It never sends kill-server to a socket path.
+
+A replaced socket/directory or unexpected directory contents are preserved and
+return `cleanup_incomplete` with process and namespace details. A supervised
+tombstone retains uncertain cleanup; call again to inspect/retry after external
+repair. Filesystem identity checks are observations, not atomic reservations
+against another trusted process replacing a path during unlink.
+
+Successful stop is idempotent during the 60-second token retention period.
+After token expiry or application shutdown, returns `ownership_expired`.
+Stop explicitly before application shutdown when the caller needs a verified
+cleanup result. OTP application shutdown itself does not prove native cleanup.
+Incomplete shutdown writes a private recovery report outside the owned socket
+directory and logs its location or write failure; no automatic recovery runs.
+""".
+-spec stop_owned(ownership()) -> ok | {error, map()}.
+stop_owned(Ownership) -> tmux_owned_server:stop(Ownership).
+
+-doc false.
+-spec open_observed(pid(), map(), binary()) -> {ok, t()} | {error, map()}.
+open_observed(Owner, Config, Bytes) ->
+    maybe
+        {ok, Pid, Version} ?= parse_probe(Bytes),
+        {ok, Identity} ?= tmux_identity:observe(Pid),
+        {ok, Server} ?= create_endpoint(Owner,
+            Config#{identity => Identity, server_pid => Pid, version => Version}),
+        case tmux_identity:check(Identity, Pid) of
+            ok -> {ok, Server};
+            Error -> _ = close(Server), Error
         end
+    end.
+
+create_endpoint(Owner, Config) ->
+    Generation = make_ref(),
+    Child = #{id => Generation, start => {?MODULE, start_link,
+        [Owner, Generation, Config]}, restart => temporary, shutdown => 1000},
+    case supervisor:start_child(tmux_sup, Child) of
+        {ok, Pid} -> {ok, gen_server:call(Pid, handle, 900)};
+        {error, _} -> {error, #{code => endpoint_unavailable}}
     end.
 
 -doc """

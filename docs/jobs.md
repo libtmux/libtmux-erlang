@@ -120,7 +120,8 @@ Retired results are retained for at most 60 seconds. The endpoint also evicts
 the oldest results when retention exceeds 64 results or 4 MiB of stdout/stderr.
 Use `tmux_operation:status/1` while a handle is valid, and handle
 `operation_expired` after retention. Closing an endpoint retires its library
-clients and preserves the borrowed tmux server.
+clients and preserves the tmux server. [Daemon ownership](ownership.md)
+explains the separate token used to stop an owned daemon.
 
 Current operations use one-shot clients. Persistent control, grouping and
 stream delivery are not yet available; see [support and gaps](compatibility.md).

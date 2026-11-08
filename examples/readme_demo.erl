@@ -1,12 +1,12 @@
 -module(readme_demo).
 -moduledoc "Create a workspace, query its graph and preserve captured values.".
--export([run/2]).
+-export([run/1]).
 -import_record(tmux_model, [pane]).
 
--spec run(binary(), binary()) -> map().
-run(Socket, Executable) ->
-    Endpoint = #{socket_path => Socket, executable => Executable},
-    {ok, Server} = tmux_server:open(Endpoint),
+-spec run(binary()) -> map().
+run(Executable) ->
+    {ok, Server, Ownership} =
+        tmux_server:start_owned(#{executable => Executable}),
     try
         {ok, Session} = tmux_session:create(Server, #{name => <<"workspace">>,
             window_name => <<"editor">>, width => 120, height => 30,
@@ -47,5 +47,5 @@ run(Socket, Executable) ->
             {ok, _} = tmux_session:kill(Session)
         end
     after
-        ok = tmux_server:close(Server)
+        ok = tmux_server:stop_owned(Ownership)
     end.
