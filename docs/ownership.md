@@ -13,8 +13,11 @@ policy. The startup budget includes readiness, a no-start socket identity
 probe and binding the endpoint to the observed Linux process incarnation.
 These observations do not make connection replacement atomic.
 
-`tmux_server:close/1` retires endpoint operations and clients. It preserves
-both borrowed and owned daemons. Closing a row's endpoint never conveys the
+`tmux_server:close/1` retires endpoint operations and one-shot clients without
+issuing daemon destruction commands. Native policies and hooks may still
+change state. Separate [control attachments](control.md) receive an
+invalidation notice and begin their own retirement; close them before their
+endpoint to verify their cleanup too. Closing a row's endpoint never conveys the
 separate ownership token. `tmux_server:stop_owned/1` requires that token and
 retires the owned endpoint, bootstrap client, daemon and finite descendants.
 It targets the helper's owned process tree, never a daemon discovered by path.

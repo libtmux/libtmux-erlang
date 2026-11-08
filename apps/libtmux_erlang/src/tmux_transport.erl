@@ -104,8 +104,9 @@ close(Handle) ->
 -spec status(t()) -> result().
 status(Handle) -> request(Handle, status, ?CLEANUP_MS).
 
--spec send_request(t(), await | retired) -> gen_server:request_id().
-send_request({transport, Pid, Token}, Kind) when Kind =:= await; Kind =:= retired ->
+-spec send_request(t(), await | retired | started) -> gen_server:request_id().
+send_request({transport, Pid, Token}, Kind)
+  when Kind =:= await; Kind =:= retired; Kind =:= started ->
     gen_server:send_request(Pid, {Token, Kind, make_ref()});
 send_request({transport, Pid, Token, _}, Kind) ->
     send_request({transport, Pid, Token}, Kind).

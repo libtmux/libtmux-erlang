@@ -144,6 +144,8 @@ session/index membership.
   socket, keep their lifetimes explicit and handle incomplete cleanup.
 - [Build command values](docs/commands.md): prepare a rename and resize, submit
   them explicitly and inspect fresh state without changing captured rows.
+- [Control attachments](docs/control.md): verify connection identity, inspect
+  attachment effects and retire the client explicitly.
 - [Run a job and capture its result](docs/jobs.md): wait for a pane's completion
   event, check its exit status, capture bytes, and cancel a separate operation.
 - [Local filters and source queries](docs/querying.md): Boolean criteria,
@@ -175,8 +177,10 @@ non-blocking submission, explicit waits, cancellation and ownership transfer.
 An await timeout abandons that wait; it does not cancel the operation.
 Cancellation after dispatch can leave the tmux outcome unknown.
 
-Persistent control mode, output streams and the workspace CLI remain
-implementation work. The [support and gaps](docs/compatibility.md) page lists
+An explicit control attachment verifies identity on its persistent connection
+and owns its client cleanup. Control command submission, output streams and
+the workspace CLI remain implementation work. The
+[support and gaps](docs/compatibility.md) page lists
 what is exercised, what remains open, and the required Linux/tmux matrix.
 There is no control-versus-streaming performance claim.
 

@@ -10,6 +10,7 @@ source, checks immutability and cleans up.
 - [Installation](installation.md): native Rebar3 dependency and runtime setup.
 - [Daemon ownership](ownership.md): private startup, borrowed close and explicit retirement.
 - [Command values](commands.md): prepare origin-bound actions and submit them explicitly.
+- [Control attachments](control.md): connection identity, attachment effects and cleanup.
 - [Shared-window graph](graph.md): physical entities, memberships and quantifiers.
 - [Jobs and operations](jobs.md): real completion events, output capture and cancellation.
 - [Scoped options](options.md): workspace ownership, inheritance and sparse arrays.

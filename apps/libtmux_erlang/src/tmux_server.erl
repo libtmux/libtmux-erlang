@@ -14,10 +14,13 @@ token for `stop_owned/1`. The [ownership guide](ownership.md) explains caller
 death, application shutdown and namespace cleanup.
 
 The calling process owns the endpoint. `close/1` cancels queued
-work, retires its clients and preserves the borrowed server. A cleanup failure
-remains explicit and keeps the supervised owner alive. Successful close is
-idempotent during the 60-second handle retention period. Command results
-preserve stdout, stderr and status; cancellation after dispatch cannot undo
+work, retires its one-shot clients and preserves the borrowed server. Cleanup
+failure remains explicit and keeps the supervised owner alive. Successful close is
+idempotent during the 60-second handle retention period. Separate
+`m:tmux_control` attachments receive an invalidation notice and begin their
+own retirement. Close those attachments explicitly to prove their native
+cleanup. Command results preserve stdout, stderr and status; cancellation
+after dispatch cannot undo
 remote effects. Clients explicitly select tmux's UTF-8 mode so Unicode and the
 identity probe's tab do not depend on the caller's locale. Command-specific
 escaping still applies to raw command output.
@@ -176,10 +179,12 @@ command(Server, Command, Options) ->
     end.
 
 -doc """
-Retire this endpoint's operations and library clients, preserving the borrowed
-tmux server. Returns ok only after owned cleanup completes; incomplete cleanup
+Retire this endpoint's operations and one-shot clients, preserving the borrowed
+tmux server. Returns ok only after their cleanup completes; incomplete cleanup
 remains an explicit error. Closing an already closed retained handle is
-idempotent. The initiator controls endpoint lifetime.
+idempotent. The initiator controls endpoint lifetime. Separate control
+attachments are invalidated and asked to retire; use `tmux_control:close/1`
+before this call to verify those clients' cleanup too.
 """.
 -spec close(t()) -> ok | {error, map()}.
 close(Server) -> server_request(Server, close, 1000).

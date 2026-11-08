@@ -90,7 +90,7 @@ def main() -> None:
         shutil.copyfile(root / "tools/run_examples.escript", temp / "tools/run_examples.escript")
         for name in ("tmux_test_fixture.erl", "tmux_fixture_watch.py"):
             shutil.copyfile(root / "test" / name, temp / "test" / name)
-        for name in ("filter_demo", "inspect_demo", "readme_demo", "linked_graph", "job_demo", "options_demo", "buffer_demo", "pane_demo", "config_demo", "pipe_demo", "hook_demo", "key_demo", "command_demo"):
+        for name in ("filter_demo", "inspect_demo", "readme_demo", "linked_graph", "job_demo", "options_demo", "buffer_demo", "pane_demo", "config_demo", "pipe_demo", "hook_demo", "key_demo", "command_demo", "control_demo"):
             shutil.copyfile(root / "examples" / (name + ".erl"), temp / "examples" / (name + ".erl"))
         shutil.copyfile(root / "examples/terminal_job.py", temp / "examples/terminal_job.py")
         env = dict(os.environ)
@@ -161,6 +161,7 @@ def main() -> None:
         "public_borrowed_endpoint": "PASS",
         "public_owned_endpoint": "PASS: installed README uses private startup, graph operations and token-based retirement",
         "public_command_builders": "PASS: installed commands example builds captured targets, rejects foreign origins and executes through one-shot operations",
+        "public_control_attachment": "PASS: installed control example verifies same-connection identity, attachment counts, unchanged dimensions and native detachment",
         "relative_code_path_child_cwd": "PASS",
         "public_domain_consumer": "PASS: session lifecycle, pane topology, literal names, window/pane deletion and session cleanup",
         "public_input_consumer": "PASS: text/native key delivery and normal job exit after EOF",

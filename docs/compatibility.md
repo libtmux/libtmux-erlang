@@ -26,6 +26,7 @@ macOS, native Windows and psmux are not advertised as qualified platforms.
 | Local query | Map predicates, Boolean callbacks, quantifiers, cardinality and bounded JSON |
 | Source query | Explicit plans/fetch, conservative candidates, full residuals and final limits |
 | Operations | Bounded one-shot submission, waits, cancellation, transfer and cleanup |
+| Control attachment | Explicit session, same-connection identity, no-output/ignore-size, skipped environment update and separate native cleanup |
 | Daemon ownership | Empty private startup, separate ownership token, caller lifetime, explicit stop and identity-checked namespace cleanup |
 | Domain commands | Initial create/read/rename/kill calls, explicit client/session selection, checked window memberships, pane split/break/join/move/swap/resize, pane/window respawn, window layouts, literal/key input and capture |
 | Options | Explicit local/global tables, local or inherited reads, indexed writes/unsets and generated source metadata; hooks remain outside the option API |
@@ -41,7 +42,7 @@ missing target positionally.
 
 ## Not yet shipped
 
-Persistent control connections, command groups, output subscriptions/streams
+Control command submission and groups, output subscriptions/streams
 and the workspace file-loader/CLI remain implementation work. The workspace
 OTP application exists in the umbrella; it does not provide a usable CLI yet.
 
@@ -57,7 +58,7 @@ claimed.
 ## Performance evidence
 
 The current suite checks behavior and resource limits. It does not establish a
-control/grouping/streaming comparison because those lanes are not implemented.
+control/grouping/streaming comparison because those execution lanes are not implemented.
 Any published benchmark must compare equal workloads and values, state the
 source/tool/platform identities, and report errors and cleanup as well as time.
 Test-loop durations are not throughput benchmarks.
