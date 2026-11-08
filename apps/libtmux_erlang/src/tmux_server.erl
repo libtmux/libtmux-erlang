@@ -31,6 +31,7 @@ explicit waits; the [job guide](jobs.md) explains ownership and cleanup.
          snapshot/1, snapshot/2, observation_context/1, start_owned/1, stop_owned/1]).
 -export([submit/3, start_link/3, init/1, handle_call/3, handle_cast/2,
          handle_info/2, format_status/1, send_request/2, open_observed/3]).
+-export([watch_closing/1, watch_closing/2, unwatch_closing/2]).
 -export_type([t/0]).
 -export_type([open_options/0, command_options/0, capture_options/0, state/0]).
 -export_type([owned_options/0, ownership/0]).
@@ -316,6 +317,37 @@ send_request({server, Pid, Generation, _}, Kind) when Kind =:= close; Kind =:= r
     gen_server:send_request(Pid, {Generation, Kind, make_ref()}).
 
 -doc false.
+-spec watch_closing(t()) -> {ok, reference(), map()} | {error, map()}.
+watch_closing(Server) -> watch_closing(Server, 900).
+
+-doc false.
+-spec watch_closing(t(), 0..900) -> {ok, reference(), map()} | {error, map()}.
+watch_closing({server, Pid, Generation, _} = Server, Timeout)
+  when is_pid(Pid), is_reference(Generation), is_integer(Timeout, 0, 900) ->
+    Watch = make_ref(),
+    case server_request(Server, {watch_closing, Watch}, Timeout) of
+        {ok, Context} -> {ok, Watch, Context};
+        Error ->
+            %% Revoke even a late registration after abandoning its response.
+            gen_server:cast(Pid, {Generation, unwatch_closing, Watch, self()}),
+            Error
+    end;
+watch_closing(_, _) -> {error, #{code => invalid_closing_watch}}.
+
+-doc false.
+-spec unwatch_closing(t(), reference()) -> ok | {error, map()}.
+unwatch_closing({server, Pid, Generation, _} = Server, Watch)
+  when is_pid(Pid), is_reference(Generation), is_reference(Watch) ->
+    case server_request(Server, {unwatch_closing, Watch}, 900) of
+        ok ->
+            receive {tmux_server_closing, Pid, Generation, Watch, _} -> ok
+            after 0 -> ok
+            end;
+        Error -> Error
+    end;
+unwatch_closing(_, _) -> {error, #{code => invalid_closing_watch}}.
+
+-doc false.
 -spec start_link(pid(), reference(), map()) -> gen_server:start_ret().
 start_link(Owner, Generation, Config) ->
     gen_server:start_link(?MODULE, {Owner, Generation, Config}, []).
@@ -330,7 +362,8 @@ init({Owner, Generation, Config}) ->
            registry_monitor => monitor(process, Registry),
            config => Config, phase => open, valid => true, operations => #{},
            queue => queue:new(), completed => queue:new(), active_bytes => 0, result_bytes => 0,
-           requests => gen_server:reqids_new(), close_waiters => #{}, close_timer => none,
+           requests => gen_server:reqids_new(), close_waiters => #{}, closing_watchers => #{},
+           close_timer => none,
            sweep => erlang:start_timer(100, self(), sweep), retention_timer => none}}.
 
 -doc false.
@@ -350,6 +383,27 @@ handle_call({Generation, observation_context, _}, _,
         endpoint => maps:with([socket_path], Config),
         server_instance => maps:get(identity, Config),
         tmux_version => maps:get(version, Config)}}, State};
+handle_call({Generation, {watch_closing, Watch}, _}, {Pid, _},
+            #{generation := Generation, phase := open, valid := true} = State)
+  when is_reference(Watch), node(Pid) =:= node() ->
+    Next = prune_closing_watchers(State),
+    Watchers = maps:get(closing_watchers, Next),
+    case {map_size(Watchers) < 16, maps:is_key(Watch, Watchers)} of
+        {true, false} ->
+            Context = (maps:with([generation, origin, config, admission], Next))#{owner => self()},
+            {reply, {ok, Context}, Next#{closing_watchers =>
+                Watchers#{Watch => {Pid, monitor(process, Pid)}}}};
+        {false, _} -> {reply, {error, #{code => too_many_closing_watchers}}, Next};
+        _ -> {reply, {error, #{code => invalid_closing_watch}}, Next}
+    end;
+handle_call({Generation, {watch_closing, _}, _}, _, #{generation := Generation} = State) ->
+    {reply, {error, #{code => stale_reference}}, State};
+handle_call({Generation, {unwatch_closing, Watch}, _}, {Pid, _},
+            #{generation := Generation} = State) ->
+    case unwatch(Watch, Pid, State) of
+        {ok, Next} -> {reply, ok, Next};
+        Error -> {reply, Error, State}
+    end;
 handle_call({Generation, Kind, _}, _, #{generation := Generation} = State)
   when Kind =:= origin; Kind =:= version; Kind =:= observation_context ->
     {reply, {error, #{code => stale_reference}}, State};
@@ -384,6 +438,11 @@ handle_cast({Generation, unwait, Id, Tag}, #{generation := Generation} = State) 
     {noreply, remove_waiter(Id, Tag, State)};
 handle_cast({Generation, unclose, Tag}, #{generation := Generation} = State) ->
     {noreply, remove_close_waiter(Tag, State)};
+handle_cast({Generation, unwatch_closing, Watch, Pid}, #{generation := Generation} = State) ->
+    case unwatch(Watch, Pid, State) of
+        {ok, Next} -> {noreply, Next};
+        _ -> {noreply, State}
+    end;
 handle_cast(_, State) -> {noreply, State}.
 
 -doc false.
@@ -647,8 +706,9 @@ preflight(Id, #{config := Config} = State) ->
 
 invalidate(State) ->
     ok = tmux_admission:close(maps:get(admission, State)),
+    Next = notify_closing_watchers(invalidated, State),
     _ = tmux_registry:revoke(maps:get(origin, State)),
-    State#{valid => false}.
+    Next#{valid => false}.
 
 start_stage(Id, Stage, Args, #{config := Config} = State) ->
     Op = operation(Id, State),
@@ -815,18 +875,52 @@ owner_down(Monitor, State) ->
             end, Acc, maps:get(waiters, Op))
         end
     end, State, maps:get(operations, State)),
-    maps:fold(fun(Tag, {_, _, Ref}, Acc) ->
+    Closed = maps:fold(fun(Tag, {_, _, Ref}, Acc) ->
         case Ref =:= Monitor of true -> remove_close_waiter(Tag, Acc); false -> Acc end
-    end, Next, maps:get(close_waiters, Next)).
+    end, Next, maps:get(close_waiters, Next)),
+    maps:fold(fun(Watch, {_, Ref}, Acc) ->
+        case Ref =:= Monitor of true -> remove_closing_watcher(Watch, Acc); false -> Acc end
+    end, Closed, maps:get(closing_watchers, Closed)).
+
+prune_closing_watchers(State) ->
+    maps:fold(fun(Watch, {Pid, _}, Acc) ->
+        case is_process_alive(Pid) of
+            true -> Acc;
+            false -> remove_closing_watcher(Watch, Acc)
+        end
+    end, State, maps:get(closing_watchers, State)).
+
+unwatch(Watch, Pid, State) ->
+    case maps:find(Watch, maps:get(closing_watchers, State)) of
+        {ok, {Pid, _}} -> {ok, remove_closing_watcher(Watch, State)};
+        error -> {ok, State};
+        _ -> {error, #{code => not_owner}}
+    end.
+
+remove_closing_watcher(Watch, #{closing_watchers := Watchers} = State) ->
+    case maps:take(Watch, Watchers) of
+        {{_, Monitor}, Rest} ->
+            demonitor(Monitor, [flush]),
+            State#{closing_watchers => Rest};
+        error -> State
+    end.
+
+notify_closing_watchers(Cause, State) ->
+    Generation = maps:get(generation, State),
+    maps:fold(fun(Watch, {Pid, _}, Acc) ->
+        Pid ! {tmux_server_closing, self(), Generation, Watch, Cause},
+        remove_closing_watcher(Watch, Acc)
+    end, State, maps:get(closing_watchers, State)).
 
 begin_close(#{phase := closed} = State) -> State;
 begin_close(State) ->
+    ok = tmux_admission:close(maps:get(admission, State)),
+    Closing = notify_closing_watchers(closing, State),
     _ = case maps:get(phase, State) of
         open -> _ = tmux_registry:revoke(maps:get(origin, State));
         _ -> ok
     end,
-    ok = tmux_admission:close(maps:get(admission, State)),
-    Next = expire_leases(State#{phase => closing}),
+    Next = expire_leases(Closing#{phase => closing}),
     Cancelled = lists:foldl(fun(Id, Acc) -> cancel_operation(Id, server_closed, Acc) end,
                             Next, maps:keys(maps:get(operations, Next))),
     case maps:get(close_timer, Cancelled) of

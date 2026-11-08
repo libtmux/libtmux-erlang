@@ -133,9 +133,17 @@ operation_owner(Config) ->
 stale_endpoint(Config) ->
     with_server(Config, fun(Server, Fixture) ->
         {ok, Origin} = tmux_server:origin(Server),
+        {ok, Watch, #{owner := Endpoint, generation := Generation,
+                      admission := Admission}} = tmux_server:watch_closing(Server),
         ok = tmux_test_fixture:close(Fixture),
         {error, #{code := stale_server, submitted := false}} =
             tmux_server:command(Server, raw(<<"new-session">>, [<<"-d">>]), #{}),
+        receive {tmux_server_closing, Endpoint, Generation, Watch, invalidated} -> ok
+        after 900 -> ct:fail(missing_parent_invalidation)
+        end,
+        {ok, #{open := false}} = tmux_admission:stats(Admission),
+        ok = tmux_server:unwatch_closing(Server, Watch),
+        {error, #{code := stale_reference}} = tmux_server:watch_closing(Server),
         {error, #{code := stale_reference}} = tmux_server:from_origin(Origin),
         {ok, #{operations := 0, active_bytes := 0}} = tmux_server:status(Server)
     end).
@@ -187,6 +195,15 @@ retirement_requests(Config) ->
             raw(<<"wait-for">>, [<<"retirement">>]), #{deadline_ms => 5000}),
         {ok, #{phase := sent}} = tmux_operation:await_started(Op, 900),
         {ok, #{owner := Endpoint}} = tmux_server:status(Server),
+        {ok, Watch, #{owner := Endpoint, generation := Generation,
+                      admission := Admission}} = tmux_server:watch_closing(Server),
+        {ok, #{open := true}} = tmux_admission:stats(Admission),
+        Extra = [begin {ok, Ref, _} = tmux_server:watch_closing(Server), Ref end
+                 || _ <- lists:seq(1, 15)],
+        {error, #{code := too_many_closing_watchers}} = tmux_server:watch_closing(Server),
+        [Removed | Kept] = Extra,
+        ok = tmux_server:unwatch_closing(Server, Removed),
+        {ok, ReplacementWatch, _} = tmux_server:watch_closing(Server),
         [#{handle := Handle}] = maps:values(maps:get(operations, sys:get_state(Endpoint))),
         {ok, #{helper_pid := Helper}} = tmux_transport:status(Handle),
         Identity = tmux_test_fixture:process_identity(Helper),
@@ -201,6 +218,17 @@ retirement_requests(Config) ->
             {reply, {error, #{code := too_many_waiters}}} =
                 gen_server:receive_response(Overflow, 900),
             {ok, #{phase := closing}} = tmux_server:status(Server),
+            {ok, #{open := false}} = tmux_admission:stats(Admission),
+            lists:foreach(fun(Ref) ->
+                receive {tmux_server_closing, Endpoint, Generation, Ref, closing} -> ok
+                after 900 -> ct:fail(missing_parent_closing_notification)
+                end
+            end, [Watch, ReplacementWatch | Kept]),
+            receive {tmux_server_closing, Endpoint, _, Removed, _} ->
+                ct:fail(cancelled_watcher_notified)
+            after 0 -> ok
+            end,
+            {error, #{code := stale_reference}} = tmux_server:watch_closing(Server),
             #{close_timer := Timer} = sys:get_state(Endpoint),
             %% Deliver the actual timer's event while native cleanup is paused.
             %% No elapsed-time wait is needed to exercise the deadline branch.
@@ -226,10 +254,44 @@ retirement_requests(Config) ->
         {ok, Full} = tmux_server:open(#{socket_path => Socket,
             executable => proplists:get_value(executable, Config)}),
         try
+            {ok, #{owner := FullEndpoint, generation := FullGeneration}} = tmux_server:status(Full),
+            ok = sys:suspend(FullEndpoint),
+            try
+                {error, #{code := await_timeout}} = tmux_server:watch_closing(Full, 0)
+            after ok = sys:resume(FullEndpoint)
+            end,
+            {ok, _} = tmux_server:status(Full),
+            FullWatches = [begin {ok, Ref, _} = tmux_server:watch_closing(Full), Ref end
+                           || _ <- lists:seq(1, 15)],
+            Parent = self(),
+            {Watcher, WatcherMonitor} = spawn_monitor(fun() ->
+                {ok, Ref, _} = tmux_server:watch_closing(Full),
+                Parent ! {closing_watcher_ready, self(), Ref},
+                receive finish -> ok end
+            end),
+            Reclaimed = try
+                Foreign = receive {closing_watcher_ready, Watcher, ForeignRef} -> ForeignRef
+                          after 900 -> ct:fail(watcher_not_registered)
+                          end,
+                {error, #{code := not_owner}} = tmux_server:unwatch_closing(Full, Foreign),
+                {error, #{code := too_many_closing_watchers}} = tmux_server:watch_closing(Full),
+                exit(Watcher, kill),
+                receive {'DOWN', WatcherMonitor, process, Watcher, killed} -> ok
+                after 900 -> ct:fail(watcher_alive)
+                end,
+                {ok, NewRef, _} = tmux_server:watch_closing(Full),
+                NewRef
+            after exit(Watcher, kill)
+            end,
             Passive = [tmux_server:send_request(Full, retired)
                        || _ <- lists:seq(1, 16)],
             {ok, #{phase := open}} = tmux_server:status(Full),
             ok = tmux_server:close(Full),
+            lists:foreach(fun(Ref) ->
+                receive {tmux_server_closing, FullEndpoint, FullGeneration, Ref, closing} -> ok
+                after 900 -> ct:fail(missing_closing_watcher)
+                end
+            end, [Reclaimed | FullWatches]),
             lists:foreach(fun(Request) ->
                 {reply, ok} = gen_server:receive_response(Request, 900)
             end, Passive)
