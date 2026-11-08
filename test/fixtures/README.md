@@ -15,6 +15,14 @@ conditions. It runs in the normal EUnit suite without tmux I/O.
 Other ports can consume the same file. Only the Erlang consumer is currently
 verified here; these fixtures do not establish cross-port conformance.
 
+The test-only [graph properties](../../property/prop_tmux_graph.erl) generate
+complete captured graphs with empty relations, shared physical windows and
+repeated memberships. An independent plain-map interpreter checks recursive
+Boolean and relationship criteria, wire round trips, composition, quantifier
+correlation and physical versus membership counts. The bounded generated
+grammar supplements these fixed cases; it does not cover every operator or
+establish native tmux pushdown equivalence.
+
 [regex-v1.json](regex-v1.json) checks the restricted ASCII portable_v1 regex
 dialect against PCRE2, JavaScript and Rust regex engines. It contains explicit
 edge cases and deterministic generated expressions whose expected results use

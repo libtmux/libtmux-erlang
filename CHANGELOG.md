@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Check generated relationship filters against an independent graph model,
+  including shared windows, repeated memberships and empty quantifiers.
+
 - Support tmux 3.3a–3.8, including intermediate releases. Run CI on the latest
   stable Erlang/OTP with tmux 3.3a and 3.8 on both Linux architectures.
 
