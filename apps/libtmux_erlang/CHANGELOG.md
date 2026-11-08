@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Entity constructors expose generated input-map types and structured
+  validation errors. Installed consumer checks verify useful Dialyzer
+  diagnostics for invalid fields and missing required identities.
+
 - Source packages include the C helper's source, build rules and provenance.
   Installation compiles the helper; prebuilt executables are excluded.
 

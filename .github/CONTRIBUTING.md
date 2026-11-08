@@ -187,6 +187,13 @@ Dialyzer includes Common Test in its analysis table because the external
 consumer executes ct_doctest. Its first run builds the table; retain that
 setup time when reporting the outer check.
 
+The installed archive check also runs a separate constructor-type consumer.
+It executes valid maps, imports the generated public input types, and requires
+four deliberate invalid calls to produce Dialyzer diagnostics. Expected
+negative diagnostics remain in the package receipt. See
+[type boundaries](../docs/api.md#types-at-application-boundaries) for the
+current generic-return limitation.
+
 Validate the repository settings after editing them:
 
 ```console

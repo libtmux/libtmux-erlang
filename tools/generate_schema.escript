@@ -109,6 +109,9 @@ model(Entities) ->
      "must be supplied. Unavailable capabilities remain\n",
      "unavailable. Neither state means an empty relation or known absence.\n",
      "Rows created by `new/2` and the entity constructors are detached.\n",
+     "Entity constructors accept generated input-map types such as\n",
+     "`t:pane_input/0`. Use `new/2` to validate dynamic maps; Dialyzer checks\n",
+     "known constructor shapes but does not replace runtime validation.\n",
      "Use `tmux_server:bind/2` to register a fresh observed row for actions;\n",
      "use `m:tmux_snapshot` for captured graph relationships.\n\n",
      "Observed rows carry a private `t:observation/0` value. Actions compare it\n",
@@ -127,7 +130,8 @@ model(Entities) ->
      "         snapshot_id/1, model_version/1, bind/3, verify_observation/1]).\n",
      "-export([", join([[N, "/1"] || N <- Names], ", "), "]).\n",
      "-export_type([row/0, observation/0, pane_id/0, window_id/0, session_id/0,\n",
-     "              ", join([[N, "/0"] || N <- Names], ", "), "]).\n\n",
+     "              ", join([[N, "/0"] || N <- Names], ", "), ",\n",
+     "              ", join([[N, "_input/0"] || N <- Names], ", "), "]).\n\n",
      "-doc \"A canonical pane ID binary in the percent namespace; nominal checking is by Dialyzer.\".\n",
      "-nominal pane_id() :: binary().\n",
      "-doc \"A canonical physical-window ID binary in the at-sign namespace.\".\n",
@@ -143,8 +147,12 @@ model(Entities) ->
      "-type row() :: ", join([["#", N, "{}"] || N <- Names], " | "), ".\n",
      [["-doc \"A validated ", N, " observation. Native records are experimental in OTP 29.\".\n",
        "-type ", N, "() :: #", N, "{}.\n"] || N <- Names],
+     [input_type(E) || E <- Entities],
      "\n-doc \"\"\"\n",
      "Construct a detached row from validated observations.\n\n",
+     "Accepts dynamic maps, including malformed input that returns a tagged\n",
+     "`t:tmux_schema:error_detail/0`. For trusted typed code, prefer the entity\n",
+     "constructors such as `pane/1` and `t:pane_input/0`.\n\n",
      "```erlang\n",
      "1> {ok, Pane} = tmux_model:new(pane, #{id => <<\"%1\">>, width => 120}), ok.\n",
      "ok\n",
@@ -152,7 +160,7 @@ model(Entities) ->
      "120\n",
      "```\n",
      "\"\"\".\n",
-     "-spec new(atom(), map()) -> {ok, row()} | {error, map()}.\n",
+     "-spec new(atom(), map()) -> {ok, row()} | {error, tmux_schema:error_detail()}.\n",
      "new(Entity, Fields) ->\n",
      "    maybe\n",
      "        {ok, Normalized} ?= tmux_schema:normalize(Entity, Fields),\n",
@@ -160,7 +168,7 @@ model(Entities) ->
      "    end.\n\n",
      [["-doc \"Construct a detached ", N,
        " row, validating required fields and scalar bounds without tmux I/O.\".\n",
-       "-spec ", N, "(map()) -> {ok, ", N, "()} | {error, map()}.\n",
+       "-spec ", N, "(", N, "_input()) -> {ok, ", N, "()} | {error, tmux_schema:error_detail()}.\n",
        N, "(Fields) -> new(", N, ", Fields).\n\n"] || N <- Names],
      "-doc \"Validate native row shape, model version and normalized observations. Exported records do not enforce these invariants at construction. Performs no I/O.\".\n",
      "-spec validate(term()) -> {ok, row()} | {error, map()}.\n",
@@ -179,7 +187,7 @@ model(Entities) ->
      "        _ -> {error, #{code => invalid_row, path => []}}\n",
      "    end.\n\n",
      "-doc \"Return the built-in entity kind of a native row without I/O.\".\n",
-     getter("entity", "atom()", Entities, fun(E) -> name(E) end),
+     getter("entity", "tmux_schema:entity()", Entities, fun(E) -> name(E) end),
      "-doc \"Read the opaque origin token, or none for a detached row. This does not revalidate endpoint lifetime.\".\n",
      getter("origin", "none | reference()", Entities, fun(_) -> "Value" end, "origin"),
      "-doc \"Read the capture identity, or none when not associated with a snapshot. Performs no I/O.\".\n",
@@ -231,6 +239,30 @@ model(Entities) ->
             join([["    ", name(F), " = maps:get(", name(F), ", Fields)"]
                   || F <- maps:get(<<"fields">>, E)], ",\n"), "\n}"]
            || E <- Entities], ";\n"), ".\n"].
+
+input_type(E) ->
+    ["\n-doc \"\"\"\n",
+     "Trusted constructor fields for `", name(E), "/1`. Required keys use :=;\n",
+     "optional observations may be not_loaded or unavailable. Integral floats\n",
+     "are normalized to integers. Runtime validation still checks ranges, IDs,\n",
+     "UTF-8 and derived values. Use `new/2` for dynamically validated maps.\n",
+     "\"\"\".\n",
+     "-type ", name(E), "_input() :: #{\n",
+     join([["    ", name(F),
+            case maps:get(<<"required">>, F, false) of
+                true -> " := "; false -> " => "
+            end,
+            field_type(F),
+            case maps:get(<<"type">>, F) of
+                T when T =:= <<"uint">>; T =:= <<"integer">> -> " | float()";
+                _ -> []
+            end,
+            case maps:get(<<"nullable">>, F, false) of
+                true -> " | none"; false -> []
+            end,
+            case maps:get(<<"required">>, F, false) of
+                true -> []; false -> " | not_loaded | unavailable"
+            end] || F <- maps:get(<<"fields">>, E)], ",\n"), "\n}.\n"].
 
 record(E) ->
     ["-record #", name(E), "{\n",

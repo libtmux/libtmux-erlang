@@ -27,7 +27,10 @@ values; use `to_list/1` for functions in `m:lists`.
                     context :: {snapshot, tmux_snapshot:t()} | {local, map()}}).
 -doc """
 Ordered captured rows with observation and coverage context, not an extensible
-list protocol.
+list protocol. The parameter describes the intended row type. OTP 29
+Dialyzer can widen generic return variables to their declared bounds; it does
+not prove every entity relationship through `one/1` or `to_list/1`. Runtime
+schema, coverage and action checks remain necessary.
 """.
 -opaque t(Row) :: #selection{rows :: [Row]}.
 -doc """

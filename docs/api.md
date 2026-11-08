@@ -58,3 +58,27 @@ The [field reference](fields.md) is generated from the same registry and
 operator validator used by filtering. [Contributor checks](../.github/CONTRIBUTING.md)
 execute native shell examples and complete programs; compilation alone is
 not the example gate.
+
+## Types at application boundaries
+
+Entity constructors accept generated maps such as
+`t:tmux_model:pane_input/0`. Required fields and scalar categories are visible
+to Dialyzer. Optional observations retain `not_loaded` and `unavailable`;
+nullable fields also accept `none`. Numeric fields accept integral floats,
+which normalize to integers. Runtime validation checks bounds, ID syntax,
+UTF-8 and derived values. Use `tmux_model:new/2` when validating dynamic maps
+and handle its `t:tmux_schema:error_detail/0` result.
+
+`t:tmux_select:t/1` describes the intended row type. Dialyzer in OTP 29.1.2
+does not always substitute actual argument types into generic return
+variables. For example, a selection passed through `tmux_select:one/1` can
+lose its specific entity type during analysis. A successful analysis does
+not prove every pane/window relationship. Keep native patterns and runtime
+action validation at those boundaries. The
+[OTP contract solver](https://github.com/erlang/otp/blob/OTP-29.1.2/lib/dialyzer/src/dialyzer_contracts.erl#L477-L502)
+records this generic constraint limitation.
+
+The installed-consumer outer check executes valid constructor calls and
+requires Dialyzer to reject wrong Boolean/numeric fields and missing session
+identity or window-link index. It analyzes the installed core outside the
+umbrella; a green library analysis alone does not establish those diagnostics.

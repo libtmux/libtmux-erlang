@@ -7,6 +7,9 @@ Missing optional observations remain not_loaded; required identity fields
 must be supplied. Unavailable capabilities remain
 unavailable. Neither state means an empty relation or known absence.
 Rows created by `new/2` and the entity constructors are detached.
+Entity constructors accept generated input-map types such as
+`t:pane_input/0`. Use `new/2` to validate dynamic maps; Dialyzer checks
+known constructor shapes but does not replace runtime validation.
 Use `tmux_server:bind/2` to register a fresh observed row for actions;
 use `m:tmux_snapshot` for captured graph relationships.
 
@@ -27,7 +30,8 @@ fields for explicit schema validation; maps carry no actionable origin.
          snapshot_id/1, model_version/1, bind/3, verify_observation/1]).
 -export([session/1, window/1, window_link/1, pane/1]).
 -export_type([row/0, observation/0, pane_id/0, window_id/0, session_id/0,
-              session/0, window/0, window_link/0, pane/0]).
+              session/0, window/0, window_link/0, pane/0,
+              session_input/0, window_input/0, window_link_input/0, pane_input/0]).
 
 -doc "A canonical pane ID binary in the percent namespace; nominal checking is by Dialyzer.".
 -nominal pane_id() :: binary().
@@ -108,7 +112,74 @@ fields for explicit schema validation; maps carry no actionable origin.
 -type pane() :: #pane{}.
 
 -doc """
+Trusted constructor fields for `session/1`. Required keys use :=;
+optional observations may be not_loaded or unavailable. Integral floats
+are normalized to integers. Runtime validation still checks ranges, IDs,
+UTF-8 and derived values. Use `new/2` for dynamically validated maps.
+""".
+-type session_input() :: #{
+    id := session_id(),
+    name => binary() | not_loaded | unavailable,
+    attached_count => non_neg_integer() | float() | not_loaded | unavailable,
+    attached => boolean() | not_loaded | unavailable,
+    created => non_neg_integer() | float() | not_loaded | unavailable
+}.
+
+-doc """
+Trusted constructor fields for `window/1`. Required keys use :=;
+optional observations may be not_loaded or unavailable. Integral floats
+are normalized to integers. Runtime validation still checks ranges, IDs,
+UTF-8 and derived values. Use `new/2` for dynamically validated maps.
+""".
+-type window_input() :: #{
+    id := window_id(),
+    name => binary() | not_loaded | unavailable,
+    width => non_neg_integer() | float() | not_loaded | unavailable,
+    height => non_neg_integer() | float() | not_loaded | unavailable,
+    pane_count => non_neg_integer() | float() | not_loaded | unavailable,
+    layout => binary() | not_loaded | unavailable
+}.
+
+-doc """
+Trusted constructor fields for `window_link/1`. Required keys use :=;
+optional observations may be not_loaded or unavailable. Integral floats
+are normalized to integers. Runtime validation still checks ranges, IDs,
+UTF-8 and derived values. Use `new/2` for dynamically validated maps.
+""".
+-type window_link_input() :: #{
+    session_id := session_id(),
+    window_id := window_id(),
+    index := non_neg_integer() | float(),
+    active => boolean() | not_loaded | unavailable
+}.
+
+-doc """
+Trusted constructor fields for `pane/1`. Required keys use :=;
+optional observations may be not_loaded or unavailable. Integral floats
+are normalized to integers. Runtime validation still checks ranges, IDs,
+UTF-8 and derived values. Use `new/2` for dynamically validated maps.
+""".
+-type pane_input() :: #{
+    id := pane_id(),
+    window_id => window_id() | not_loaded | unavailable,
+    index => non_neg_integer() | float() | not_loaded | unavailable,
+    active => boolean() | not_loaded | unavailable,
+    current_command => binary() | not_loaded | unavailable,
+    current_path => binary() | not_loaded | unavailable,
+    width => non_neg_integer() | float() | not_loaded | unavailable,
+    height => non_neg_integer() | float() | not_loaded | unavailable,
+    pid => pos_integer() | float() | none | not_loaded | unavailable,
+    title => binary() | not_loaded | unavailable,
+    dead => boolean() | not_loaded | unavailable,
+    exit_status => integer() | float() | none | not_loaded | unavailable
+}.
+
+-doc """
 Construct a detached row from validated observations.
+
+Accepts dynamic maps, including malformed input that returns a tagged
+`t:tmux_schema:error_detail/0`. For trusted typed code, prefer the entity
+constructors such as `pane/1` and `t:pane_input/0`.
 
 ```erlang
 1> {ok, Pane} = tmux_model:new(pane, #{id => <<"%1">>, width => 120}), ok.
@@ -117,7 +188,7 @@ ok
 120
 ```
 """.
--spec new(atom(), map()) -> {ok, row()} | {error, map()}.
+-spec new(atom(), map()) -> {ok, row()} | {error, tmux_schema:error_detail()}.
 new(Entity, Fields) ->
     maybe
         {ok, Normalized} ?= tmux_schema:normalize(Entity, Fields),
@@ -125,19 +196,19 @@ new(Entity, Fields) ->
     end.
 
 -doc "Construct a detached session row, validating required fields and scalar bounds without tmux I/O.".
--spec session(map()) -> {ok, session()} | {error, map()}.
+-spec session(session_input()) -> {ok, session()} | {error, tmux_schema:error_detail()}.
 session(Fields) -> new(session, Fields).
 
 -doc "Construct a detached window row, validating required fields and scalar bounds without tmux I/O.".
--spec window(map()) -> {ok, window()} | {error, map()}.
+-spec window(window_input()) -> {ok, window()} | {error, tmux_schema:error_detail()}.
 window(Fields) -> new(window, Fields).
 
 -doc "Construct a detached window_link row, validating required fields and scalar bounds without tmux I/O.".
--spec window_link(map()) -> {ok, window_link()} | {error, map()}.
+-spec window_link(window_link_input()) -> {ok, window_link()} | {error, tmux_schema:error_detail()}.
 window_link(Fields) -> new(window_link, Fields).
 
 -doc "Construct a detached pane row, validating required fields and scalar bounds without tmux I/O.".
--spec pane(map()) -> {ok, pane()} | {error, map()}.
+-spec pane(pane_input()) -> {ok, pane()} | {error, tmux_schema:error_detail()}.
 pane(Fields) -> new(pane, Fields).
 
 -doc "Validate native row shape, model version and normalized observations. Exported records do not enforce these invariants at construction. Performs no I/O.".
@@ -158,7 +229,7 @@ validate(Row) ->
     end.
 
 -doc "Return the built-in entity kind of a native row without I/O.".
--spec entity(row()) -> atom().
+-spec entity(row()) -> tmux_schema:entity().
 entity(#session{}) -> session;
 entity(#window{}) -> window;
 entity(#window_link{}) -> window_link;

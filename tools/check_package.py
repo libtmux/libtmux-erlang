@@ -165,6 +165,16 @@ def exercise_consumer(root: Path, temp: Path, installed_ebin: Path,
             str(consumer_ebin / "tmux_test_fixture.beam"),
             "-r", str(installed_ebin), "-r", str(workspace_ebin)
         ], temp, env))
+        type_sources = temp / "type-consumer"
+        type_sources.mkdir()
+        for name in ("model_types_ok.erl", "model_types_bad.erl"):
+            shutil.copyfile(root / "test/consumers" / name, type_sources / name)
+        shutil.copyfile(root / "tools/check_model_types.escript",
+                        temp / "tools/check_model_types.escript")
+        commands.append(run([
+            "escript", "tools/check_model_types.escript", str(installed_ebin),
+            str(plts[0]), str(type_sources)
+        ], temp, env, json_output=True))
     return commands
 
 
