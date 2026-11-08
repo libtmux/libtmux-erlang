@@ -1,8 +1,9 @@
 # Install application keybindings
 
 Use a separate key table when an application needs its own bindings. This
-program registers a zoom action followed by a status message, reads the native
-listing and removes its table. It does not attach a client or press a key.
+program binds `z` to zoom and show a status message, and `s` to show the
+workspace name. It reads the native listing and removes its table. It does not
+attach a client or press a key.
 
 From the checkout, after [building the core](installation.md), run:
 
@@ -30,11 +31,12 @@ run(Socket, Executable) ->
         {ok, _} = tmux_key:bind(Server, <<"z">>, [Zoom, Status],
             #{table => Table, note => <<"Zoom the current workspace pane">>}),
         try
-            {ok, Listing} = tmux_key:listing(Server,
-                #{table => Table, key => <<"z">>}),
+            {ok, _} = tmux_key:bind(Server, <<"s">>, Status,
+                #{table => Table, note => <<"Show the workspace name">>}),
+            {ok, Listing} = tmux_key:listing(Server, #{table => Table}),
             true = binary:match(Listing, <<"resize-pane">>) =/= nomatch,
             true = binary:match(Listing, <<"display-message">>) =/= nomatch,
-            #{registered_commands => 2, native_listing => true,
+            #{bindings => 2, native_listing => true,
               execution => <<"requires a client key press">>}
         after
             {ok, _} = tmux_key:clear_table(Server, Table)
@@ -48,7 +50,7 @@ run(Socket, Executable) ->
 
 ```json
 {
-  "registered_commands": 2,
+  "bindings": 2,
   "native_listing": true,
   "execution": "requires a client key press"
 }
@@ -87,8 +89,12 @@ as in the [hook example](hooks.md).
 `tmux_key:listing/1` and `tmux_key:listing/2` return native bytes unchanged.
 Options can restrict `table` and `key`. Spacing, quoting and included metadata
 follow the daemon release. This is a presentation view: retain original command
-values for reinstalling bindings. The tmux 3.3 baseline has no custom listing
-format option. Explicit newer-server options remain available through
+values for reinstalling bindings. tmux 3.4 may escape dollar signs in this
+view. On tmux 3.7c, a single matching entry can go to the native status-message
+path and produce empty stdout when no target client is attached. Empty output
+does not prove a binding is absent. The example lists multiple bindings to
+avoid that path. The tmux 3.3 baseline has no custom listing format option.
+Explicit newer-server options remain available through
 `tmux_command:raw/2`.
 
 `tmux_key:unbind/2` and `tmux_key:unbind/3` remove one binding; an absent key in

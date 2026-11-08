@@ -15,11 +15,12 @@ run(Socket, Executable) ->
         {ok, _} = tmux_key:bind(Server, <<"z">>, [Zoom, Status],
             #{table => Table, note => <<"Zoom the current workspace pane">>}),
         try
-            {ok, Listing} = tmux_key:listing(Server,
-                #{table => Table, key => <<"z">>}),
+            {ok, _} = tmux_key:bind(Server, <<"s">>, Status,
+                #{table => Table, note => <<"Show the workspace name">>}),
+            {ok, Listing} = tmux_key:listing(Server, #{table => Table}),
             true = binary:match(Listing, <<"resize-pane">>) =/= nomatch,
             true = binary:match(Listing, <<"display-message">>) =/= nomatch,
-            #{registered_commands => 2, native_listing => true,
+            #{bindings => 2, native_listing => true,
               execution => <<"requires a client key press">>}
         after
             {ok, _} = tmux_key:clear_table(Server, Table)

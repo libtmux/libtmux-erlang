@@ -39,7 +39,8 @@ note when commands are replaced. Command-level aggregate bounds still apply.
 -doc """
 No table filter lists all native tables. table restricts the listing to one
 nonempty NUL-free name of at most 1024 bytes; key restricts it to a native key
-spelling. Missing tables and unmatched key filters retain native errors.
+spelling. Missing tables and invalid key spellings retain native errors.
+Unmatched filters can return empty output or a backend error by release.
 """.
 -type listing_options() :: #{table => binary(), key => key()}.
 
@@ -126,9 +127,14 @@ key through `t:listing_options/0`. Returns the command's stdout unchanged;
 spacing, quoting and included metadata follow that daemon. This is a text
 view, with no decoded-row, exact-note or configuration-round-trip guarantee.
 
+tmux 3.4 can escape dollar signs in this output. tmux 3.7c can send a single
+matching entry to its status-message path, producing empty stdout without an
+attached target client. Empty presentation output does not prove absence.
+The [key-table guide](keys.md) demonstrates a table with multiple bindings.
+
 The baseline command has no custom format option on tmux 3.3. Deliberate
 newer-server formatting is available through `tmux_command:raw/2`. Performs
-I/O; missing tables, unknown keys and other backend errors remain errors.
+I/O; missing tables, invalid key spellings and backend errors remain errors.
 """.
 -spec listing(tmux_server:t(), listing_options()) -> {ok, binary()} | {error, map()}.
 listing(Server, Options) when is_map(Options) ->
