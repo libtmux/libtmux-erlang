@@ -34,6 +34,12 @@ validate(Entities) ->
             _ = atom_source(maps:get(<<"name">>, F)),
             Type = maps:get(<<"type">>, F),
             _ = value_type(Type),
+            case maps:find(<<"capture_codec">>, F) of
+                error -> ok;
+                {ok, <<"escaped_columns_v1">>} ->
+                    true = lists:member(Type, [<<"text">>, <<"bytes">>]),
+                    true = is_map_key(<<"format">>, F)
+            end,
             case maps:find(<<"minimum">>, F) of
                 error -> ok;
                 {ok, Minimum} ->
@@ -90,6 +96,10 @@ field(F, E) ->
      end,
      case maps:find(<<"format">>, F) of
          {ok, Format} -> [", format => ", binary_source(Format)];
+         error -> []
+     end,
+     case maps:find(<<"capture_codec">>, F) of
+         {ok, <<"escaped_columns_v1">>} -> ", capture_codec => escaped_columns_v1";
          error -> []
      end, "}"].
 

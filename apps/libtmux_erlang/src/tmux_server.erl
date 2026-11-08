@@ -40,7 +40,7 @@ explicit waits; the [job guide](jobs.md) explains ownership and cleanup.
          handle_info/2, format_status/1, send_request/2, open_observed/3]).
 -export([watch_closing/1, watch_closing/2, unwatch_closing/2]).
 -export_type([t/0]).
--export_type([open_options/0, command_options/0, capture_options/0, state/0]).
+-export_type([open_options/0, command_options/0, capture_options/0, hydration/0, state/0]).
 -export_type([owned_options/0, ownership/0]).
 -export_type([scope_failure/0]).
 -doc """
@@ -73,9 +73,17 @@ exhaustion returns busy. same_connection is recognized but unsupported.
 """.
 -type command_options() :: #{deadline_ms => 1..600000, max_stdout => 0..1048576,
     max_stderr => 0..65536, stdin => binary(), identity => observed | same_connection}.
--doc "Capture bounds and consistency request. Atomic capture is explicitly unsupported.".
+-doc """
+Capture text/bytes with one framed scan per entity (batched, the default), or
+one field per physical row (isolated). Both retain complete graph coverage and
+interval semantics. Each command has the same 1 MiB stdout bound; isolated
+can distribute large entity output across commands at greater source cost.
+See `snapshot/2` and `tmux_query:explain/1`.
+""".
+-type hydration() :: batched | isolated.
+-doc "Capture bounds, hydration strategy and consistency request. Atomic capture is unsupported.".
 -type capture_options() :: #{deadline_ms => 1..600000, max_rows => 1..65536,
-    max_bytes => 1..67108864, consistency => observed | atomic}.
+    max_bytes => 1..67108864, hydration => hydration(), consistency => observed | atomic}.
 -doc """
 Endpoint resource summary. owner is the supervised endpoint process, not its
 initiating caller. operations and command_bytes count active admission leases;
@@ -297,11 +305,14 @@ return inconsistent_capture. Changes between reads can remain undetected,
 including changes followed by a reversal. Atomic capture is unsupported.
 
 Options are consistency (observed only), deadline_ms (default 2500, maximum
-600000), max_rows (4096, maximum 65536 identity observations per scan) and
-max_bytes (8 MiB, maximum 64 MiB total stdout across capture commands). A
-field or scan is additionally limited to 1 MiB. These are data limits, not a
-VM heap limit. Capturing performs no retry. Local reads of the resulting value
-do no I/O.
+600000), max_rows (4096, maximum 65536 raw observations per scan and aggregate
+spine) and max_bytes (8 MiB, maximum 64 MiB total stdout across capture
+commands). Repeated memberships count before deduplication. The
+`t:hydration/0` strategy defaults to batched. Each command is limited to 1 MiB;
+isolated hydration distributes larger entity output across individual fields.
+These are data limits, not a VM heap limit. Capturing performs no retry. Local
+reads of the resulting value do no I/O. `tmux_snapshot:metadata/1` records the
+strategy and actual source calls.
 
 Unsupported consistency is rejected before contacting a server:
 

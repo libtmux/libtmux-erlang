@@ -38,7 +38,7 @@ capture(Server, Options, Query) ->
 
 capture_context(Server, Query, State0, Context, Id) ->
     maybe
-        Metadata = Context#{id => Id, graph => complete,
+        Metadata = Context#{id => Id, graph => complete, hydration => maps:get(hydration, State0),
                             capture_started => maps:get(started, State0)},
         {ok, First, State1} ?= spine(State0),
         {ok, Base} ?= tmux_snapshot:build(maps:get(rows, First), Metadata),
@@ -66,24 +66,48 @@ capture_context(Server, Query, State0, Context, Id) ->
         {ok, Snapshot, Keys}
     end.
 
-%% This codec contains only canonical IDs, integers and booleans. Text uses
-%% isolated ID-prefixed frames and never enters the tab-separated scan.
+%% Spine scans contain only canonical IDs, integers and booleans. Hydration
+%% escapes field values before adding column and row delimiters.
 -spec plan(tmux_schema:entity(), binary()) -> map().
 plan(Entity, Candidate) ->
     Scans = [scan_spec(Kind) || Kind <- [session, window, pane]],
-    Hydration = [#{entity => E, field => Field, command => <<"display-message">>,
-        target => observed_id, format => <<"#{", Id/binary, "}\n#{q:", F/binary, "}">>,
-        transport => one_shot, codec => id_prefixed_quoted_field}
-        || E <- [session, window, pane],
-           #{format := Id} <- [maps:get(id, tmux_schema_data:fields(E))],
-           {Field, #{format := F, type := Type}} <- lists:sort(maps:to_list(tmux_schema_data:fields(E))),
-           Type =:= text orelse Type =:= bytes],
+    Hydration = lists:flatmap(fun hydration_spec/1, [session, window, pane]),
     Native = case Candidate of
         <<"1">> -> [];
         _ -> [(scan_spec(Entity))#{filter => Candidate}]
     end,
     #{initial_spine => Scans, candidate => Native, hydration => Hydration,
+      isolated_hydration => lists:flatmap(fun isolated_spec/1, [session, window, pane]),
       final_spine => Scans, empty_server => skip_window_and_pane_scans}.
+
+hydration_fields(Entity) ->
+    [{Field, M} || {Field, #{type := Type} = M} <-
+        lists:sort(maps:to_list(tmux_schema_data:fields(Entity))),
+        Type =:= text orelse Type =:= bytes].
+
+hydration_spec(Entity) ->
+    Fields = hydration_fields(Entity),
+    #{format := IdFormat} = maps:get(id, tmux_schema_data:fields(Entity)),
+    case lists:all(fun({_, M}) ->
+        maps:get(capture_codec, M, none) =:= escaped_columns_v1
+    end, Fields) of
+        true ->
+            #{command := Name, args := Args} = scan_spec(Entity),
+            Formats = [<<"#{", IdFormat/binary, "}">> |
+                [tmux_text_codec:field_format(F) || {_, #{format := F}} <- Fields]],
+            [#{entity => Entity, command => Name, args => Args,
+               fields => [Field || {Field, _} <- Fields],
+               format => iolist_to_binary(lists:join(<<"\t">>, Formats)),
+               transport => one_shot, codec => escaped_columns_v1}];
+        false -> isolated_spec(Entity)
+    end.
+
+isolated_spec(Entity) ->
+    #{format := IdFormat} = maps:get(id, tmux_schema_data:fields(Entity)),
+    [#{entity => Entity, field => Field, command => <<"display-message">>,
+       target => observed_id, format => <<"#{", IdFormat/binary, "}\n#{q:", F/binary, "}">>,
+       transport => one_shot, codec => id_prefixed_quoted_field}
+     || {Field, #{format := F}} <- hydration_fields(Entity)].
 
 scan_spec(session) -> #{entity => session, kind => session, command => <<"list-sessions">>,
     args => [], format => <<"#{session_id}\t#{session_attached}\t#{session_created}">>,
@@ -232,20 +256,20 @@ decode_field(Key, Metadata, Bytes) ->
     end.
 
 read_state(Server, Options) when is_map(Options) ->
-    Defaults = #{consistency => observed, deadline_ms => 2500,
+    Defaults = #{consistency => observed, deadline_ms => 2500, hydration => batched,
                  max_rows => 4096, max_bytes => 8388608},
     #{consistency := Consistency, deadline_ms := Deadline, max_rows := Rows,
-      max_bytes := Bytes} = maps:merge(Defaults, Options),
+      max_bytes := Bytes, hydration := Hydration} = maps:merge(Defaults, Options),
     Valid = maps:without(maps:keys(Defaults), Options) =:= #{} andalso
         is_integer(Deadline, 1, 600000) andalso is_integer(Rows, 1, 65536) andalso
-        is_integer(Bytes, 1, 67108864),
+        is_integer(Bytes, 1, 67108864) andalso lists:member(Hydration, [batched, isolated]),
     case {Consistency, Valid} of
         {observed, true} ->
             Started = now_us(),
             maybe
                 {ok, Version} ?= tmux_server:version(Server),
                 {ok, #{server => Server, version => Version, started => Started,
-                       deadline => Started + Deadline * 1000,
+                       deadline => Started + Deadline * 1000, hydration => Hydration,
                        max_rows => Rows, max_bytes => Bytes, bytes => 0, calls => []}}
             end;
         {observed, false} -> {error, #{code => invalid_capture_options}};
@@ -361,9 +385,60 @@ membership_occurrences(#{occurrences := Occurrences}, Base) ->
 hydrate([], _, Acc, State) -> {ok, Acc, State};
 hydrate([Entity | Rest], Base, Acc, State) ->
     maybe
-        {ok, Rows, Next} ?= hydrate_rows(tmux_snapshot:rows(Entity, Base), [], State),
+        {ok, Rows, Next} ?= hydrate_entity(Entity, Base, State),
         hydrate(Rest, Base, Acc#{Entity => Rows}, Next)
     end.
+
+hydrate_entity(Entity, Base, #{hydration := isolated} = State) ->
+    hydrate_rows(tmux_snapshot:rows(Entity, Base), [], State);
+hydrate_entity(Entity, Base, State) ->
+    Rows = tmux_snapshot:rows(Entity, Base),
+    case {Rows, hydration_spec(Entity)} of
+        {[], _} -> {ok, [], State};
+        {_, [#{codec := escaped_columns_v1, command := Name,
+               args := Args, format := Format, fields := Fields}]} ->
+            maybe
+                {ok, Bytes, Next} ?= command(Name, Args ++ [<<"-F">>, Format], State),
+                {ok, Columns} ?= tmux_text_codec:columns(Bytes,
+                    maps:get(version, State), length(Fields) + 1, maps:get(max_rows, State)),
+                {ok, Values} ?= hydration_values(Columns, Entity, Fields, Base, #{}),
+                case map_size(Values) =:= length(Rows) of
+                    true -> hydrated_rows(Rows, Values, [], Next);
+                    false -> hydration_changed(Entity)
+                end
+            end;
+        _ -> hydrate_rows(Rows, [], State)
+    end.
+
+hydration_values([], _, _, _, Acc) -> {ok, Acc};
+hydration_values([[Id | Bytes] | Rest], Entity, Fields, Base, Acc) ->
+    case tmux_snapshot:get(Entity, Id, Base) of
+        {ok, _} ->
+            maybe
+                {ok, Values} ?= scan_fields(Entity, lists:zip(Fields, Bytes), #{}),
+                case maps:find(Id, Acc) of
+                    {ok, Previous} when Previous =/= Values ->
+                        {error, #{code => inconsistent_capture,
+                            reason => conflicting_observations, entity => Entity, identity => Id}};
+                    _ -> hydration_values(Rest, Entity, Fields, Base, Acc#{Id => Values})
+                end
+            end;
+        _ -> hydration_changed(Entity)
+    end.
+
+hydration_changed(Entity) ->
+    {error, #{code => inconsistent_capture, reason => topology_changed, entity => Entity}}.
+
+hydrated_rows([], _, Acc, State) -> {ok, lists:reverse(Acc), State};
+hydrated_rows([Base | Rest], Values, Acc, State) ->
+    Entity = tmux_model:entity(Base),
+    Id = tmux_model:get(id, Base),
+    Observed = maps:filter(fun(_, Value) -> Value =/= not_loaded end, tmux_model:to_map(Base)),
+    maybe
+        {ok, Row} ?= tmux_model:new(Entity, maps:merge(Observed, maps:get(Id, Values))),
+        hydrated_rows(Rest, Values, [Row | Acc], State)
+    end.
+
 hydrate_rows([], Acc, State) -> {ok, lists:reverse(Acc), State};
 hydrate_rows([Base | Rest], Acc, State) ->
     Entity = tmux_model:entity(Base),

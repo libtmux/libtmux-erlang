@@ -2,11 +2,13 @@
 -compile(nowarn_missing_spec).
 -export([all/0, init_per_suite/1, end_per_suite/1,
          complete_graph_and_residuals/1, numeric_and_candidate_equivalence/1,
-         recursive_candidate_implication/1, limits_and_read_retry/1]).
+         recursive_candidate_implication/1, limits_and_read_retry/1,
+         framed_field_bytes/1, large_hydration_output/1]).
 
 %% Outer: source codecs, native format arithmetic and owned graph captures.
 all() -> [complete_graph_and_residuals, numeric_and_candidate_equivalence,
-          recursive_candidate_implication, limits_and_read_retry].
+          recursive_candidate_implication, limits_and_read_retry,
+          framed_field_bytes, large_hydration_output].
 
 init_per_suite(Config) ->
     {ok, _} = application:ensure_all_started(libtmux_erlang),
@@ -15,6 +17,58 @@ init_per_suite(Config) ->
     end,
     [{executable, list_to_binary(Executable)} | Config].
 end_per_suite(_) -> ok = application:stop(libtmux_erlang).
+
+%% Outer: cross the 1 MiB command bound and qualify explicit isolated recovery.
+large_hydration_output(Config) ->
+    tmux_test_fixture:with_server(proplists:get_value(executable, Config), fun(Server, Fixture) ->
+        {ok, Session} = tmux_session:create(Server,
+            #{name => <<"large">>, launch => #{argv => [<<"/bin/cat">>]}}),
+        Id = tmux_model:get(id, Session),
+        {ok, #{cleanup := complete, exit_status := 0}} = tmux_test_fixture:command(Fixture,
+            [<<"set-option">>, <<"-g">>, <<"@fill">>, <<"x">>]),
+        lists:foreach(fun(N) ->
+            Args = case N of
+                0 -> [<<"list-panes">>, <<"-t">>, <<Id/binary, ":">>,
+                    <<"-F">>, <<"#{pane_id}">>];
+                _ -> [<<"new-window">>, <<"-d">>, <<"-P">>, <<"-F">>,
+                    <<"#{pane_id}">>, <<"-t">>, <<Id/binary, ":">>, <<"/bin/cat">>]
+            end,
+            {ok, #{stdout := PaneLine, cleanup := complete, exit_status := 0}} =
+                tmux_test_fixture:command(Fixture, Args),
+            [Target] = binary:split(PaneLine, <<"\n">>, [global, trim_all]),
+            {ok, #{cleanup := complete, exit_status := 0}} =
+                tmux_test_fixture:command(Fixture, [<<"select-pane">>, <<"-t">>, Target,
+                    <<"-T">>, <<"#{p10000:@fill}#{p10000:@fill}#{p10000:@fill}">>])
+        end, lists:seq(0, 36)),
+        {error, #{code := output_limit, stream := stdout, cleanup := complete,
+                  stdout := Prefix}} = tmux_server:snapshot(Server),
+        1048576 = byte_size(Prefix),
+        {ok, Snapshot} = tmux_server:snapshot(Server,
+            #{hydration => isolated, deadline_ms => 60000}),
+        Panes = tmux_snapshot:panes(Snapshot),
+        37 = length(Panes),
+        true = lists:all(fun(Pane) -> byte_size(tmux_model:get(title, Pane)) =:= 30000 end, Panes),
+        #{source_calls := Calls, hydration := isolated} = tmux_snapshot:metadata(Snapshot),
+        192 = length(Calls)
+    end).
+
+framed_field_bytes(Config) ->
+    tmux_test_fixture:with_server(proplists:get_value(executable, Config), fun(Server, Fixture) ->
+        {ok, Session} = tmux_session:create(Server,
+            #{name => <<"frames">>, launch => #{argv => [<<"/bin/cat">>]}}),
+        Id = tmux_model:get(id, Session),
+        {ok, Version} = tmux_server:version(Server),
+        Encoded = tmux_text_codec:field_format(<<"@frame_probe">>),
+        Format = <<"#{session_id}\t", Encoded/binary, "\tEND">>,
+        lists:foreach(fun(Value) ->
+            {ok, #{cleanup := complete}} = tmux_test_fixture:command(Fixture,
+                [<<"-u">>, <<"set-option">>, <<"-g">>, <<"@frame_probe">>, Value]),
+            {ok, #{stdout := Raw, cleanup := complete}} = tmux_test_fixture:command(Fixture,
+                [<<"-u">>, <<"list-sessions">>, <<"-F">>, Format]),
+            {ok, [[Id, Value, <<"END">>]]} = tmux_text_codec:columns(Raw, Version, 3, 1)
+        end, [<<>>, list_to_binary(lists:seq(1, 255)),
+              <<255, "\t\n\\n\\t $HOME #{pid} %end 1 2 3", 254>>])
+    end).
 
 complete_graph_and_residuals(Config) ->
     tmux_test_fixture:with_server(proplists:get_value(executable, Config), fun(Server, Fixture) ->

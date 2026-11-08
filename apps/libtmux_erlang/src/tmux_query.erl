@@ -46,7 +46,8 @@ ok
               source_command/0, command_plan/0]).
 -doc "Capture bounds plus an explicitly requested single inconsistent-capture retry; default retry is zero.".
 -type fetch_options() :: #{deadline_ms => 1..600000, max_rows => 1..65536,
-    max_bytes => 1..67108864, consistency => observed | atomic, retry => 0 | 1}.
+    max_bytes => 1..67108864, hydration => tmux_server:hydration(),
+    consistency => observed | atomic, retry => 0 | 1}.
 -doc """
 Why part of a predicate stays local. field and relation contain stable schema
 IDs, not Erlang names or tmux formats. An unsupported leaf may broaden the
@@ -64,27 +65,33 @@ conversion, and is omitted for disabled/oversized fallback plans.
 -type candidate() :: #{format := binary(), exact := boolean(),
     local_only := [local_reason()], numeric_range => {0, 9007199254740991}}.
 -doc """
-Diagnostic command template, not executable argv. Scan templates carry kind
-and args; text/byte hydration uses target = observed_id, resolved only while
-capturing. Its format quotes the field to preserve literal backslashes and
-control bytes across tmux print encodings. codec states how returned data is
-framed. This value grants no atomicity or persistent-connection guarantee.
+Diagnostic command template, not executable argv. Scan templates carry args;
+text/byte hydration escapes each field once before column framing. Unqualified
+schema fields use isolated target = observed_id templates, resolved only while
+capturing. codec states how returned data is framed, including the
+version-specific print layer. This value grants no atomicity or
+persistent-connection guarantee.
 """.
 -type source_command() ::
     #{entity := tmux_schema:entity(), command := binary(), format := binary(),
       transport := one_shot, codec := scalar_spine,
       kind := tmux_schema:entity(), args := [binary()], filter => binary()} |
+    #{entity := tmux_schema:entity(), fields := [atom()], command := binary(),
+      format := binary(), transport := one_shot,
+      codec := escaped_columns_v1, args := [binary()]} |
     #{entity := tmux_schema:entity(), field := atom(), command := binary(),
       format := binary(), transport := one_shot,
       codec := id_prefixed_quoted_field, target := observed_id}.
 -doc """
 Capture phases: initial identity/scalar scans, optional candidate scans,
-complete text/byte hydration and final identity/scalar scans. An empty server
-skips window/pane scans. Execution still validates capture bounds and can
-fail.
+complete text/byte hydration and final identity/scalar scans. hydration gives
+the default batched templates; isolated_hydration describes the explicit
+isolated option and unqualified-field fallback. An empty server skips
+window/pane scans. Execution still validates capture bounds and can fail.
 """.
 -type command_plan() :: #{initial_spine := [source_command()],
     candidate := [source_command()], hydration := [source_command()],
+    isolated_hydration := [source_command()],
     final_spine := [source_command()], empty_server := skip_window_and_pane_scans}.
 -doc """
 Pure explanation of a query. pushdown reports whether candidate exclusion is
@@ -102,7 +109,7 @@ recovered after state changes. Even an exact candidate is not an atomic query.
     limit := infinity | 0..65536, commands := command_plan(), hydration := complete_graph,
     ordering := session_index_window | numeric_id,
     deduplication := membership | physical_id,
-    capabilities := #{minimum_tmux := {3, 3}, transport := one_shot},
+    capabilities := #{minimum_tmux := binary(), transport := one_shot},
     consistency := observed, atomic := false,
     candidate_scalars := same_row_checked_against_spine,
     text_and_relations := later_observations,
@@ -193,7 +200,7 @@ explain(#query{entity = Entity, limit = Limit, pushdown = Enabled} = Query) ->
       hydration => complete_graph, ordering => case Entity of
           window_link -> session_index_window; _ -> numeric_id end,
       deduplication => case Entity of window_link -> membership; _ -> physical_id end,
-      capabilities => #{minimum_tmux => {3, 3}, transport => one_shot},
+      capabilities => #{minimum_tmux => <<"3.3a">>, transport => one_shot},
       consistency => observed, atomic => false,
       candidate_scalars => same_row_checked_against_spine,
       text_and_relations => later_observations,

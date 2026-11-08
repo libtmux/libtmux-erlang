@@ -27,12 +27,14 @@ Structured boundary validation errors with a code and input path.
 Generated field contract. stable is a versioned portable identity; wire is the
 JSON key. required controls construction and nullable permits known absence.
 format is present only for directly observed tmux fields; derived fields omit
-it. minimum tightens an integer field's lower bound. Field names themselves
-are the keys returned by `fields/1`, not this map's wire or stable values.
+it. capture_codec identifies an admitted batched source encoding; its absence
+selects isolated reads for that entity. minimum tightens an integer field's
+lower bound. Field names themselves are the keys returned by `fields/1`, not
+this map's wire or stable values.
 """.
 -type field_metadata() :: #{type := value_type(), wire := binary(),
     stable := binary(), required := boolean(), nullable := boolean(),
-    format => binary(), minimum => integer()}.
+    format => binary(), capture_codec => escaped_columns_v1, minimum => integer()}.
 -doc """
 Generated relationship contract: kind is one or many; target names the related
 entity. wire and stable have the same roles as in `t:field_metadata/0`.

@@ -6,7 +6,7 @@
       "wire": "session",
       "fields": [
         {"name": "id", "wire": "id", "type": "session_id", "required": true, "format": "session_id"},
-        {"name": "name", "wire": "name", "type": "text", "format": "session_name"},
+        {"name": "name", "wire": "name", "type": "text", "format": "session_name", "capture_codec": "escaped_columns_v1"},
         {"name": "attached_count", "wire": "attachedCount", "type": "uint", "format": "session_attached"},
         {"name": "attached", "wire": "attached", "type": "boolean", "derived": "attached_count"},
         {"name": "created", "wire": "created", "type": "uint", "format": "session_created"}
@@ -21,11 +21,11 @@
       "wire": "window",
       "fields": [
         {"name": "id", "wire": "id", "type": "window_id", "required": true, "format": "window_id"},
-        {"name": "name", "wire": "name", "type": "text", "format": "window_name"},
+        {"name": "name", "wire": "name", "type": "text", "format": "window_name", "capture_codec": "escaped_columns_v1"},
         {"name": "width", "wire": "width", "type": "uint", "format": "window_width"},
         {"name": "height", "wire": "height", "type": "uint", "format": "window_height"},
         {"name": "pane_count", "wire": "paneCount", "type": "uint", "format": "window_panes"},
-        {"name": "layout", "wire": "layout", "type": "text", "format": "window_layout"}
+        {"name": "layout", "wire": "layout", "type": "text", "format": "window_layout", "capture_codec": "escaped_columns_v1"}
       ],
       "relations": [
         {"name": "panes", "wire": "panes", "kind": "many", "target": "pane"},
@@ -54,12 +54,12 @@
         {"name": "window_id", "wire": "windowId", "type": "window_id", "format": "window_id"},
         {"name": "index", "wire": "index", "type": "uint", "format": "pane_index"},
         {"name": "active", "wire": "active", "type": "boolean", "format": "pane_active"},
-        {"name": "current_command", "wire": "currentCommand", "type": "text", "format": "pane_current_command"},
-        {"name": "current_path", "wire": "currentPath", "type": "bytes", "format": "pane_current_path"},
+        {"name": "current_command", "wire": "currentCommand", "type": "text", "format": "pane_current_command", "capture_codec": "escaped_columns_v1"},
+        {"name": "current_path", "wire": "currentPath", "type": "bytes", "format": "pane_current_path", "capture_codec": "escaped_columns_v1"},
         {"name": "width", "wire": "width", "type": "uint", "format": "pane_width"},
         {"name": "height", "wire": "height", "type": "uint", "format": "pane_height"},
         {"name": "pid", "wire": "pid", "type": "uint", "minimum": 1, "nullable": true, "format": "pane_pid"},
-        {"name": "title", "wire": "title", "type": "text", "format": "pane_title"},
+        {"name": "title", "wire": "title", "type": "text", "format": "pane_title", "capture_codec": "escaped_columns_v1"},
         {"name": "dead", "wire": "dead", "type": "boolean", "format": "pane_dead"},
         {"name": "exit_status", "wire": "exitStatus", "type": "integer", "nullable": true, "format": "pane_dead_status"}
       ],

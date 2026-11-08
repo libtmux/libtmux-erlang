@@ -1,6 +1,48 @@
 -module(tmux_text_codec).
 -moduledoc false.
--export([argument/1, format/2, print_layer/2]).
+-export([argument/1, format/2, print_layer/2, field_format/1, columns/4]).
+
+%% Expand a field once, then escape the three framing bytes. A separate
+%% length expansion could observe a different process cwd or command.
+-spec field_format(binary()) -> binary().
+field_format(Field) ->
+    <<"#{s|\\\\|\\\\\\\\|;s|\t|\\\\t|;s|\n|\\\\n|:", Field/binary, "}">>.
+
+-spec columns(binary(), tmux_version:t(), pos_integer(), pos_integer()) ->
+    {ok, [[binary()]]} | {error, map()}.
+columns(<<>>, _, _, _) -> {ok, []};
+columns(Bytes, Version, Count, Limit) ->
+    {Mode, Output} = print_layer(Bytes, Version),
+    Kind = case Mode of raw -> columns_raw; _ -> format_vis end,
+    Size = byte_size(Output) - 1,
+    case Output of
+        <<Body:Size/binary, $\n>> ->
+            Lines = binary:split(Body, <<"\n">>, [global]),
+            case length(Lines) =< Limit of
+                true -> column_lines(Lines, Kind, Count, []);
+                false -> {error, #{code => capture_limit, limit => max_rows}}
+            end;
+        _ -> invalid()
+    end.
+
+column_lines([], _, _, Acc) -> {ok, lists:reverse(Acc)};
+column_lines([Line | Rest], Kind, Count, Acc) ->
+    Parts = binary:split(Line, <<"\t">>, [global]),
+    case length(Parts) =:= Count of
+        true ->
+            maybe
+                {ok, Values} ?= column_values(Parts, Kind, []),
+                column_lines(Rest, Kind, Count, [Values | Acc])
+            end;
+        false -> invalid()
+    end.
+
+column_values([], _, Acc) -> {ok, lists:reverse(Acc)};
+column_values([Part | Rest], Kind, Acc) ->
+    maybe
+        {ok, Value} ?= unescape(Part, Kind, []),
+        column_values(Rest, Kind, [Value | Acc])
+    end.
 
 %% These modes describe cmdq_print on the pinned tmux releases, not a
 %% general stdout codec. Callers must request reversible quoting first.
@@ -42,7 +84,8 @@ argument(Bytes) -> unescape(Bytes, argument, []).
 
 unescape(<<>>, _, Acc) -> {ok, list_to_binary(lists:reverse(Acc))};
 unescape(<<$\\, A, B, C, Rest/binary>>, Kind, Acc)
-  when Kind =/= format_raw, A >= $0, A =< $3, B >= $0, B =< $7, C >= $0, C =< $7 ->
+  when Kind =/= format_raw, Kind =/= columns_raw,
+       A >= $0, A =< $3, B >= $0, B =< $7, C >= $0, C =< $7 ->
     Byte = (A - $0) * 64 + (B - $0) * 8 + C - $0,
     case Byte of 0 -> invalid(); _ -> unescape(Rest, Kind, [Byte | Acc]) end;
 unescape(<<$\\, C, Rest/binary>>, Kind, Acc) ->
@@ -67,6 +110,10 @@ argument_escape(C) when C =:= $\\; C =:= $"; C =:= $'; C =:= $~; C =:= $\s;
 argument_escape(_) -> invalid.
 
 escaped(C, argument) -> argument_escape(C);
+escaped($n, columns_raw) -> $\n;
+escaped($t, columns_raw) -> $\t;
+escaped($\\, columns_raw) -> $\\;
+escaped(_, columns_raw) -> invalid;
 escaped(C, format_raw) -> format_escape(C);
 escaped(C, format_vis) ->
     case format_escape(C) of

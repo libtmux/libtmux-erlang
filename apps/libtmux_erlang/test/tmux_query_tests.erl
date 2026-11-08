@@ -17,6 +17,16 @@ lazy_plan_and_validation_test() ->
         allowed := _}}, tmux_query:where(#{active => #{contains => <<"yes">>}}, Query)),
     ?assertError({bad_query_limit, -1}, tmux_query:limit(-1, Query)).
 
+hydration_plan_and_validation_test() ->
+    #{commands := #{hydration := Batched, isolated_hydration := Isolated},
+      capabilities := #{minimum_tmux := <<"3.3a">>}} =
+        tmux_query:explain(tmux_query:panes(unopened)),
+    ?assertEqual([session, window, pane], [maps:get(entity, C) || C <- Batched]),
+    ?assert(lists:all(fun(C) -> maps:get(codec, C) =:= escaped_columns_v1 end, Batched)),
+    ?assertEqual(6, length(Isolated)),
+    ?assertMatch({error, #{code := invalid_capture_options}},
+        tmux_query:fetch(tmux_query:panes(unopened), #{hydration => unknown})).
+
 conservative_boolean_translation_test() ->
     Base = tmux_query:pushdown(true, tmux_query:panes(unopened)),
     Native = #{active => true},

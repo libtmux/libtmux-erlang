@@ -57,6 +57,10 @@ Failure includes `code` and an atom-valued `reason` when available. Invalid
 options and failures before endpoint context is available return their normal
 errors without a capture report. Query retries have separate capture IDs.
 These counters do not include the transport's identity preflight clients.
+Snapshot metadata also records the hydration strategy. Batched hydration uses
+three field scans on a nonempty graph; isolated hydration uses one command per
+text/byte field per physical row. Both retain the six bracketing spine scans.
+See [source plans](querying.md#source-plans) for bounds and the explicit option.
 
 `[libtmux, ownership]` reports `owned_server_failure`,
 `owned_server_cleanup_incomplete` and `owned_server_recovery_report_failed`.

@@ -117,6 +117,22 @@ unsigned numeric conditions can reach tmux's `-f`. Text, nullable fields and
 relations remain local. Numeric comparisons use tmux arithmetic formats,
 not string ordering.
 
+Hydration defaults to one framed list scan per nonempty entity collection.
+Each field is expanded once and escaped before row/column framing, preserving
+paths containing tabs, newlines and non-UTF-8 bytes. A successful nonempty
+capture uses nine logical commands, plus an optional candidate scan. Identity
+preflights add one tmux client per command. Linked memberships can increase
+the bytes returned even though physical rows remain unique.
+
+Each command remains bounded to 1 MiB of stdout. If a whole entity exceeds
+that bound, use `hydration => isolated` in snapshot or fetch options to read
+one field per physical row. The total capture bound and deadline still apply.
+`commands.hydration` describes the default templates;
+`commands.isolated_hydration` describes isolated reads and unqualified-schema
+fallback. Snapshot metadata records the chosen strategy and actual calls.
+[ADR 0002](adr-0002-batched-hydration.md) records the framing, measurements and
+tradeoffs.
+
 A candidate is a necessary condition: it can admit extra rows but must not
 exclude a same-state full-filter match. Unsupported leaves become true;
 AND and OR compose conservatively; NOT translates only exact children.

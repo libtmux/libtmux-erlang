@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Record batched complete-graph hydration, byte framing, measured source cost
+  and the explicit isolated strategy in ADR 0002.
+
 - Check recursive native candidate filters against captured full predicates
   on owned linked-window fixtures.
 

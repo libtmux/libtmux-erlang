@@ -10,6 +10,9 @@ announce a release. [Support and gaps](compatibility.md) owns the current
 implementation and platform inventory. A later decision that changes these
 boundaries should identify which part of this record it supersedes.
 
+[ADR 0002](adr-0002-batched-hydration.md) supersedes AD-4's field hydration
+strategy with escaped entity scans and an explicit isolated option.
+
 Upstream code references use release tags. This repository has no release tag
 at this baseline; implementation links pin the recorded source commit. The
 decisions below distinguish that implementation from required follow-up work.
@@ -204,11 +207,10 @@ nine windows and 27 panes therefore require 108 logical commands and 216 tmux
 client launches without a candidate scan. Startup, retries and failures are
 outside this calculation; it is not a latency measurement.
 
-Pushdown currently defaults on. It can reduce local residual work, but does
-not reduce hydration and adds an earlier exclusion point. The selected next
-step is to disable it by default for complete-graph queries unless equivalent
-workload measurements justify retaining it. Report that choice in `explain/1`
-and the query guide when implemented.
+Complete-graph queries default to pushdown disabled. Enabling it can reduce
+local residual work, but does not reduce hydration and adds an earlier
+exclusion point. `explain/1` and the query guide report this choice. Equivalent
+workload measurements are required before changing the default.
 
 Measure the Erlang/helper path on small, linked, changing and 200-pane graphs.
 Record commands, client launches, elapsed distributions, bytes, retained memory,

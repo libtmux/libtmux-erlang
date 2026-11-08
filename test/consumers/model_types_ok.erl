@@ -15,8 +15,13 @@ run() ->
     none = tmux_model:get(pid, Pane),
     {error, #{code := invalid_value}} =
         tmux_model:new(pane, #{id => <<"%1">>, active => <<"true">>}),
+    {ok, Metadata} = tmux_schema:field(session, name),
+    escaped_columns_v1 = capture_codec(Metadata),
     ok.
 
 -spec build_pane(tmux_model:pane_input()) ->
     {ok, tmux_model:pane()} | {error, tmux_schema:error_detail()}.
 build_pane(Fields) -> tmux_model:pane(Fields).
+
+-spec capture_codec(tmux_schema:field_metadata()) -> escaped_columns_v1.
+capture_codec(#{capture_codec := Codec}) -> Codec.

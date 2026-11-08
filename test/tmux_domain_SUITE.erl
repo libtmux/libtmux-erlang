@@ -117,15 +117,16 @@ creation_and_identity(Config) ->
 launch_and_input(Config) ->
     with_server(Config, fun(Server, Fixture) ->
         #{directory := Directory} = tmux_test_fixture:info(Fixture),
-        Cwd = list_to_binary(filename:join(Directory,
+        BaseCwd = list_to_binary(filename:join(Directory,
             "cwd #{pane_id};\n%end\r $HOME \\n")),
+        Cwd = <<BaseCwd/binary, 9, 255>>,
         ok = file:make_dir(Cwd),
         Ready = filename:join(Directory, "input-ready"),
         {ok, Listener} = gen_tcp:listen(0, [local, {ifaddr, {local, Ready}}, binary,
                                           {active, false}]),
         Script = <<"import os,socket,sys,json,tty,signal\n"
             "tty.setraw(0)\ns=socket.socket(socket.AF_UNIX)\ns.connect(sys.argv[1])\n"
-            "p=json.dumps([sys.argv[2:],os.getcwd(),os.environ['LIBTMUX_VALUE']]).encode()\n"
+            "p=json.dumps([sys.argv[2:],os.getcwdb().hex(),os.environ['LIBTMUX_VALUE']]).encode()\n"
             "s.sendall(len(p).to_bytes(4,'big')+p)\ndata=b''\n"
             "while len(data)<9:\n data+=os.read(0,9-len(data))\n"
             "s.sendall(data)\nsignal.pause()\n">>,
@@ -142,7 +143,8 @@ launch_and_input(Config) ->
             try
                 {ok, <<Length:32>>} = gen_tcp:recv(Peer, 4, 900),
                 {ok, Payload} = gen_tcp:recv(Peer, Length, 900),
-                [[Argument], Cwd, Environment] = json:decode(Payload),
+                [[Argument], CwdHex, Environment] = json:decode(Payload),
+                Cwd = binary:decode_hex(CwdHex),
                 {ok, Current} = tmux_pane:get(Server, tmux_model:get(id, Pane)),
                 Cwd = tmux_model:get(current_path, Current),
                 {ok, Captured} = tmux_server:snapshot(Server),
@@ -401,7 +403,13 @@ linked_snapshot(Config) ->
             tmux_snapshot:metadata(Snapshot),
         true = is_reference(Generation),
         true = Start =< Finish,
-        true = length(Calls) > 6,
+        9 = length(Calls),
+        {ok, Isolated} = tmux_server:snapshot(Server, #{hydration => isolated}),
+        21 = length(maps:get(source_calls, tmux_snapshot:metadata(Isolated))),
+        lists:foreach(fun(Entity) ->
+            Expected = [tmux_model:to_map(R) || R <- tmux_snapshot:rows(Entity, Snapshot)],
+            Expected = [tmux_model:to_map(R) || R <- tmux_snapshot:rows(Entity, Isolated)]
+        end, [session, window, window_link, pane]),
         Bytes = lists:sum([maps:get(stdout_bytes, Call) || Call <- Calls]),
         true = lists:all(fun(#{started := A, finished := B}) ->
             Start =< A andalso A =< B andalso B =< Finish

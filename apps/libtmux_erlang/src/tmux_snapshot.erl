@@ -71,6 +71,8 @@ monotonic capture bounds in time_unit, source_calls, observed stdout bytes and
 capabilities. Those fields can be absent in internally constructed partial
 captures. Query captures also include `t:query_metadata/0`. Opaque references
 and process identities are local values, not portable wire identifiers.
+hydration records the requested `t:tmux_server:hydration/0` strategy; source_calls
+shows which commands actually ran, including any schema-driven fallback.
 """.
 -type metadata() :: #{id := reference(), origin := reference(), model_version := 2,
     graph := complete | partial, generation => reference(),
@@ -78,7 +80,7 @@ and process identities are local values, not portable wire identifiers.
     tmux_version => tmux_version:t(), capture_started => integer(),
     capture_finished => integer(), time_unit => microsecond,
     source_calls => [source_call()], observed_bytes => non_neg_integer(),
-    consistency => observed,
+    consistency => observed, hydration => tmux_server:hydration(),
     capabilities => #{field_schema := 1, identity := observed, capture := observed},
     query => query_metadata(), atom() => term()}.
 

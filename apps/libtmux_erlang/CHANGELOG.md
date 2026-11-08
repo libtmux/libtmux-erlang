@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Batch snapshot text and byte fields in one scan per entity, with strict
+  byte framing, identity checks and unchanged capture bracketing. Capture and
+  fetch options accept `hydration => isolated` for larger entity output under
+  the existing per-command limit. Plans and metadata expose the strategy.
+
 - Correct the minimum tmux version to 3.3a. Support includes all releases
   through 3.8; CI tests the two endpoints. Option, hook and native command
   metadata cover intermediate releases with their exact source provenance.
