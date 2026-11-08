@@ -17,6 +17,13 @@ Inspect the individual jobs at the commit you will consume. A minimum-version
 check does not prove runtime support on every newer release. Tracking builds,
 macOS, native Windows and psmux are not advertised as qualified platforms.
 
+Linux must provide readable `/proc/self/task/<pid>/children`, enabled by
+CONFIG_PROC_CHILDREN. The helper checks this interface before launching a
+child. An unavailable interface returns `unsupported_capability` with
+`capability => proc_children`, the OS `errno` and `outcome => not_started`.
+See the [helper protocol](../apps/libtmux_erlang/c_src/README.md) for cleanup
+evidence and the limits of native process ownership.
+
 ## Implemented surfaces
 
 | Surface | Current behavior |

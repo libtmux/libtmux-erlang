@@ -8,7 +8,7 @@ open_frame_preserves_bytes_test() ->
         cwd => <<"/tmp">>, env => [<<"A=b=c">>], stdin_open => false,
         timeout_ms => 100
     }),
-    ?assertMatch(<<$O, 3, 0, 100:32, _/binary>>, Packet),
+    ?assertMatch(<<$O, 4, 0, 100:32, _/binary>>, Packet),
     ?assertNotEqual(nomatch, binary:match(Packet, <<"a;#", 255>>)),
     ?assertNotEqual(nomatch, binary:match(Packet, <<"A=b=c">>)).
 
@@ -34,9 +34,11 @@ protocol_kinds_and_bounds_test() ->
                  tmux_transport_codec:decode(<<$E, 2, 137:32>>)),
     ?assertEqual({ok, {failed, 4, 0}},
                  tmux_transport_codec:decode(<<$F, 4, 0:32>>)),
+    ?assertEqual({ok, {failed, 5, 2}},
+                 tmux_transport_codec:decode(<<$F, 5, 2:32>>)),
     lists:foreach(fun(Packet) ->
         ?assertMatch({error, #{code := invalid_helper_frame}},
                      tmux_transport_codec:decode(Packet))
     end, [<<>>, <<$D, 0, 1>>, <<$D, 1>>, <<$E, 4, 0:32>>,
-          <<$A, 1:32, 8193:16, 0>>, <<$F, 5, 0:32>>,
+          <<$A, 1:32, 8193:16, 0>>, <<$F, 6, 0:32>>,
           <<$D, 1, (binary:copy(<<0>>, 8193))/binary>>]).

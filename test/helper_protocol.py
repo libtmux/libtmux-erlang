@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import errno
 import fcntl
 import os
 from pathlib import Path
@@ -23,11 +24,14 @@ def string(value: bytes) -> bytes:
 
 
 class Helper:
+    def __init__(self, executable=HELPER):
+        self.executable = executable
+
     def __enter__(self):
         env = {key: value for key, value in os.environ.items()
                if key not in {"TMUX", "TMUX_PANE"}}
         self.process = subprocess.Popen(
-            [str(HELPER)], stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+            [str(self.executable)], stdin=subprocess.PIPE, stdout=subprocess.PIPE,
             stderr=subprocess.PIPE, env=env
         )
         self.selector = selectors.DefaultSelector()
@@ -123,7 +127,7 @@ class Helper:
 
     def configure(self, args: list[bytes], *, timeout: int = 0) -> bytes:
         self.send(
-            b"O\x03\x01" + struct.pack(">I", timeout) + string(os.fsencode(os.getcwd()))
+            b"O\x04\x01" + struct.pack(">I", timeout) + string(os.fsencode(os.getcwd()))
             + struct.pack(">H", len(args)) + b"".join(string(arg) for arg in args)
             + struct.pack(">H", 0)
         )
@@ -159,7 +163,44 @@ class Helper:
             packets.append(packet)
 
 
+def build_missing_children_helper(root: Path) -> Path:
+    """Build a test-only helper that refuses proc children and traps any fork."""
+    shim = root / "missing_children.c"
+    shim.write_text(r'''
+#define _GNU_SOURCE
+#include <errno.h>
+#include <stdio.h>
+#include <string.h>
+#include <sys/types.h>
+#include <unistd.h>
+FILE *__real_fopen(const char *, const char *);
+FILE *__wrap_fopen(const char *path, const char *mode) {
+    char children[80];
+    snprintf(children, sizeof children, "/proc/self/task/%ld/children", (long)getpid());
+    if (strcmp(path, children) == 0) { errno = ENOENT; return NULL; }
+    return __real_fopen(path, mode);
+}
+pid_t __wrap_fork(void) { _exit(99); }
+''')
+    executable = root / "tmux_owned_io"
+    subprocess.run([
+        "cc", "-std=c11", "-Wall", "-Wextra", "-Werror", "-Wpedantic",
+        str(HELPER.parent.parent / "c_src/owned_io.c"), str(shim),
+        "-Wl,--wrap=fopen", "-Wl,--wrap=fork", "-o", str(executable)
+    ], check=True, capture_output=True)
+    return executable
+
+
 class ProtocolTests(unittest.TestCase):
+    def test_missing_children_interface_rejects_before_fork(self):
+        # Link-time injection leaves the host procfs and packaged helper intact.
+        with tempfile.TemporaryDirectory(prefix="tmux-erlang-capability-") as directory:
+            executable = build_missing_children_helper(Path(directory))
+            with Helper(executable) as helper:
+                terminal = helper.configure([b"/bin/true"])
+                self.assertEqual(terminal, b"F\x05" + struct.pack(">I", errno.ENOENT))
+                helper.acknowledge(terminal)
+
     def test_independent_credits_and_protocol_like_output(self):
         payload = b"\x00\x06E\x00\x00\x00\x00\x00%end\n"
         with Helper() as helper:

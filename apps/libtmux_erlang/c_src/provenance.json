@@ -6,7 +6,8 @@
     {
       "source": "c_src/owned_io.c",
       "file": "owned_io.c",
-      "sha256": "d123aff332fd4d187094be1a80018db36811d04be7f10e5d470bbb85100009ff"
+      "sha256": "d123aff332fd4d187094be1a80018db36811d04be7f10e5d470bbb85100009ff",
+      "local_sha256": "d952f807ca47c18f8c8fc4393030bec8cd937f67984ce56c8a1f1cecb769617e"
     },
     {
       "source": "LICENSE",
@@ -14,5 +15,12 @@
       "sha256": "ff0c1f30af76bb773034a1e785c431d9c58d503d7a817e5e249d20e36576b3cf"
     }
   ],
-  "source_changes": []
+  "source_changes": [
+    {
+      "description": "Check proc children access before fork and report a distinct capability failure with errno.",
+      "protocol_version": 4,
+      "failure_kind": 5,
+      "qualification": "Erlang helper and adapter require independent qualification; upstream source digest is retained."
+    }
+  ]
 }

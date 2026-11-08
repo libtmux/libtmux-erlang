@@ -9,7 +9,7 @@
                | {write_ack, non_neg_integer(), non_neg_integer(), boolean()}
                | stdin_closed
                | {retired, 0..3, non_neg_integer()}
-               | {failed, 1..4, non_neg_integer()}.
+               | {failed, 1..5, non_neg_integer()}.
 
 -spec open(map()) -> {ok, binary()} | {error, map()}.
 open(#{executable := <<$/, _/binary>> = Executable, args := Arguments,
@@ -26,7 +26,7 @@ open(#{executable := <<$/, _/binary>> = Executable, args := Arguments,
             true ->
                 Open = case InputOpen of true -> 1; false -> 0 end,
                 {ok, iolist_to_binary([
-                    <<$O, 3, Open, Timeout:32>>, CwdPart,
+                    <<$O, 4, Open, Timeout:32>>, CwdPart,
                     <<Argc:16>>, Argv, <<Envc:16>>, Env
                 ])};
             false -> {error, #{code => command_limit}}
@@ -58,7 +58,7 @@ decode(<<$A, Id:32, Delivered:16, Failed>>)
 decode(<<$C>>) -> {ok, stdin_closed};
 decode(<<$E, Reason, Status:32>>) when Reason =< 3 ->
     {ok, {retired, Reason, Status}};
-decode(<<$F, Kind, Errno:32>>) when Kind >= 1, Kind =< 4 ->
+decode(<<$F, Kind, Errno:32>>) when Kind >= 1, Kind =< 5 ->
     {ok, {failed, Kind, Errno}};
 decode(_) -> {error, #{code => invalid_helper_frame}}.
 

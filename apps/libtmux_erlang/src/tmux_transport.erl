@@ -326,7 +326,7 @@ launch(Remaining, #{config := Config} = State) ->
             {busy_limits_msgq, {32768, 65536}}]) of
         Port ->
             {os_pid, Pid} = erlang:port_info(Port, os_pid),
-            <<$O, 3, Input, _:32, Tail/binary>> = maps:get(open, Config),
+            <<$O, 4, Input, _:32, Tail/binary>> = maps:get(open, Config),
             Timer = erlang:start_timer(Remaining, self(), deadline),
             Next = State#{port => Port, helper_pid => Pid, config => #{},
                           phase => starting, deadline_timer => Timer},
@@ -334,7 +334,7 @@ launch(Remaining, #{config := Config} = State) ->
                 channel -> {1, 0};
                 oneshot -> {Input, Remaining}
             end,
-            case send_frame(Port, <<$O, 3, OpenInput, Lifetime:32, Tail/binary>>) of
+            case send_frame(Port, <<$O, 4, OpenInput, Lifetime:32, Tail/binary>>) of
                 true -> Next#{sent => true};
                 false -> stop_child(#{code => transport_busy}, Next)
             end
@@ -538,6 +538,9 @@ helper_exit(Status, State) ->
 result(#{terminal := Terminal, cause := Cause} = State) ->
     Details = details(State),
     Error = case {Terminal, Cause} of
+        {{failed, 5, Errno}, _} -> #{code => unsupported_capability,
+                                   capability => proc_children, errno => Errno,
+                                   outcome => not_started};
         {{failed, 2, Errno}, _} -> #{code => exec_failed, errno => Errno, outcome => not_started};
         {_, Existing} when is_map(Existing) -> Existing#{outcome => outcome(State)};
         {{failed, Kind, Errno}, _} -> #{code => helper_failure, kind => Kind, errno => Errno,
@@ -663,7 +666,7 @@ shutdown_drain(Port, Deadline) ->
         {Port, {data, Bytes}} ->
             case tmux_transport_codec:decode(Bytes) of
                 {ok, {retired, _, _}} -> _ = send_frame(Port, <<$T>>);
-                {ok, {failed, Kind, _}} when Kind < 4 -> _ = send_frame(Port, <<$T>>);
+                {ok, {failed, Kind, _}} when Kind =/= 4 -> _ = send_frame(Port, <<$T>>);
                 _ -> ok
             end,
             shutdown_drain(Port, Deadline);

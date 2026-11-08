@@ -126,11 +126,28 @@ static char *take_string(const unsigned char **at, size_t *left) {
     return value;
 }
 
+static FILE *children_file(void) {
+    char path[80];
+    snprintf(path, sizeof path, "/proc/self/task/%ld/children", (long)getpid());
+    return fopen(path, "re");
+}
+
+static int check_children(void) {
+    FILE *file = children_file();
+    if (!file) return -1;
+    errno = 0;
+    (void)fgetc(file);
+    int error = ferror(file) ? (errno ? errno : EIO) : 0;
+    if (fclose(file) == EOF && !error) error = errno;
+    if (error) { errno = error; return -1; }
+    return 0;
+}
+
 static void launch(struct state *s, const unsigned char *body, size_t size) {
     char *cwd = NULL, *args[ARGC_MAX + 1] = {0}, *environment[ENVC_MAX + 1] = {0};
     int pipes[4][2] = {{-1,-1},{-1,-1},{-1,-1},{-1,-1}};
     int error = EINVAL;
-    if (size < 11 || body[0] != 'O' || body[1] != 3 || body[2] > 1) goto bad;
+    if (size < 11 || body[0] != 'O' || body[1] != 4 || body[2] > 1) goto bad;
     int input_open = body[2];
     uint32_t timeout = get32(body + 3);
     if (timeout > 600000) goto bad;
@@ -155,6 +172,7 @@ static void launch(struct state *s, const unsigned char *body, size_t size) {
         if (!equals || equals == environment[i]) goto bad;
     }
     if (left) goto bad;
+    if (check_children() == -1) { fail(s, 5, errno); goto out; }
     for (int i = 0; i < 4; i++) {
         if (pipe2(pipes[i], O_CLOEXEC) == -1) { error = errno; goto bad; }
         if (fcntl(pipes[i][0], F_SETPIPE_SZ, 8192) == -1) { error = errno; goto bad; }
@@ -289,9 +307,7 @@ static void write_child(struct state *s) {
 }
 
 static void kill_adopted(void) {
-    char path[80];
-    snprintf(path, sizeof path, "/proc/self/task/%ld/children", (long)getpid());
-    FILE *file = fopen(path, "re");
+    FILE *file = children_file();
     if (!file) return;
     long child;
     /* Only unreaped direct children occur here; this process is their sole reaper. */
