@@ -20,11 +20,11 @@ $ mise exec -- escript tools/run_examples.escript panes
 run(Socket, Executable) ->
     {ok, Server} = tmux_server:open(
         #{socket_path => Socket, executable => Executable}),
-    try
+    tmux_scope:run_or_error(fun() ->
         {ok, Session} = tmux_session:create(Server,
             #{name => <<"pane-workflow">>, window_name => <<"editor">>,
               launch => #{argv => [<<"/bin/cat">>]}}),
-        try
+        tmux_scope:run_or_error(fun() ->
             {ok, Initial} = tmux_server:snapshot(Server),
             {ok, Link} = tmux_select:one(
                 #{session_id => tmux_model:get(id, Session)},
@@ -56,12 +56,13 @@ run(Socket, Executable) ->
             2 = length(tmux_snapshot:panes(Final)),
             #{same_process => true, snapshot_unchanged => true,
               temporary_window_removed => true, panes_after_join => 2}
-        after
-            {ok, _} = tmux_session:kill(Session)
-        end
-    after
+        end, fun() ->
+            {ok, _} = tmux_session:kill(Session),
+            ok
+        end)
+    end, fun() ->
         ok = tmux_server:close(Server)
-    end.
+    end).
 ```
 
 <!-- example-output: pane_demo -->

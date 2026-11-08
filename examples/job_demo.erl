@@ -6,11 +6,11 @@
 run(Socket, Executable) ->
     Endpoint = #{socket_path => Socket, executable => Executable},
     {ok, Server} = tmux_server:open(Endpoint),
-    try
+    tmux_scope:run_or_error(fun() ->
         {ok, Session} = tmux_session:create(Server,
             #{name => <<"jobs">>, width => 120, height => 30,
               launch => #{argv => [<<"/bin/cat">>]}}),
-        try
+        tmux_scope:run_or_error(fun() ->
             {ok, Window} = tmux_window:create(Session,
                 #{launch => #{argv => [<<"/bin/cat">>]}}),
             Target = [<<"-w">>, <<"-t">>, tmux_model:get(id, Window)],
@@ -47,9 +47,10 @@ run(Socket, Executable) ->
             #{output => <<"build complete\n">>, job_status => 0,
               await_timeout_kept_operation => true,
               cancelled_outcome => unknown}
-        after
-            {ok, _} = tmux_session:kill(Session)
-        end
-    after
+        end, fun() ->
+            {ok, _} = tmux_session:kill(Session),
+            ok
+        end)
+    end, fun() ->
         ok = tmux_server:close(Server)
-    end.
+    end).

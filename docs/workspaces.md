@@ -80,8 +80,8 @@ run() ->
     Suffix = binary:encode_hex(crypto:strong_rand_bytes(10), lowercase),
     Directory = <<"/tmp/ltm-workspace-demo-", Suffix/binary>>,
     ok = file:make_dir(Directory),
-    ok = file:change_mode(Directory, 8#700),
-    Output = try
+    Output = tmux_scope:run_or_error(fun() ->
+        ok = file:change_mode(Directory, 8#700),
         Path = filename:join(Directory, <<"workspace.json">>),
         {ok, _} = file:copy("examples/workspace.json", Path),
         {ok, Workspace} = tmux_workspace:load(Path),
@@ -97,9 +97,9 @@ run() ->
           session => SessionName, window => WindowName, panes => 2,
           first_pane_key => maps:get(key, Build), canonical_cwd => true,
           shell_declared => true, launched => false}
-    after
+    end, fun() ->
         ok = file:del_dir_r(Directory)
-    end,
+    end),
     {error, enoent} = file:read_file_info(Directory),
     Output#{files_removed => true}.
 ```

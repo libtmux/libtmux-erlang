@@ -27,11 +27,11 @@ $ mise exec -- escript tools/run_examples.escript config
 run(Socket, Executable) ->
     {ok, Server} = tmux_server:open(
         #{socket_path => Socket, executable => Executable}),
-    try
+    tmux_scope:run_or_error(fun() ->
         {ok, Session} = tmux_session:create(Server,
             #{name => <<"configured-job">>,
               launch => #{argv => [<<"/bin/cat">>]}}),
-        try
+        tmux_scope:run_or_error(fun() ->
             Id = tmux_model:get(id, Session),
             Suffix = binary:encode_hex(crypto:strong_rand_bytes(8), lowercase),
             Channel = <<"configured-", Suffix/binary>>,
@@ -57,12 +57,13 @@ run(Socket, Executable) ->
             {ok, <<"configured">>} = tmux_option:get(Session, State, #{}),
             #{configuration_applied => true, event_received => true,
               parse_only_kept_value => true}
-        after
-            {ok, _} = tmux_session:kill(Session)
-        end
-    after
+        end, fun() ->
+            {ok, _} = tmux_session:kill(Session),
+            ok
+        end)
+    end, fun() ->
         ok = tmux_server:close(Server)
-    end.
+    end).
 ```
 
 <!-- example-output: config_demo -->

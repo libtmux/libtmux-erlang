@@ -29,12 +29,12 @@ run(Socket, Executable) ->
     Suffix = binary:encode_hex(crypto:strong_rand_bytes(8), lowercase),
     Directory = <<"/tmp/ltm-pipe-example-", Suffix/binary>>,
     ok = file:make_dir(Directory),
-    ok = file:change_mode(Directory, 8#700),
-    try
+    tmux_scope:run_or_error(fun() ->
+        ok = file:change_mode(Directory, 8#700),
         Log = <<Directory/binary, "/job.log">>,
         {ok, Server} = tmux_server:open(
             #{socket_path => Socket, executable => Executable}),
-        try
+        tmux_scope:run_or_error(fun() ->
             Native = <<(quote(Executable))/binary,
                 " -N -S ", (quote(Socket))/binary, " wait-for ">>,
             Start = <<"start-", Suffix/binary>>,
@@ -44,7 +44,7 @@ run(Socket, Executable) ->
             {ok, Session} = tmux_session:create(Server,
                 #{name => <<"pipe-example">>, launch => #{argv =>
                     [<<"/bin/sh">>, <<"-c">>, Producer]}}),
-            try
+            tmux_scope:run_or_error(fun() ->
                 {ok, Snapshot} = tmux_server:snapshot(Server),
                 [Pane] = tmux_snapshot:panes(Snapshot),
                 Payload = <<"build complete\n">>,
@@ -63,15 +63,16 @@ run(Socket, Executable) ->
                 {ok, _} = tmux_pane:stop_pipe(Pane),
                 #{log => Payload, bytes_written => byte_size(Payload),
                   consumer_acknowledged => true}
-            after
-                {ok, _} = tmux_session:kill(Session)
-            end
-        after
+            end, fun() ->
+                {ok, _} = tmux_session:kill(Session),
+                ok
+            end)
+        end, fun() ->
             ok = tmux_server:close(Server)
-        end
-    after
+        end)
+    end, fun() ->
         ok = file:del_dir_r(Directory)
-    end.
+    end).
 
 quote(Value) ->
     Escaped = binary:replace(Value, <<"'">>, <<"'\\''">>, [global]),

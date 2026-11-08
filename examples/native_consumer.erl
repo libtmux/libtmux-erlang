@@ -23,7 +23,7 @@ pane_ids(Rows) ->
 -spec run() -> ok.
 run() ->
     {ok, _} = application:ensure_all_started(libtmux_erlang),
-    try
+    tmux_scope:run_or_error(fun() ->
         {ok, Pane} = tmux_model:pane(#{id => <<"%1">>, active => true,
             width => 120, current_command => <<"vim">>}),
         [<<"%1">>] = pane_ids([Pane]),
@@ -48,15 +48,15 @@ run() ->
             tmux_capability:require(Floor, layout_json),
         ok = ct_doctest:module(?MODULE),
         ok
-    after
+    end, fun() ->
         ok = application:stop(libtmux_erlang)
-    end.
+    end).
 
 -spec run_endpoint(binary(), binary()) -> ok.
 run_endpoint(Socket, Executable) ->
     Endpoint = #{socket_path => Socket, executable => Executable},
     {ok, Server} = tmux_server:open(Endpoint),
-    try
+    tmux_scope:run_or_error(fun() ->
         {ok, Message} = tmux_command:raw(<<"display-message">>,
                                         [<<"-p">>, <<"archive consumer">>]),
         {ok, #{stdout := <<"archive consumer\n">>, cleanup := complete}} =
@@ -72,7 +72,7 @@ run_endpoint(Socket, Executable) ->
             #{name => <<"archive-domain">>,
               cwd => filename:dirname(Socket),
               launch => #{argv => [<<"/bin/cat">>]}}),
-        try
+        tmux_scope:run_or_error(fun() ->
             SessionId0 = tmux_model:get(id, Session),
             ClientEndpoint = #{socket => Socket, executable => Executable},
             tmux_test_fixture:with_client(ClientEndpoint, SessionId0, [],
@@ -81,7 +81,7 @@ run_endpoint(Socket, Executable) ->
                     {ok, Destination} = tmux_session:create(Server,
                         #{name => <<"archive-client">>,
                           launch => #{argv => [<<"/bin/cat">>]}}),
-                    try
+                    tmux_scope:run_or_error(fun() ->
                         {ok, _} = tmux_session:select(Destination, ClientName),
                         {ClientName, DestinationId} =
                             tmux_test_fixture:client_session(Client),
@@ -90,9 +90,10 @@ run_endpoint(Socket, Executable) ->
                             #{update_environment => false}),
                         {ClientName, SessionId0} =
                             tmux_test_fixture:client_session(Client)
-                    after
-                        {ok, _} = tmux_session:kill(Destination)
-                    end
+                    end, fun() ->
+                        {ok, _} = tmux_session:kill(Destination),
+                        ok
+                    end)
                 end),
             {ok, _} = tmux_session:rename(Session, <<"archive-#{pid};">>),
             {ok, Renamed} = tmux_session:get(Server, SessionId0),
@@ -217,7 +218,7 @@ run_endpoint(Socket, Executable) ->
             {ok, InputWait} = tmux_command:wait_for(
                 <<"archive-input-complete">>, wait),
             {ok, InputOperation} = tmux_operation:start(Server, InputWait, #{}),
-            try
+            tmux_scope:run_or_error(fun() ->
                 {ok, _} = tmux_pane:send_text(InputPane, <<"archive input">>),
                 {ok, _} = tmux_pane:send_keys(
                     InputPane, [enter, {control, <<"d">>}]),
@@ -233,13 +234,16 @@ run_endpoint(Socket, Executable) ->
                 {ok, _} = tmux_window:kill(InputWindow),
                 {error, #{code := target_gone}} =
                     tmux_window:get(Server, InputWindowId)
-            after
-                {ok, _} = tmux_operation:cancel(InputOperation),
-                case tmux_operation:await(InputOperation, 900) of
-                    {ok, #{cleanup := complete}} -> ok;
-                    {error, #{cleanup := complete}} -> ok
-                end
-            end,
+            end, fun() ->
+                tmux_scope:run_or_error(fun() ->
+                    {ok, _} = tmux_operation:cancel(InputOperation)
+                end, fun() ->
+                    case tmux_operation:await(InputOperation, 900) of
+                        {ok, #{cleanup := complete}} -> ok;
+                        {error, #{cleanup := complete}} -> ok
+                    end
+                end), ok
+            end),
             HookName = <<"after-split-window">>,
             {ok, _} = tmux_option:set(Session, <<"@manual-hook">>, <<>>),
             {ok, FirstHook} = tmux_command:raw(<<"set-option">>,
@@ -254,10 +258,11 @@ run_endpoint(Socket, Executable) ->
             {ok, #{}} = tmux_hook:get(Session, HookName, #{}),
             {ok, _} = tmux_hook:unset(Session, HookName),
             none = tmux_hook:get(Session, HookName, #{})
-        after
-            {ok, _} = tmux_session:kill(Session)
-        end,
+        end, fun() ->
+            {ok, _} = tmux_session:kill(Session),
+            ok
+        end),
         ok
-    after
+    end, fun() ->
         ok = tmux_server:close(Server)
-    end.
+    end).

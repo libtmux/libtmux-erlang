@@ -6,10 +6,10 @@
 run(Socket, Executable) ->
     {ok, Server} = tmux_server:open(
         #{socket_path => Socket, executable => Executable}),
-    try
+    tmux_scope:run_or_error(fun() ->
         {ok, Session} = tmux_session:create(Server,
             #{name => <<"options">>, launch => #{argv => [<<"/bin/cat">>]}}),
-        try
+        tmux_scope:run_or_error(fun() ->
             Owner = <<"@libtmux-owner">>,
             none = tmux_option:get(Session, Owner, #{}),
             {ok, _} = tmux_option:set(Session, Owner, <<"build-workspace">>,
@@ -32,9 +32,10 @@ run(Socket, Executable) ->
             none = tmux_option:get(Session, {Env, 8}, #{}),
             #{owner => <<"build-workspace">>, restored_inheritance => true,
               empty_entry_preserved => true, missing_entry => true}
-        after
-            {ok, _} = tmux_session:kill(Session)
-        end
-    after
+        end, fun() ->
+            {ok, _} = tmux_session:kill(Session),
+            ok
+        end)
+    end, fun() ->
         ok = tmux_server:close(Server)
-    end.
+    end).

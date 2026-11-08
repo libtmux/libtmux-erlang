@@ -30,13 +30,13 @@ $ mise exec -- escript tools/run_examples.escript graph
 run(Socket, Executable) ->
     Endpoint = #{socket_path => Socket, executable => Executable},
     {ok, Server} = tmux_server:open(Endpoint),
-    try
+    tmux_scope:run_or_error(fun() ->
         {ok, Work} = tmux_session:create(Server,
             #{name => <<"work">>, launch => #{argv => [<<"/bin/cat">>]}}),
-        try
+        tmux_scope:run_or_error(fun() ->
             {ok, Mirror} = tmux_session:create(Server,
                 #{name => <<"mirror">>, launch => #{argv => [<<"/bin/cat">>]}}),
-            try
+            tmux_scope:run_or_error(fun() ->
                 {ok, Shared} = tmux_window:create(Work,
                     #{name => <<"shared">>,
                       launch => #{argv => [<<"/bin/cat">>]}}),
@@ -71,15 +71,17 @@ run(Socket, Executable) ->
                 #{physical_windows => 3, physical_panes => 4, window_links => 5,
                   work_windows => 2, work_memberships => 3,
                   shared_window_panes => 2}
-            after
-                {ok, _} = tmux_session:kill(Mirror)
-            end
-        after
-            {ok, _} = tmux_session:kill(Work)
-        end
-    after
+            end, fun() ->
+                {ok, _} = tmux_session:kill(Mirror),
+                ok
+            end)
+        end, fun() ->
+            {ok, _} = tmux_session:kill(Work),
+            ok
+        end)
+    end, fun() ->
         ok = tmux_server:close(Server)
-    end.
+    end).
 ```
 
 There are three physical windows and four physical panes. Five window links

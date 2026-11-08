@@ -6,11 +6,11 @@
 run(Socket, Executable) ->
     {ok, Server} = tmux_server:open(
         #{socket_path => Socket, executable => Executable}),
-    try
+    tmux_scope:run_or_error(fun() ->
         Launch = #{launch => #{argv => [<<"/bin/cat">>]}},
         {ok, Session} = tmux_session:create(Server,
             Launch#{name => <<"hooks">>}),
-        try
+        tmux_scope:run_or_error(fun() ->
             {ok, Snapshot} = tmux_server:snapshot(Server),
             [Pane] = tmux_snapshot:panes(Snapshot),
             Suffix = binary:encode_hex(crypto:strong_rand_bytes(8), lowercase),
@@ -21,7 +21,7 @@ run(Socket, Executable) ->
             {ok, Signal} = tmux_command:wait_for(Channel, signal),
             {ok, Wait} = tmux_command:wait_for(Channel, wait),
             {ok, Operation} = tmux_operation:start(Server, Wait, #{}),
-            try
+            tmux_scope:run_or_error(fun() ->
                 Name = <<"after-split-window">>,
                 {ok, _} = tmux_hook:set(Session, {Name, 4}, [Mark, Signal]),
                 {ok, _} = tmux_pane:split(Pane, Launch),
@@ -34,16 +34,20 @@ run(Socket, Executable) ->
                 none = tmux_hook:get(Session, Name, #{}),
                 #{event => <<"split complete">>, hook_acknowledged => true,
                   local_hook_removed => true}
-            after
-                {ok, _} = tmux_operation:cancel(Operation),
-                case tmux_operation:await(Operation, 900) of
-                    {ok, #{cleanup := complete}} -> ok;
-                    {error, #{cleanup := complete}} -> ok
-                end
-            end
-        after
-            {ok, _} = tmux_session:kill(Session)
-        end
-    after
+            end, fun() ->
+                tmux_scope:run_or_error(fun() ->
+                    {ok, _} = tmux_operation:cancel(Operation)
+                end, fun() ->
+                    case tmux_operation:await(Operation, 900) of
+                        {ok, #{cleanup := complete}} -> ok;
+                        {error, #{cleanup := complete}} -> ok
+                    end
+                end), ok
+            end)
+        end, fun() ->
+            {ok, _} = tmux_session:kill(Session),
+            ok
+        end)
+    end, fun() ->
         ok = tmux_server:close(Server)
-    end.
+    end).

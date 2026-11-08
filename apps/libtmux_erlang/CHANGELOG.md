@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Scoped server lifetimes preserve callback and cleanup outcomes together,
+  including recovery handles after incomplete cleanup. Nested resource scopes
+  preserve failures in examples without masking the original diagnostic.
+
 - Entity constructors expose generated input-map types and structured
   validation errors. Installed consumer checks verify useful Dialyzer
   diagnostics for invalid fields and missing required identities.

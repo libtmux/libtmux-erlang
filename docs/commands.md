@@ -24,11 +24,11 @@ $ mise exec -- escript tools/run_examples.escript commands
 run(Socket, Executable) ->
     Endpoint = #{socket_path => Socket, executable => Executable},
     {ok, Server} = tmux_server:open(Endpoint),
-    try
+    tmux_scope:run_or_error(fun() ->
         {ok, Session} = tmux_session:create(Server,
             #{name => <<"commands">>, width => 120, height => 30,
               launch => #{argv => [<<"/bin/cat">>]}}),
-        try
+        tmux_scope:run_or_error(fun() ->
             SessionId = tmux_model:get(id, Session),
             {ok, Snapshot} = tmux_server:snapshot(Server),
             [Anchor] = tmux_snapshot:panes(Snapshot),
@@ -39,12 +39,12 @@ run(Socket, Executable) ->
                 Session, <<"commands-ready">>),
             {ok, Resize} = tmux_pane:resize_command(Pane, #{width => 60}),
             {ok, OtherEndpoint} = tmux_server:open(Endpoint),
-            try
+            tmux_scope:run_or_error(fun() ->
                 {error, #{code := different_owner, submitted := false}} =
                     tmux_server:command(OtherEndpoint, Rename, #{})
-            after
+            end, fun() ->
                 ok = tmux_server:close(OtherEndpoint)
-            end,
+            end),
             {ok, Before} = tmux_session:get(Server, SessionId),
             <<"commands">> = tmux_model:get(name, Before),
             40 = tmux_model:get(width, Pane),
@@ -62,12 +62,13 @@ run(Socket, Executable) ->
             #{name => <<"commands-ready">>, initial_width => 40,
               actual_width => 60, captured_values_unchanged => true,
               foreign_origin_rejected => true}
-        after
-            {ok, _} = tmux_session:kill(Session)
-        end
-    after
+        end, fun() ->
+            {ok, _} = tmux_session:kill(Session),
+            ok
+        end)
+    end, fun() ->
         ok = tmux_server:close(Server)
-    end.
+    end).
 ```
 
 <!-- example-output: command_demo -->

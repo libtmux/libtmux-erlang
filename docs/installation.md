@@ -43,15 +43,13 @@ Save this module as `src/inspect_demo.erl` in the consumer application:
 run(Socket, Executable) ->
     {ok, _} = application:ensure_all_started(libtmux_erlang),
     Endpoint = #{socket_path => Socket, executable => Executable},
-    {ok, Server} = tmux_server:open(Endpoint),
-    try
+    {ok, Result} = tmux_server:with_server(Endpoint, fun(Server) ->
         {ok, Snapshot} = tmux_server:snapshot(Server),
         #{sessions => length(tmux_snapshot:sessions(Snapshot)),
           windows => length(tmux_snapshot:windows(Snapshot)),
           panes => length(tmux_snapshot:panes(Snapshot))}
-    after
-        ok = tmux_server:close(Server)
-    end.
+    end),
+    Result.
 ```
 
 Run it through the consumer's Rebar shell. The executable path comes from PATH;

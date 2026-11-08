@@ -6,15 +6,15 @@
 run(Socket, Executable) ->
     {ok, Server} = tmux_server:open(
         #{socket_path => Socket, executable => Executable}),
-    try
+    tmux_scope:run_or_error(fun() ->
         {ok, Session} = tmux_session:create(Server,
             #{name => <<"control-demo">>, width => 120, height => 30,
               launch => #{argv => [<<"/bin/cat">>]}}),
-        try
+        tmux_scope:run_or_error(fun() ->
             Id = tmux_model:get(id, Session),
             0 = tmux_model:get(attached_count, Session),
             {ok, Control} = tmux_control:attach(Server, Session, #{}),
-            try
+            tmux_scope:run_or_error(fun() ->
                 {ok, #{phase := open, identity := same_connection}} =
                     tmux_control:status(Control),
                 {ok, Attached} = tmux_session:get(Server, Id),
@@ -32,12 +32,13 @@ run(Socket, Executable) ->
                 #{identity => same_connection, attached_count => 1,
                   detached_count => 0, window_size => [120, 30],
                   cleanup => complete, session_preserved => true}
-            after
+            end, fun() ->
                 ok = tmux_control:close(Control)
-            end
-        after
-            {ok, _} = tmux_session:kill(Session)
-        end
-    after
+            end)
+        end, fun() ->
+            {ok, _} = tmux_session:kill(Session),
+            ok
+        end)
+    end, fun() ->
         ok = tmux_server:close(Server)
-    end.
+    end).

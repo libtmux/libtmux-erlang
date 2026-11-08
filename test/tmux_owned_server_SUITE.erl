@@ -2,11 +2,13 @@
 -compile(nowarn_missing_spec).
 -include_lib("kernel/include/file.hrl").
 -export([all/0, init_per_suite/1, end_per_suite/1, owned_lifetime/1,
-         namespace_replacement/1, owner_death/1, application_shutdown/1, startup_errors/1]).
+         namespace_replacement/1, owner_death/1, application_shutdown/1, startup_errors/1,
+         scoped_lifetime/1, scoped_failures/1, scoped_timeout/1]).
 
 %% Outer: public owned lifetime, borrowed close and actual daemon retirement.
 all() -> [owned_lifetime, namespace_replacement, owner_death,
-          application_shutdown, startup_errors].
+          application_shutdown, startup_errors, scoped_lifetime, scoped_failures,
+          scoped_timeout].
 init_per_suite(Config) ->
     {ok, _} = application:ensure_all_started(libtmux_erlang),
     Executable = case os:getenv("LIBTMUX_TEST_TMUX") of
@@ -16,6 +18,136 @@ init_per_suite(Config) ->
     true = is_list(Executable),
     [{executable, unicode:characters_to_binary(Executable)} | Config].
 end_per_suite(_) -> ok = application:stop(libtmux_erlang).
+
+scoped_lifetime(Config) ->
+    Executable = proplists:get_value(executable, Config),
+    {error, #{code := exec_failed, outcome := not_started,
+              cleanup := complete}} = tmux_server:with_owned(
+        #{executable => <<"/missing-tmux-scope-executable">>},
+        fun(_) -> ct:fail(callback_after_startup_failure) end),
+    {ok, {Socket, Directory, Pid, Identity}} = tmux_server:with_owned(
+        #{executable => Executable}, fun observation/1),
+    {error, #{code := stale_server}} = tmux_identity:check(Identity, Pid),
+    {error, enoent} = file:read_link_info(Socket),
+    {error, enoent} = file:read_link_info(Directory),
+    {ok, Fixture} = tmux_test_fixture:start(Executable),
+    try
+        #{socket := BorrowedSocket} = tmux_test_fixture:info(Fixture),
+        Options = #{socket_path => BorrowedSocket, executable => Executable},
+        {ok, {error, ordinary_value}} = tmux_server:with_server(Options,
+            fun(_) -> {error, ordinary_value} end),
+        lists:foreach(fun(Class) ->
+            Tag = make_ref(),
+            Actual = try tmux_server:with_server(Options, fun(Server) ->
+                try case Class of
+                    error -> error(original_failure);
+                    throw -> throw(original_failure);
+                    exit -> exit(original_failure)
+                end
+                catch C:R:S ->
+                    self() ! {Tag, Server, S},
+                    erlang:raise(C, R, S)
+                end
+            end)
+            catch C:R:S -> {C, R, S}
+            end,
+            receive
+                {Tag, Server, [_ | _] = Stack} ->
+                    {Class, original_failure, Stack} = Actual,
+                    {ok, #{phase := closed}} = tmux_server:status(Server)
+            after 0 -> ct:fail(missing_scope_callback)
+            end
+        end, [error, throw, exit]),
+        {ok, #{exit_status := 0}} = tmux_test_fixture:command(Fixture,
+            [<<"display-message">>, <<"-p">>, <<"survived">>])
+    after ok = tmux_test_fixture:close(Fixture)
+    end.
+
+scoped_failures(Config) ->
+    Executable = proplists:get_value(executable, Config),
+    lists:foreach(fun(Kind) ->
+        Tag = make_ref(),
+        Result = try tmux_server:with_owned(#{executable => Executable},
+            fun(Server) ->
+                {_, Directory, Pid, Identity} = observation(Server),
+                Ownership = scope_ownership(Server),
+                Marker = filename:join(Directory, <<"scope-preserve">>),
+                self() ! {Tag, Server, Ownership, Marker, Directory, Pid, Identity},
+                ok = file:write_file(Marker, <<"retained">>),
+                case Kind of
+                    value -> {error, ordinary_value};
+                    exception -> error(original_failure)
+                end
+            end)
+        catch C:R:S -> {unexpected_exception, C, R, S}
+        end,
+        receive
+            {Tag, Server, Ownership, Marker, Directory, Pid, Identity} ->
+                try
+                    {error, #{code := scope_cleanup_failed, primary := Primary,
+                        server := Server, ownership := Ownership,
+                        cleanup := {error, #{code := cleanup_incomplete,
+                            process_cleanup := complete,
+                            namespace_cleanup := {directory_delete, Reason}}}}} = Result,
+                    true = lists:member(Reason, [eexist, enotempty]),
+                    case Kind of
+                        value -> {ok, {error, ordinary_value}} = Primary;
+                        exception -> {exception, error, original_failure, [_ | _]} = Primary
+                    end,
+                    {error, #{code := stale_server}} = tmux_identity:check(Identity, Pid),
+                    {ok, <<"retained">>} = file:read_file(Marker)
+                after
+                    Removed = file:delete(Marker),
+                    Stopped = tmux_server:stop_owned(Ownership),
+                    ok = Removed,
+                    ok = Stopped,
+                    {error, enoent} = file:read_link_info(Directory)
+                end
+        after 0 -> ct:fail(missing_owned_scope_callback)
+        end
+    end, [value, exception]).
+
+%% Outer fault injection: suspend the endpoint to force a real close timeout.
+scoped_timeout(Config) ->
+    Executable = proplists:get_value(executable, Config),
+    {ok, Fixture} = tmux_test_fixture:start(Executable),
+    try
+        #{socket := Socket} = tmux_test_fixture:info(Fixture),
+        Tag = make_ref(),
+        Result = tmux_server:with_server(
+            #{socket_path => Socket, executable => Executable}, fun(Server) ->
+                {ok, #{owner := Owner}} = tmux_server:status(Server),
+                self() ! {Tag, Server, Owner},
+                ok = sys:suspend(Owner),
+                completed_value
+            end),
+        receive
+            {Tag, Server, Owner} ->
+                try
+                    {error, #{code := scope_cleanup_failed,
+                        primary := {ok, completed_value}, server := Server,
+                        cleanup := {error, #{code := cleanup_incomplete}}}} = Result
+                after
+                    ok = sys:resume(Owner),
+                    ok = tmux_server:close(Server)
+                end
+        after 0 -> ct:fail(missing_borrowed_scope_callback)
+        end,
+        {ok, #{exit_status := 0}} = tmux_test_fixture:command(Fixture,
+            [<<"display-message">>, <<"-p">>, <<"survived">>])
+    after ok = tmux_test_fixture:close(Fixture)
+    end.
+
+%% Capture the owned token independently so a broken scope result cannot leak
+%% the injected namespace obstacle when this regression fails.
+scope_ownership(Server) ->
+    [Ownership] = [begin
+        #{token := Token} = State,
+        {owned_server, Pid, Token}
+    end || {_, Pid, worker, [tmux_owned_server]} <- supervisor:which_children(tmux_sup),
+        is_pid(Pid), State <- [try sys:get_state(Pid) catch exit:_ -> #{} end],
+        maps:get(endpoint, State, none) =:= Server],
+    Ownership.
 
 owned_lifetime(Config) ->
     {error, #{code := invalid_ownership}} = tmux_server:stop_owned(invalid),

@@ -13,6 +13,9 @@ persistent dispatch qualifies.
 token for `stop_owned/1`. The [ownership guide](ownership.md) explains caller
 death, application shutdown and namespace cleanup.
 
+Use `with_server/2` or `with_owned/2` for a callback scope. They attempt cleanup
+after its return or exception and preserve both outcomes if cleanup fails.
+
 The calling process owns the endpoint. `close/1` cancels queued
 work, retires its one-shot clients and preserves the borrowed server. Cleanup
 failure remains explicit and keeps the supervised owner alive. Successful close is
@@ -32,12 +35,25 @@ explicit waits; the [job guide](jobs.md) explains ownership and cleanup.
 -behaviour(gen_server).
 -export([open/1, command/3, close/1, status/1, origin/1, version/1, from_origin/1, bind/2,
          snapshot/1, snapshot/2, observation_context/1, start_owned/1, stop_owned/1]).
+-export([with_server/2, with_owned/2]).
 -export([submit/3, start_link/3, init/1, handle_call/3, handle_cast/2,
          handle_info/2, format_status/1, send_request/2, open_observed/3]).
 -export([watch_closing/1, watch_closing/2, unwatch_closing/2]).
 -export_type([t/0]).
 -export_type([open_options/0, command_options/0, capture_options/0, state/0]).
 -export_type([owned_options/0, ownership/0]).
+-export_type([scope_failure/0]).
+-doc """
+Both callback and cleanup evidence when a scope cannot prove retirement.
+primary is the callback value or its exception class, reason and original
+stack. cleanup preserves the operational error or a separate cleanup
+exception. server permits `close/1` reconciliation; owned scopes also include
+ownership for `stop_owned/1`. Retain these handles until cleanup is resolved.
+""".
+-type scope_failure() :: #{code := scope_cleanup_failed,
+    primary := {ok, term()} | {exception, error | exit | throw, term(), erlang:stacktrace()},
+    cleanup := {error, map()} | {exception, error | exit | throw, term(), erlang:stacktrace()},
+    server := t(), ownership => ownership()}.
 -doc "An explicit absolute socket endpoint and optional absolute tmux executable path.".
 -type open_options() :: #{socket_path := binary(), executable => binary()}.
 -doc "Owned startup options. The finite startup budget defaults to 2500 milliseconds.".
@@ -137,6 +153,59 @@ directory and logs its location or write failure; no automatic recovery runs.
 """.
 -spec stop_owned(ownership()) -> ok | {error, map()}.
 stop_owned(Ownership) -> tmux_owned_server:stop(Ownership).
+
+-doc """
+Open a borrowed endpoint, run a callback in the calling process, then close it.
+Performs the same I/O as `open/1` and `close/1`; the borrowed daemon survives.
+Startup failure passes through without invoking the callback.
+
+With successful cleanup, returns {ok, Value} for any callback return value,
+including a returned error tuple. Callback error, throw and exit exceptions
+are re-raised with their original reason and stack. If cleanup fails, returns
+{error, Failure} with `t:scope_failure/0`, preserving both outcomes and the
+endpoint for explicit recovery. It attempts cleanup once; a timeout does not
+prove retirement. Existing supervised cleanup ownership remains in force.
+
+The callback must retire separately created resources such as `m:tmux_control`
+attachments. This scope closes its endpoint, not every resource the callback
+may allocate. Use `with_owned/2` when the scope should own the daemon too.
+""".
+-spec with_server(open_options(), fun((t()) -> Value)) ->
+    {ok, Value} | {error, scope_failure() | map()}.
+with_server(Options, Function) when is_function(Function, 1) ->
+    case open(Options) of
+        {ok, Server} -> run_scope(fun() -> Function(Server) end,
+            fun() -> close(Server) end, #{server => Server});
+        {error, _} = Error -> Error
+    end.
+
+-doc """
+Start an owned daemon, run a callback in the calling process, then stop it.
+Performs `start_owned/1` and token-based `stop_owned/1` around the callback.
+With successful cleanup, returns {ok, Value} or re-raises the original callback
+exception. A returned error tuple is an ordinary callback value. Startup
+failure passes through without invoking the callback.
+
+Cleanup failure returns `t:scope_failure/0`, including both server and ownership
+handles for inspection and an explicit stop retry. It preserves the callback
+outcome and cleanup evidence separately; it never claims timeout is retirement.
+See `with_server/2` for callback and separately allocated resource obligations.
+""".
+-spec with_owned(owned_options(), fun((t()) -> Value)) ->
+    {ok, Value} | {error, scope_failure() | map()}.
+with_owned(Options, Function) when is_function(Function, 1) ->
+    case start_owned(Options) of
+        {ok, Server, Ownership} -> run_scope(fun() -> Function(Server) end,
+            fun() -> stop_owned(Ownership) end,
+            #{server => Server, ownership => Ownership});
+        {error, _} = Error -> Error
+    end.
+
+run_scope(Function, Cleanup, Recovery) ->
+    case tmux_scope:run(Function, Cleanup) of
+        {ok, _} = Result -> Result;
+        {error, Failure} -> {error, maps:merge(Failure, Recovery)}
+    end.
 
 -doc false.
 -spec open_observed(pid(), map(), binary()) -> {ok, t()} | {error, map()}.

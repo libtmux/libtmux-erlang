@@ -35,6 +35,7 @@ source-extraction path rejects native-record attributes.
 | Task | API modules |
 | --- | --- |
 | Open, inspect and close an endpoint | `m:tmux_server` |
+| Preserve work and cleanup failures | `m:tmux_scope`, `tmux_server:with_owned/2`, `tmux_server:with_server/2` |
 | Create and act on terminal objects | `m:tmux_session`, `m:tmux_window`, `m:tmux_pane` |
 | Switch one explicitly named attached client | `tmux_session:select/2`, `tmux_session:select/3` |
 | Break, join, move and swap running panes | `tmux_pane:break/4`, `tmux_pane:join/3`, `tmux_pane:move/3`, `tmux_pane:swap/3` |

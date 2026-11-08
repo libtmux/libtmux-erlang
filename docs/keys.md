@@ -22,7 +22,7 @@ $ mise exec -- escript tools/run_examples.escript keys
 run(Socket, Executable) ->
     {ok, Server} = tmux_server:open(
         #{socket_path => Socket, executable => Executable}),
-    try
+    tmux_scope:run_or_error(fun() ->
         Suffix = binary:encode_hex(crypto:strong_rand_bytes(8), lowercase),
         Table = <<"workspace-", Suffix/binary>>,
         {ok, Zoom} = tmux_command:raw(<<"resize-pane">>, [<<"-Z">>]),
@@ -30,7 +30,7 @@ run(Socket, Executable) ->
             [<<"Workspace: #{session_name}">>]),
         {ok, _} = tmux_key:bind(Server, <<"z">>, [Zoom, Status],
             #{table => Table, note => <<"Zoom the current workspace pane">>}),
-        try
+        tmux_scope:run_or_error(fun() ->
             {ok, _} = tmux_key:bind(Server, <<"s">>, Status,
                 #{table => Table, note => <<"Show the workspace name">>}),
             {ok, Listing} = tmux_key:listing(Server, #{table => Table}),
@@ -38,12 +38,13 @@ run(Socket, Executable) ->
             true = binary:match(Listing, <<"display-message">>) =/= nomatch,
             #{bindings => 2, native_listing => true,
               execution => <<"requires a client key press">>}
-        after
-            {ok, _} = tmux_key:clear_table(Server, Table)
-        end
-    after
+        end, fun() ->
+            {ok, _} = tmux_key:clear_table(Server, Table),
+            ok
+        end)
+    end, fun() ->
         ok = tmux_server:close(Server)
-    end.
+    end).
 ```
 
 <!-- example-output: key_demo -->
