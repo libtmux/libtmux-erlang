@@ -88,7 +88,8 @@ Change it in all of them together.
 
 - **Hard limit:** examples use 80 columns, enforced by
   `tools/check_example_width.py` and `.github/example-width.toml`.
-  Erlang formatting qualification remains open; no formatter widens examples.
+  Formatter enforcement is deferred because erlfmt 1.8.0 does not parse native
+  record declarations. See the [formatting policy](CONTRIBUTING.md#formatting).
 - **Not formatted:** example programs and Markdown fences are maintained at
   80 columns by hand. Native EEP-48 code blocks use the same limit, checked
   by `tools/check_docs.py` using the shared column measure. Expected shell

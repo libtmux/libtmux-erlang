@@ -222,8 +222,28 @@ $ time git diff --cached --check
 Git does not include untracked files in those checks; inspect newly created
 files before staging them. Verify relative Markdown links, the
 `CLAUDE.md -> AGENTS.md` symlink, and the settings on both GitHub repositories.
-Compiler warnings are errors. Native formatter qualification, source package
-assembly and the full real-tmux matrix remain explicit implementation gates.
+Compiler warnings are errors. The formatting policy below records the
+qualified tool limitation. Package publication and the complete feature matrix
+remain separate implementation gates.
+
+## Formatting
+
+Maintain Erlang layout manually and keep reader examples within 80 columns.
+Generated files remain owned by their generators.
+
+The released [erlfmt 1.8.0](https://github.com/WhatsApp/erlfmt/releases/tag/v1.8.0)
+does not parse OTP 29 native-record declarations. Qualification covered a
+minimal native record and this project's generated model, both accepted by
+the OTP 29.1.2 compiler. erlfmt reported syntax errors for those declarations.
+Its [parser fallback](https://github.com/WhatsApp/erlfmt/blob/v1.8.0/src/erlfmt.erl#L530-L534)
+preserves unparsed forms, and `--check` can still return zero. Exit status
+alone therefore does not qualify whole-file formatting.
+
+Formatter enforcement is deferred. Recheck released candidates against all
+syntax used here before enabling one; require no parser diagnostics,
+preserved semantics, stable generated output and the example width limit.
+Upstream tracks native-record support in
+[issue 377](https://github.com/WhatsApp/erlfmt/issues/377).
 
 ## Check budgets
 
