@@ -23,6 +23,14 @@ correlation and physical versus membership counts. The bounded generated
 grammar supplements these fixed cases; it does not cover every operator or
 establish native tmux pushdown equivalence.
 
+The [source-query suite](../tmux_query_SUITE.erl) checks candidate implication
+and declared exactness through tmux's own format evaluator on an owned,
+linked-window graph. Seeded recursive pane criteria combine native scalars with
+local text, nullable fields and relationship conditions. The fixture checks
+used values and memberships before and after evaluation. Batch framing here
+is limited to canonical pane IDs and generated `0`/`1` results; captures
+retain interval semantics.
+
 [regex-v1.json](regex-v1.json) checks the restricted ASCII portable_v1 regex
 dialect against PCRE2, JavaScript and Rust regex engines. It contains explicit
 edge cases and deterministic generated expressions whose expected results use

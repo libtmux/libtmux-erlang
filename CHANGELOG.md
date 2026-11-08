@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Check recursive native candidate filters against captured full predicates
+  on owned linked-window fixtures.
+
 - Check generated relationship filters against an independent graph model,
   including shared windows, repeated memberships and empty quantifiers.
 
