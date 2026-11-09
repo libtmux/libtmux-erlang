@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Add a source-pinned Erlang/Elixir filter comparison that reports wire,
+  field-domain and validation-diagnostic incompatibilities.
+
 - Record batched complete-graph hydration, byte framing, measured source cost
   and the explicit isolated strategy in ADR 0002.
 
