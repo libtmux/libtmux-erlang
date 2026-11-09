@@ -158,22 +158,26 @@ def generated(data: dict) -> dict[Path, str]:
               "-export([all/0]).\n-spec all() -> map().\nall() ->\n"
               + erlang(data) + ".\n")
     lines = ["# Native commands and capability floors\n\n",
-        "Generated from the same pinned tmux commits as CI. These are native\n",
+        "Generated from pinned tmux source profiles. These are native\n",
         "parser declarations, not an inventory of implemented Erlang facades,\n",
         "complete argument validation or runtime qualification. Canonical names\n",
         "are lookup keys; aliases are reported as metadata. The\n",
         "`m:tmux_capability` performs pure lookups. Trusted raw commands remain\n",
         "available through `tmux_command:raw/2`.\n\n",
         "## Capability minimums\n\n",
-        "Minimums match the sampled release matrix. They do not qualify other\n",
-        "releases, tracking builds, platforms or new typed API options.\n\n",
+        "Capability minimums name the earliest catalogued source profile for\n",
+        "each feature. Runtime support covers tmux 3.3a–3.8, including\n",
+        "intermediate releases. Routine CI samples only 3.3a and 3.8 on both\n",
+        "supported architectures. See\n",
+        "[compatibility](compatibility.md) for platform and API qualification.\n\n",
         "| Capability | Minimum tmux | Native behavior |\n",
         "| --- | --- | --- |\n"]
     for name, metadata in sorted(data["features"].items()):
         minimum = ".".join(map(str, metadata["minimum"]))
         lines.append(f"| `{name}` | {minimum} | {metadata['description']} |\n")
     lines += ["\n## Source profiles\n\n",
-        "Exact parser discovery rejects profiles absent from this table.\n\n",
+        "Exact parser discovery uses the profiles below. The 3.3 profile is\n",
+        "retained as upstream history; the library's runtime floor is 3.3a.\n\n",
         "| Profile | Pinned command table | Commands |\n| --- | --- | --- |\n"]
     for version, source in data["sources"].items():
         count = sum(any(version in variant["versions"] for variant in variants)

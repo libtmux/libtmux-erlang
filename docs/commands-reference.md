@@ -1,6 +1,6 @@
 # Native commands and capability floors
 
-Generated from the same pinned tmux commits as CI. These are native
+Generated from pinned tmux source profiles. These are native
 parser declarations, not an inventory of implemented Erlang facades,
 complete argument validation or runtime qualification. Canonical names
 are lookup keys; aliases are reported as metadata. The
@@ -9,8 +9,11 @@ available through `tmux_command:raw/2`.
 
 ## Capability minimums
 
-Minimums match the sampled release matrix. They do not qualify other
-releases, tracking builds, platforms or new typed API options.
+Capability minimums name the earliest catalogued source profile for
+each feature. Runtime support covers tmux 3.3a–3.8, including
+intermediate releases. Routine CI samples only 3.3a and 3.8 on both
+supported architectures. See
+[compatibility](compatibility.md) for platform and API qualification.
 
 | Capability | Minimum tmux | Native behavior |
 | --- | --- | --- |
@@ -21,7 +24,8 @@ releases, tracking builds, platforms or new typed API options.
 
 ## Source profiles
 
-Exact parser discovery rejects profiles absent from this table.
+Exact parser discovery uses the profiles below. The 3.3 profile is
+retained as upstream history; the library's runtime floor is 3.3a.
 
 | Profile | Pinned command table | Commands |
 | --- | --- | --- |
