@@ -1,10 +1,12 @@
 -module(tmux_workspace_SUITE).
 -compile(nowarn_missing_spec).
 -export([all/0, init_per_suite/1, end_per_suite/1,
-         reconcile/1, ordering/1, adoption_and_drift/1, failed_prefix/1, cancellation/1]).
+         reconcile/1, ordering/1, adoption_and_drift/1, destructive_boundaries/1,
+         failed_prefix/1, cancellation/1]).
 
 %% Outer: real owned tmux, persistent intent, conflict and cancellation evidence.
-all() -> [reconcile, ordering, adoption_and_drift, failed_prefix, cancellation].
+all() -> [reconcile, ordering, adoption_and_drift, destructive_boundaries,
+          failed_prefix, cancellation].
 init_per_suite(Config) ->
     {ok, _} = application:ensure_all_started(libtmux_erlang_workspace),
     Executable = case os:getenv("LIBTMUX_TEST_TMUX") of
@@ -107,6 +109,48 @@ failed_prefix(Config) -> with_workspace(Config, fun(Server, _Fixture, Dir, File)
         tmux_workspace_apply:run(Plan, Server, #{}),
     <<"session:", Id/binary>> = SessionRef,
     {ok, _} = tmux_session:get(Server, Id)
+end).
+
+destructive_boundaries(Config) -> with_workspace(Config, fun(Server, Fixture, Dir, File) ->
+    Original = desired(Dir, 1), write(File, Original),
+    {ok, Initial} = tmux_workspace_plan:new(File, Server, #{}),
+    {ok, #{bindings := Bindings}} = tmux_workspace_apply:run(Initial, Server, #{}),
+    <<"window:", WindowId/binary>> = maps:get(<<"w">>, Bindings),
+    <<"session:", SessionId/binary>> = maps:get(<<"s">>, Bindings),
+    {ok, Window} = tmux_window:get(Server, WindowId),
+    {ok, Unmanaged} = tmux_pane:split(Window,
+        #{launch => #{argv => [<<"/bin/cat">>]}}),
+    UnmanagedId = tmux_model:get(id, Unmanaged),
+    Replacement = #{version => 1, id => <<"workspace-tests">>, endpoint => <<"dev">>,
+        sessions => [#{key => <<"replacement">>, name => <<"replacement">>, windows => [
+            #{key => <<"new-window">>, name => <<"new">>, panes => [
+                #{key => <<"new-pane">>, cwd => Dir, argv => [<<"/bin/cat">>]}]}]}]},
+    write(File, Replacement),
+    {error, #{code := plan_conflict, reason := unmanaged_descendant}} =
+        tmux_workspace_plan:new(File, Server, #{}),
+    {ok, _} = tmux_session:get(Server, SessionId),
+    {ok, _} = tmux_pane:get(Server, UnmanagedId),
+    {ok, Unchanged} = tmux_server:snapshot(Server),
+    false = tmux_select:exists(#{name => <<"replacement">>},
+        tmux_select:sessions(Unchanged)),
+    {ok, _} = tmux_pane:kill(Unmanaged),
+    {ok, Foreign} = tmux_session:create(Server, #{name => <<"borrowed">>,
+        launch => #{argv => [<<"/bin/cat">>]}}),
+    ForeignId = tmux_model:get(id, Foreign),
+    {ok, #{exit_status := 0}} = tmux_test_fixture:command(Fixture,
+        [<<"link-window">>, <<"-d">>, <<"-s">>, WindowId, <<"-t">>, <<ForeignId/binary, $:>>]),
+    {error, #{code := plan_conflict, reason := shared_window}} =
+        tmux_workspace_plan:new(File, Server, #{}),
+    {ok, _} = tmux_window:get(Server, WindowId),
+    {ok, _} = tmux_session:get(Server, ForeignId),
+    {ok, #{exit_status := 0}} = tmux_test_fixture:command(Fixture,
+        [<<"unlink-window">>, <<"-t">>, <<ForeignId/binary, $:, WindowId/binary>>]),
+    {ok, Safe} = tmux_workspace_plan:new(File, Server, #{}),
+    {ok, _} = tmux_workspace_apply:run(Safe, Server, #{}),
+    {error, #{code := target_gone}} = tmux_session:get(Server, SessionId),
+    {ok, _} = tmux_session:get(Server, ForeignId),
+    {ok, Settled} = tmux_workspace_plan:new(File, Server, #{}),
+    #{<<"steps">> := []} = tmux_workspace_plan:to_map(Settled)
 end).
 
 cancellation(Config) -> with_workspace(Config, fun(Server, Fixture, Dir, File) ->
