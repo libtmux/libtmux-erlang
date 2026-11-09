@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Read ownership metadata in groups of up to seven local rows per sequence,
+  preserving every graph observation, ownership check and cancellation drain.
+
 - Plan and apply versioned workspaces through public core operations, with
   explicit adoption, launch changes, ordered windows/panes and drift receipts.
 - Build a standalone Rebar3 escript with trusted endpoint configuration,

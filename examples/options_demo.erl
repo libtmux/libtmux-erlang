@@ -17,6 +17,8 @@ run(Socket, Executable) ->
             {ok, <<"build-workspace">>} = tmux_option:get(Session, Owner, #{}),
             {ok, Window} = tmux_window:create(Session,
                 #{launch => #{argv => [<<"/bin/cat">>]}}),
+            {ok, [<<"build-workspace">>, none]} =
+                tmux_option:get_many([Session, Window], Owner, #{}),
             none = tmux_option:get(Window, <<"remain-on-exit">>, #{}),
             {ok, Effective} = tmux_option:get(Window, <<"remain-on-exit">>,
                 #{inherit => true}),

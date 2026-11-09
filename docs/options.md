@@ -36,6 +36,8 @@ run(Socket, Executable) ->
             {ok, <<"build-workspace">>} = tmux_option:get(Session, Owner, #{}),
             {ok, Window} = tmux_window:create(Session,
                 #{launch => #{argv => [<<"/bin/cat">>]}}),
+            {ok, [<<"build-workspace">>, none]} =
+                tmux_option:get_many([Session, Window], Owner, #{}),
             none = tmux_option:get(Window, <<"remain-on-exit">>, #{}),
             {ok, Effective} = tmux_option:get(Window, <<"remain-on-exit">>,
                 #{inherit => true}),
@@ -58,6 +60,7 @@ run(Socket, Executable) ->
     end, fun() ->
         ok = tmux_server:close(Server)
     end).
+
 ```
 
 <!-- example-output: options_demo -->
@@ -91,6 +94,20 @@ the wrapper checks their source metadata before dispatch to prevent that.
 selected table's parents: session defaults, or window/window defaults for a
 pane. User options follow the same table ancestry. Server options have no
 parent. There is no inheritance from a session table to a window table.
+
+`tmux_option:get_many/3` reads one scalar key from one to seven local rows on
+the same registered endpoint. Results preserve input order, including `none`
+for absent values. The example checks session ownership and the window's
+independent local table together. Arrays, indexed entries, command options,
+global tables and names outside the batch API's ASCII grammar use `get/3`.
+
+Each batch uses one native command sequence plus the normal identity-preflight
+client, with native ID observations around every row's read. Aggregate stdout
+is limited to 1 MiB and stderr to 64 KiB, with a
+2500 ms command deadline. Command or decoding failures reject the entire
+batch. These are interval observations: a queued reference may outlive a
+removed window, and target checks do not establish atomic topology or stronger
+server-incarnation identity. See [ADR 0003](adr-0003-scoped-option-batches.md).
 
 ## Preserve absence and bytes
 
@@ -127,7 +144,8 @@ versions return `unsupported_option_catalogue`; unavailable built-ins return
 `unsupported_tmux_option`. User options do not depend on a built-in catalogue.
 
 Hooks are executable commands and are rejected by this API, including hook
-names discovered in the catalogue. The [job example](jobs.md) currently uses an
-explicit raw `set-hook` command. A typed hook API remains implementation work.
+names discovered in the catalogue. Use `tmux_hook:get/3` to read hooks and
+`tmux_hook:set/3` for registration; the [hook guide](hooks.md) covers their
+scope, execution and cleanup.
 Raw commands are also available for deliberate newer-version integration.
 A missing target remains an operational error, never a missing option.

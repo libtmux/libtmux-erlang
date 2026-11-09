@@ -365,8 +365,9 @@ Ownership metadata reads use bounded batches of three workers. A private
 coordinator monitors the caller and joins its workers; the caller gates each
 new batch after checking cancellation. Results retain row order and the worst
 cleanup evidence across the drained batch. Worker exit alone cannot prove
-native retirement. This changes scheduling while retaining every graph and
-ownership read; total source-call work remains a separate optimization target.
+native retirement. [ADR 0003](adr-0003-scoped-option-batches.md) further groups
+up to seven local scalar reads per native sequence. Every graph and ownership
+read remains; complete apply cost still grows with graph size and step count.
 
 Endpoint names need host policy; loading shell text does not authorize its
 execution. Shell execution needs both host policy and a recorded plan opt-in.

@@ -3,12 +3,13 @@
 -export([all/0, init_per_suite/1, end_per_suite/1,
          reconcile/1, ordering/1, pane_capacity/1, zoomed_expansion/1,
          adoption_and_drift/1, destructive_boundaries/1,
-         failed_prefix/1, cancellation/1, metadata_cancellation/1]).
+         failed_prefix/1, cancellation/1, metadata_cancellation/1,
+         metadata_batching/1]).
 
 %% Outer: real owned tmux, persistent intent, conflict and cancellation evidence.
 all() -> [reconcile, ordering, pane_capacity, zoomed_expansion,
           adoption_and_drift, destructive_boundaries, failed_prefix, cancellation,
-          metadata_cancellation].
+          metadata_cancellation, metadata_batching].
 init_per_suite(Config) ->
     {ok, _} = application:ensure_all_started(libtmux_erlang_workspace),
     Executable = case os:getenv("LIBTMUX_TEST_TMUX") of
@@ -231,17 +232,47 @@ cancellation(Config) -> with_workspace(Config, fun(Server, Fixture, Dir, File) -
     end
 end).
 
+%% Outer: metadata reads preserve local tables with a bounded client count.
+metadata_batching(Config) -> with_workspace(Config, fun(Server, Fixture, _, _) ->
+    lists:foreach(fun(Args) ->
+        {ok, #{exit_status := 0}} = tmux_test_fixture:command(Fixture, Args)
+    end, [[<<"new-session">>, <<"-d">>, <<"-s">>, <<"metadata">>,
+           <<"-x">>, <<"200">>, <<"-y">>, <<"80">>, <<"/bin/cat">>]] ++
+        [[<<"split-window">>, <<"-d">>, <<"-t">>, <<"=metadata:0">>,
+          <<"/bin/cat">>] || _ <- lists:seq(1, 3)] ++
+        [[<<"set-option">>, Scope, <<"@libtmux_workspace">>, <<"not-local-json">>]
+            || Scope <- [<<"-g">>, <<"-gw">>]]),
+    Trace = trace:session_create(metadata_batching, self(), []),
+    try
+        1 = trace:function(Trace, {tmux_server, command, 3}, true, [call_count]),
+        #{<<"resources">> := Resources} = tmux_workspace_state:observe(Server, #{}),
+        6 = length(Resources),
+        true = lists:all(fun(R) -> maps:get(<<"tag">>, R) =:= null end, Resources),
+        case trace:info(Trace, {tmux_server, command, 3}, call_count) of
+            {call_count, 12} -> ok;
+            {call_count, Count} -> ct:fail({metadata_client_count,
+                #{expected => 12, observed => Count}})
+        end
+    after true = trace:session_destroy(Trace) end
+end).
+
 %% Outer: block three real metadata clients, then cancel and prove retirement.
 metadata_cancellation(Config) -> with_workspace(Config, fun(Server, Fixture, Dir, File) ->
-    write(File, desired(Dir, 4)),
+    write(File, desired(Dir, 8)),
     {ok, Initial} = tmux_workspace_plan:new(File, Server, #{}),
     {ok, _} = tmux_workspace_apply:run(Initial, Server, #{}),
     {ok, Empty} = tmux_workspace_plan:new(File, Server, #{}),
     #{<<"steps">> := []} = tmux_workspace_plan:to_map(Empty),
     Socket = filename:join(Dir, <<"metadata.sock">>),
+    Counter = filename:join(Dir, <<"metadata.count">>),
     Helper = filename:join(Dir, <<"metadata.py">>),
     ok = file:write_file(Helper, <<
-        "import os,socket,sys\n",
+        "import fcntl,os,socket,sys\n",
+        "with open(sys.argv[2],'a+b') as f:\n",
+        " fcntl.flock(f,fcntl.LOCK_EX)\n",
+        " f.seek(0); n=int(f.read() or b'0')+1\n",
+        " f.seek(0); f.truncate(); f.write(str(n).encode()); f.flush()\n",
+        "if n>3: sys.exit(0)\n",
         "s=socket.socket(socket.AF_UNIX,socket.SOCK_STREAM)\n",
         "s.connect(sys.argv[1])\n",
         "s.sendall(str(os.getpid()).encode()+b'\\n')\n",
@@ -252,7 +283,10 @@ metadata_cancellation(Config) -> with_workspace(Config, fun(Server, Fixture, Dir
     Token = make_ref(), put(Token, []),
     {ok, #{exit_status := 0}} = tmux_test_fixture:command(Fixture,
         [<<"set-hook">>, <<"-g">>, <<"after-show-options">>,
-         <<"run-shell '/usr/bin/python3 ", Helper/binary, $\s, Socket/binary, $'>>]),
+         <<"run-shell '/usr/bin/python3 ", Helper/binary, $\s,
+           Socket/binary, $\s, Counter/binary, $'>>]),
+    Trace = trace:session_create(metadata_cancel_batches, self(), []),
+    1 = trace:function(Trace, {tmux_option, get_many, 3}, true, [call_count]),
     Parent = self(), Cancel = make_ref(),
     {Caller, Monitor} = spawn_monitor(fun() ->
         Parent ! {Token, tmux_workspace_apply:run(Empty, Server, #{cancel => Cancel})}
@@ -278,9 +312,11 @@ metadata_cancellation(Config) -> with_workspace(Config, fun(Server, Fixture, Dir
         after 900 -> ct:fail(metadata_caller_alive) end,
         {ok, #{operations := 0}} = tmux_server:status(Server),
         {error, timeout} = gen_tcp:accept(Listen, 0),
+        {call_count, 3} = trace:info(Trace, {tmux_option, get_many, 3}, call_count),
         {ok, Snapshot} = tmux_server:snapshot(Server),
-        4 = length(tmux_snapshot:panes(Snapshot))
+        8 = length(tmux_snapshot:panes(Snapshot))
     after
+        true = trace:session_destroy(Trace),
         exit(Caller, kill), erlang:demonitor(Monitor, [flush]),
         {ok, #{exit_status := 0}} = tmux_test_fixture:command(Fixture,
             [<<"set-hook">>, <<"-ug">>, <<"after-show-options">>]),

@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Record bounded local scalar option batches and workspace client-cost
+  accounting in ADR 0003.
+
 - Qualify workspace planning/apply examples and a standalone escript through
   fresh source-package installation, owned fixtures and cancellation checks.
 

@@ -10,31 +10,47 @@ observe(Server, Options) ->
     Snapshot = result(tmux_server:snapshot(Server)),
     #{server_instance := Instance} = tmux_snapshot:metadata(Snapshot),
     Key = result(tmux_identity:fingerprint(Instance)),
-    Rows = tmux_snapshot:sessions(Snapshot) ++
-        tmux_snapshot:windows(Snapshot) ++ tmux_snapshot:panes(Snapshot),
-    Resources = tmux_workspace_reads:map(fun(Row) ->
-        Kind = atom_to_binary(tmux_model:entity(Row)),
-        Id = tmux_model:get(id, Row),
-        Tag = case tmux_option:get(Row, ?TAG, #{}) of
-            none -> null;
-            {ok, Bytes} when is_binary(Bytes), byte_size(Bytes) =< 32768 ->
-                try parse_tag(result(tmux_json:decode(Bytes)), Kind)
-                catch throw:{workspace_error, _} ->
-                    conflict(invalid_metadata, ref(Kind, Id))
-                end;
+    Batches = lists:append([batches(Rows) || Rows <- [
+        tmux_snapshot:sessions(Snapshot), tmux_snapshot:windows(Snapshot),
+        tmux_snapshot:panes(Snapshot)]]),
+    Resources = lists:append(tmux_workspace_reads:map(fun(Rows) ->
+        Values = case tmux_option:get_many(Rows, ?TAG, #{}) of
+            {ok, Read} -> Read;
             {error, Error} -> throw({workspace_error,
-                Error#{cleanup => maps:get(cleanup, Error, unverified)}});
-            _ -> conflict(invalid_metadata, ref(Kind, Id))
+                Error#{cleanup => maps:get(cleanup, Error, unverified)}})
         end,
-        #{<<"kind">> => Kind, <<"id">> => Id, <<"tag">> => Tag,
-          <<"name">> => field(name, Row), <<"parent">> => field(window_id, Row),
-          <<"index">> => field(index, Row), <<"layout">> => field(layout, Row)}
-    end, Rows, Options),
+        [resource_row(Row, Value) || {Row, Value} <- lists:zip(Rows, Values)]
+    end, Batches, Options)),
     Links = [#{<<"session">> => tmux_model:get(session_id, L),
                <<"window">> => tmux_model:get(window_id, L),
                <<"index">> => tmux_model:get(index, L)}
         || L <- tmux_snapshot:window_links(Snapshot)],
     #{<<"instance">> => Key, <<"resources">> => Resources, <<"links">> => Links}.
+
+batches([]) -> [];
+batches(Rows) ->
+    {Batch, Rest} = batch(Rows, 7, []),
+    [Batch | batches(Rest)].
+
+batch(Rest, 0, Acc) -> {lists:reverse(Acc), Rest};
+batch([], _, Acc) -> {lists:reverse(Acc), []};
+batch([Row | Rest], Left, Acc) -> batch(Rest, Left - 1, [Row | Acc]).
+
+resource_row(Row, Value) ->
+    Kind = atom_to_binary(tmux_model:entity(Row)),
+    Id = tmux_model:get(id, Row),
+    Tag = case Value of
+        none -> null;
+        Bytes when is_binary(Bytes), byte_size(Bytes) =< 32768 ->
+            try parse_tag(result(tmux_json:decode(Bytes)), Kind)
+            catch throw:{workspace_error, _} ->
+                conflict(invalid_metadata, ref(Kind, Id))
+            end;
+        _ -> conflict(invalid_metadata, ref(Kind, Id))
+    end,
+    #{<<"kind">> => Kind, <<"id">> => Id, <<"tag">> => Tag,
+      <<"name">> => field(name, Row), <<"parent">> => field(window_id, Row),
+      <<"index">> => field(index, Row), <<"layout">> => field(layout, Row)}.
 
 field(Name, Row) ->
     Kind = tmux_model:entity(Row),

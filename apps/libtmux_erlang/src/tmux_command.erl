@@ -1,6 +1,6 @@
 -module(tmux_command).
 -moduledoc """
-Build one tmux command without performing I/O.
+Build tmux commands and bounded sequences without performing I/O.
 
 Arguments remain binary values. Rendering protects trailing semicolons from
 tmux's command separator parser. This is distinct from shell quoting and from
@@ -42,6 +42,8 @@ creates a process-free pane. Use a persistent job for parent sessions/windows
 that must remain available across supported versions.
 
 Submit commands through `tmux_server:command/3` or `tmux_operation:start/3`.
+`sequence/1` combines flat command values for one-shot execution with combined
+output and a possible completed prefix on error.
 The [job guide](jobs.md) shows submission, completion and cancellation.
 `tmux_session:rename_command/2` and `tmux_pane:resize_command/2` build values
 bound to their row's captured origin. Execution through another endpoint
@@ -54,7 +56,7 @@ path. Both return command values without opening an endpoint or doing I/O.
 `to_config/1` renders a command or bounded command list for native
 configuration input, preserving argument bytes through tmux's lexer.
 """.
--export([raw/2, validate/1, argv/1, literal_format/1, literal_format/2, launch/1,
+-export([raw/2, sequence/1, validate/1, argv/1, literal_format/1, literal_format/2, launch/1,
          wait_for/2, source_file/2, to_config/1]).
 -export([generated/3, provenance/1]).
 -export_type([t/0]).
@@ -79,12 +81,13 @@ Used by `tmux_pane:respawn/2` and `tmux_window:respawn/2`.
 -type respawn_spec() :: previous | #{argv := nonempty_list(binary())} | #{shell := binary()}.
 
 -doc """
-A validated single-command value. Rendering and execution remain separate.
+A validated command or flat sequence. Rendering and execution remain separate.
 Domain builders retain a captured endpoint origin; raw values are unbound.
 """.
 -opaque t() :: {tmux_command, binary(), [binary()]}
              | {tmux_command, binary(), [binary()],
-                #{origin := reference(), kind := session_rename | pane_resize}}.
+                #{origin := reference(), kind := session_rename | pane_resize}}
+             | {tmux_sequence, nonempty_list(t())}.
 
 -doc """
 Validate one trusted command name and binary argv, without I/O. The renderer
@@ -103,6 +106,57 @@ raw(Name, Arguments) ->
                 {ok, {tmux_command, compact(Name), [compact(A) || A <- Arguments]}}
             end
     end.
+
+-doc """
+Build one bounded native command sequence without I/O. Members must be a
+nonempty flat list of at most 256 command values. Their combined executable
+argv is limited to 2041 words and 32 KiB including separator overhead.
+Arguments keep the literal separator protection of `raw/2`; only boundaries
+between members become native command separators in `argv/1`.
+
+Captured members must share an endpoint origin. That origin also binds the
+sequence; raw members use the caller's explicitly selected endpoint. Submit
+through `tmux_server:command/3` or `tmux_operation:start/3`.
+
+Execution is not atomic. A failed member can leave a completed prefix, and
+commands can wait or interleave with other work. The one-shot result contains
+combined bounded stdout/stderr and native exit status, without per-member
+completion attribution or rollback. Control-mode eligibility is separate.
+`to_config/1` can serialize a sequence with the same origin-loss policy as
+other configuration text.
+""".
+-spec sequence(nonempty_list(t())) -> {ok, t()} | {error, map()}.
+sequence([_ | _] = Commands) -> sequence(Commands, 256, 0, 0, none, []);
+sequence(_) -> {error, #{code => invalid_command, reason => invalid_command_list}}.
+
+sequence([], _, _, _, _, Acc) -> {ok, {tmux_sequence, lists:reverse(Acc)}};
+sequence([_ | _], 0, _, _, _, _) -> {error, #{code => command_limit}};
+sequence([Command | Rest], Left, Words, Bytes, Origin, Acc) ->
+    case Command of
+        {tmux_sequence, _} -> {error, #{code => invalid_command, reason => nested_sequence}};
+        _ ->
+            maybe
+                {ok, Valid} ?= validate(Command),
+                Args = argv(Valid),
+                Separator = case Acc of [] -> 0; _ -> 1 end,
+                Count = Words + length(Args) + Separator,
+                Size = Bytes + lists:sum([byte_size(A) + 3 || A <- Args]) + Separator * 4,
+                ok ?= case Count =< 2041 andalso Size =< 32768 of
+                    true -> ok;
+                    false -> {error, #{code => command_limit}}
+                end,
+                Next = case provenance(Valid) of none -> none; #{origin := O} -> O end,
+                {ok, Bound} ?= sequence_origin(Origin, Next),
+                sequence(Rest, Left - 1, Count, Size, Bound, [Valid | Acc])
+            end
+    end;
+sequence(_, _, _, _, _, _) ->
+    {error, #{code => invalid_command, reason => invalid_command_list}}.
+
+sequence_origin(none, Origin) -> {ok, Origin};
+sequence_origin(Origin, none) -> {ok, Origin};
+sequence_origin(Origin, Origin) -> {ok, Origin};
+sequence_origin(_, _) -> {error, #{code => different_owner}}.
 
 -doc """
 Build a native `wait-for` command without I/O. Channels are nonempty NUL-free
@@ -196,6 +250,7 @@ validated command or a tagged shape/argument/resource error, without I/O.
 """.
 -spec validate(term()) -> {ok, t()} | {error, map()}.
 validate({tmux_command, Name, Arguments}) -> raw(Name, Arguments);
+validate({tmux_sequence, Commands}) -> sequence(Commands);
 validate({tmux_command, Name, Arguments, #{origin := Origin, kind := Kind} = Metadata})
   when map_size(Metadata) =:= 2 ->
     case generated(Kind, Origin, Arguments) of
@@ -223,9 +278,15 @@ generated(_, _, _) -> {error, #{code => invalid_command}}.
 %% Intent does not establish control eligibility; reply success and error
 %% shapes require separate qualification before a control dispatcher admits it.
 -doc false.
--spec provenance(t()) -> none | #{origin := reference(), kind := session_rename | pane_resize}.
+-spec provenance(t()) -> none |
+    #{origin := reference(), kind := session_rename | pane_resize | sequence}.
 provenance({tmux_command, _, _}) -> none;
-provenance({tmux_command, _, _, Metadata}) -> Metadata.
+provenance({tmux_command, _, _, Metadata}) -> Metadata;
+provenance({tmux_sequence, Commands}) ->
+    case [O || Command <- Commands, #{origin := O} <- [provenance(Command)]] of
+        [] -> none;
+        [Origin | _] -> #{origin => Origin, kind => sequence}
+    end.
 
 parts({tmux_command, Name, Arguments}) -> {Name, Arguments};
 parts({tmux_command, Name, Arguments, _}) -> {Name, Arguments}.
@@ -237,6 +298,8 @@ separators. Performs no I/O and raises for an invalid command value.
 -spec argv(t()) -> [binary()].
 argv(Command) ->
     case validate(Command) of
+        {ok, {tmux_sequence, Commands}} ->
+            lists:append(lists:join([<<";">>], [argv(C) || C <- Commands]));
         {ok, Validated} ->
             {Name, Arguments} = parts(Validated),
             [Name | [escape_separator(Word) || Word <- Arguments]];
@@ -246,7 +309,8 @@ argv(Command) ->
 
 -doc """
 Render validated commands as native configuration text, without I/O. Accepts
-one command or a nonempty flat list of at most 256 commands. Returns an ASCII
+one command, a `sequence/1` value, or a nonempty flat list of at most 256
+commands. Returns an ASCII
 binary of at most 32 KiB, without a final newline. Validation uses `validate/1`;
 escaping growth, command count and aggregate size can return `command_limit`.
 Lists use native command separators between independently quoted commands.
@@ -273,9 +337,15 @@ text. The [configuration guide](configuration.md) uses this renderer with
 explicit execution and completion signals.
 """.
 -spec to_config(t() | [t(), ...]) -> {ok, binary()} | {error, map()}.
+to_config({tmux_sequence, Commands}) ->
+    maybe
+        {ok, {tmux_sequence, Valid}} ?= sequence(Commands),
+        config_commands(Valid, 256, 0, [])
+    end;
 to_config([_ | _] = Commands) -> config_commands(Commands, 256, 0, []);
 to_config(Command) -> config_command(Command).
 
+config_command({tmux_sequence, _}) -> {error, #{code => invalid_command}};
 config_command(Command) ->
     maybe
         {ok, Validated} ?= validate(Command),

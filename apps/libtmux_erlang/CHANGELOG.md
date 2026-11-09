@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Add bounded one-shot command sequences and ordered scalar option batches,
+  with native ID envelopes, strict byte framing and explicit interval semantics.
+
 - Include helper source provenance alongside its binary and license for
   standalone workspace archives; helper protocol and source stay unchanged.
 

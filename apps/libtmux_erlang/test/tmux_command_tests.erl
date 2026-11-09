@@ -14,6 +14,37 @@ single_command_test() ->
     ?assertMatch({error, #{code := invalid_argument}},
                  tmux_command:raw(<<"display-message">>, [<<0>>])).
 
+sequence_separators_test() ->
+    {ok, First} = tmux_command:raw(<<"display-message">>, [<<"-p">>, <<"literal;">>]),
+    {ok, Last} = tmux_command:raw(<<"display-message">>, [<<"-p">>, <<";">>]),
+    {ok, Sequence} = tmux_command:sequence([First, Last]),
+    ?assertEqual([<<"display-message">>, <<"-p">>, <<"literal\\;">>, <<";">>,
+        <<"display-message">>, <<"-p">>, <<"\\;">>], tmux_command:argv(Sequence)),
+    ?assertEqual({ok, Sequence}, tmux_command:validate(Sequence)),
+    ?assertEqual(tmux_command:to_config([First, Last]),
+        tmux_command:to_config(Sequence)),
+    ?assertEqual(none, tmux_command:provenance(Sequence)).
+
+sequence_bounds_and_origins_test() ->
+    {ok, Command} = tmux_command:raw(<<"display-message">>, []),
+    ?assertMatch({ok, _}, tmux_command:sequence(lists:duplicate(256, Command))),
+    ?assertMatch({error, #{code := command_limit}},
+        tmux_command:sequence(lists:duplicate(257, Command))),
+    ?assertMatch({error, _}, tmux_command:sequence([])),
+    ?assertMatch({error, _}, tmux_command:sequence([Command | invalid])),
+    {ok, Sequence} = tmux_command:sequence([Command]),
+    ?assertMatch({error, _}, tmux_command:sequence([Sequence])),
+    {ok, Large} = tmux_command:raw(<<"display-message">>, [binary:copy(<<$a>>, 17000)]),
+    ?assertMatch({error, #{code := command_limit}}, tmux_command:sequence([Large, Large])),
+    Origin = make_ref(),
+    {ok, Bound} = tmux_command:generated(session_rename, Origin, [<<"-t">>, <<"$1:">>, <<"x">>]),
+    {ok, BoundSequence} = tmux_command:sequence([Command, Bound]),
+    ?assertEqual(#{origin => Origin, kind => sequence},
+        tmux_command:provenance(BoundSequence)),
+    {ok, Foreign} = tmux_command:generated(session_rename, make_ref(),
+        [<<"-t">>, <<"$2:">>, <<"y">>]),
+    ?assertMatch({error, #{code := different_owner}}, tmux_command:sequence([Bound, Foreign])).
+
 launch_modes_test() ->
     {ok, [Helper, <<"--exec-one">>, <<"name with spaces;">>]} =
         tmux_command:launch(#{argv => [<<"name with spaces;">>]}),

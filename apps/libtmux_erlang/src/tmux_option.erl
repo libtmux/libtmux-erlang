@@ -15,6 +15,8 @@ defaults, or session -> session defaults). Server options have no parent. A
 missing local value or array entry returns none; an empty binary or empty
 array is a value. Arrays return maps of indexes to binary values, preserving
 sparse indexes. There is no hidden capture refresh or cache of option values.
+`get_many/3` reads the same scalar key from up to seven local rows through one
+bounded native sequence, retaining local-only semantics by default.
 
 Values are NUL-free binary tmux text bytes, including non-UTF-8 bytes. No
 shell or format expansion is applied by this API. tmux still interprets a
@@ -32,7 +34,7 @@ identity checks, not transactions. Timeouts can leave an unknown remote
 outcome; mutations are never retried here. See the [scoped options
 guide](options.md) for ownership and inheritance.
 """.
--export([get/3, set/3, set/4, unset/2, describe/2, catalogue/1]).
+-export([get/3, get_many/3, set/3, set/4, unset/2, describe/2, catalogue/1]).
 -export_type([scope/0, key/0, metadata/0, read_options/0, write_options/0, value/0]).
 
 -doc "A registered local entity or an explicitly selected global option table.".
@@ -109,6 +111,47 @@ get(Scope, Key, Options) ->
         Result = tmux_target:run(Server, <<"show-options">>,
             ScopeArgs ++ Flags ++ [<<"--">>, Literal]),
         read_result(Result, Name, Index, Meta, Version)
+    end.
+
+-doc """
+Read one scalar option from one to seven local rows on the same registered
+endpoint. Performs one bounded native sequence after validating every scope.
+Results follow input order; each entry is binary text or none for a missing
+local value. `t:read_options/0` controls inheritance as in `get/3`.
+
+Names use ASCII letters, digits, dots, underscores and hyphens, with an
+optional leading @ for user options. Global tables, arrays, indexed keys,
+hooks and command options are unsupported. Use `get/3` for broader option
+reads and `tmux_hook:get/3` for hooks.
+Invalid scopes, unsupported keys and different owners fail before dispatch.
+
+Each read is bracketed by matching native target-ID observations. Unresolved
+or mismatched IDs reject the batch. The checks do not prove topology membership
+or completed destruction: older tmux may retain an unlinked pane through
+queued references. The sequence provides interval observations and the same
+server-incarnation guarantee as `get/3`. Ambient command configuration applies
+to both paths.
+
+Stdout is bounded to 1 MiB and stderr to 64 KiB for the whole sequence, with
+the endpoint's 2500 ms command deadline. Seven 32 KiB values fit even under
+the qualified worst-case native quoting expansion. Larger external values
+may exceed that aggregate output bound. Any command, framing or decoding
+failure rejects the entire result, retaining native outcome and cleanup
+evidence. There is no partial-success result, hidden refresh or value cache.
+""".
+-spec get_many(nonempty_list(tmux_model:session() | tmux_model:window() |
+    tmux_model:pane()), binary(), read_options()) ->
+    {ok, [binary() | none]} | {error, map()}.
+get_many(Scopes, Name, Options) ->
+    maybe
+        {ok, Flags} ?= tmux_args:options(Options, [{inherit, flag, <<"-A">>}]),
+        {ok, Server, Command, Rows} ?= tmux_option_batch:prepare(Scopes, Name, Flags),
+        {ok, Version} ?= tmux_server:version(Server),
+        {ok, Result} ?= tmux_server:command(Server, Command, #{}),
+        case tmux_option_batch:decode(Name, maps:get(stdout, Result), Rows, Version) of
+            {ok, _} = Success -> Success;
+            {error, Error} -> {error, maps:merge(Result, Error)}
+        end
     end.
 
 -doc """

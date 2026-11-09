@@ -132,11 +132,16 @@ layouts and ownership before and after its command. Captures span commands,
 so concurrent changes can still intervene.
 There is no atomic reservation, automatic retry or terminal-effect rollback.
 
-Ownership reads use at most three workers and retain the captured row order.
-Cancellation stops the next batch and drains reads already in flight before
-returning. Their core operation deadlines still apply individually; there is
-no separate batch deadline. Lost results leave cleanup unverified, and a
-later cleanup failure remains visible alongside an earlier metadata error.
+Ownership reads group up to seven rows of one entity kind per native sequence,
+using `tmux_option:get_many/3` with inheritance disabled. At most three
+workers run concurrently, retaining the captured row order. Every row's
+metadata is still read; graph observations and per-step preconditions remain.
+Cancellation stops the next worker batch and drains reads already in flight
+before returning. The core deadline applies to each native sequence; there is
+no additional workspace batch deadline. Lost results leave cleanup unverified,
+and a later cleanup failure remains visible alongside an earlier metadata
+error. [ADR 0003](adr-0003-scoped-option-batches.md) records the client-cost
+tradeoff and interval semantics.
 
 Pane creation uses fixed targets and the saved unzoomed layout. It distributes
 splits across tiled cells, then applies the requested arrangement and pane

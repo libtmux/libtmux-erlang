@@ -1,10 +1,12 @@
 -module(tmux_option_SUITE).
 -compile(nowarn_missing_spec).
 -export([all/0, init_per_suite/1, end_per_suite/1, scalar_scope/1,
-         arrays_and_bytes/1, missing_targets/1, catalogue/1, c_locale/1]).
+         arrays_and_bytes/1, missing_targets/1, catalogue/1, c_locale/1,
+         scalar_batches/1, batch_target_changes/1]).
 
 %% Outer: native option tables and byte round trips need an owned real server.
-all() -> [scalar_scope, arrays_and_bytes, missing_targets, catalogue, c_locale].
+all() -> [scalar_scope, arrays_and_bytes, missing_targets, catalogue, c_locale,
+          scalar_batches, batch_target_changes].
 
 init_per_suite(Config) ->
     {ok, _} = application:ensure_all_started(libtmux_erlang),
@@ -15,6 +17,83 @@ init_per_suite(Config) ->
     [{executable, list_to_binary(Path)} | Config].
 
 end_per_suite(_) -> ok = application:stop(libtmux_erlang).
+
+scalar_batches(Config) ->
+    with_server(Config, fun(Server, Session, Window, Pane, Fixture) ->
+        Rows = [Session, Window, Pane],
+        Name = <<"@batch">>,
+        {ok, _} = tmux_option:set({session_defaults, Server}, Name, <<"session">>),
+        {ok, _} = tmux_option:set({window_defaults, Server}, Name, <<"window">>),
+        {ok, [none, none, none]} = tmux_option:get_many(Rows, Name, #{}),
+        {ok, [<<"session">>, <<"window">>, <<"window">>]} =
+            tmux_option:get_many(Rows, Name, #{inherit => true}),
+        {ok, _} = tmux_option:set(Window, <<"remain-on-exit">>, <<"on">>),
+        {ok, [<<"on">>, none]} =
+            tmux_option:get_many([Window, Pane], <<"remain-on-exit">>, #{}),
+        {ok, [<<"on">>, <<"on">>]} = tmux_option:get_many([Window, Pane],
+            <<"remain-on-exit">>, #{inherit => true}),
+        Values = [<<>>, <<"__ltm_option_end_1:%1\n\r\t$HOME \\",
+            "'\"#{pid};">>, list_to_binary(lists:seq(1, 255))],
+        lists:foreach(fun({Row, Value}) ->
+            {ok, _} = tmux_option:set(Row, Name, Value)
+        end, lists:zip(Rows, Values)),
+        {ok, Values} = tmux_option:get_many(Rows, Name, #{}),
+        %% Seven maximally escaped 32 KiB values fit the aggregate output
+        %% bound. Load fixture configuration over stdin to avoid argv limits.
+        Worst = binary:copy(<<1>>, 32768),
+        Id = tmux_model:get(id, Pane),
+        {ok, Source} = tmux_command:source_file(stdin, #{}),
+        Text = <<"set-option -p -t ", Id/binary, " @batch \"",
+            (binary:copy(<<"\\001">>, 32768))/binary, "\"\n">>,
+        {ok, _} = tmux_server:command(Server, Source, #{stdin => Text}),
+        Expected = lists:duplicate(7, Worst),
+        {ok, Expected} = tmux_option:get_many(lists:duplicate(7, Pane), Name, #{}),
+        {ok, Other} = tmux_server:open(#{executable => proplists:get_value(executable, Config),
+            socket_path => maps:get(socket, tmux_test_fixture:info(Fixture))}),
+        try
+            {ok, Snapshot} = tmux_server:snapshot(Other),
+            [Foreign | _] = tmux_snapshot:panes(Snapshot),
+            Trace = trace:session_create(batch_owners, self(), []),
+            try
+                1 = trace:function(Trace, {tmux_server, command, 3}, true, [call_count]),
+                {error, #{code := different_owner}} =
+                    tmux_option:get_many([Pane, Foreign], Name, #{}),
+                {call_count, 0} = trace:info(Trace, {tmux_server, command, 3}, call_count)
+            after true = trace:session_destroy(Trace) end
+        after ok = tmux_server:close(Other) end
+    end).
+
+batch_target_changes(Config) ->
+    with_server(Config, fun(Server, Session, Window, Pane, Fixture) ->
+        Hook = fun(Command) -> tmux_test_fixture:command(Fixture,
+            [<<"set-hook">>, <<"-g">>, <<"after-show-options">>, Command]) end,
+        {ok, _} = Hook(<<"display-message -p unexpected-hook-output">>),
+        try
+            {error, #{code := invalid_observation, outcome := success,
+                      cleanup := complete}} = tmux_option:get_many([Pane], <<"@v">>, #{})
+        after
+            {ok, _} = tmux_test_fixture:command(Fixture,
+                [<<"set-hook">>, <<"-ug">>, <<"after-show-options">>])
+        end,
+        %% Delete one pane while its window remains linked. On older tmux,
+        %% a removed sole-pane window can retain its pane through queue refs.
+        {ok, _} = tmux_pane:split(Pane, #{launch => #{argv => [<<"/bin/cat">>]}}),
+        {ok, Snapshot} = tmux_server:snapshot(Server),
+        lists:foreach(fun(P) ->
+            ok = tmux_test_fixture:track_process(Fixture, tmux_model:get(pid, P))
+        end, tmux_snapshot:panes(Snapshot)),
+        Id = tmux_model:get(id, Pane),
+        {ok, _} = Hook(<<"kill-pane -t ", Id/binary>>),
+        try
+            {error, #{code := target_gone, cleanup := complete}} =
+                tmux_option:get_many([Pane], <<"@v">>, #{})
+        after
+            {ok, _} = tmux_test_fixture:command(Fixture,
+                [<<"set-hook">>, <<"-ug">>, <<"after-show-options">>])
+        end,
+        {error, #{code := target_gone, index := 2, cleanup := complete}} =
+            tmux_option:get_many([Session, Pane, Window], <<"@v">>, #{})
+    end).
 
 c_locale(Config) ->
     Previous = os:getenv("LC_ALL"),

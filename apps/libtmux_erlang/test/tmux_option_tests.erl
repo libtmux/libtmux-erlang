@@ -2,6 +2,66 @@
 -compile(nowarn_missing_spec).
 -include_lib("eunit/include/eunit.hrl").
 
+batch_validation_before_dispatch_test() ->
+    {ok, Pane} = tmux_model:pane(#{id => <<"%1">>}),
+    lists:foreach(fun({Scopes, Name}) ->
+        ?assertMatch({error, #{code := unsupported_capability}},
+            tmux_option:get_many(Scopes, Name, #{}))
+    end, [{[], <<"@value">>}, {lists:duplicate(8, Pane), <<"@value">>},
+        {[Pane | invalid], <<"@value">>}, {[Pane], <<"@unsafe\nkey">>},
+        {[{session_defaults, invalid}], <<"@value">>},
+        {[Pane], {<<"@value">>, 0}}, {[Pane], <<"update-environment">>},
+        {[Pane], <<"default-client-command">>}, {[Pane], <<"pane-died">>}]),
+    ?assertMatch({error, #{code := detached_reference}},
+        tmux_option:get_many([Pane], <<"@value">>, #{})),
+    ?assertMatch({error, #{code := unknown_option}},
+        tmux_option:get_many([Pane], <<"@value">>, #{quiet => true})).
+
+batch_wire_framing_test() ->
+    {ok, Version} = tmux_version:parse(<<"tmux 3.8">>),
+    Rows = [#{id => <<"%1">>, metadata => #{type => string, array => false}}],
+    Begin = <<"__ltm_option_begin_1:%1\n">>,
+    End = <<"__ltm_option_end_1:%1\n">>,
+    ?assertEqual({ok, [none]}, tmux_option_batch:decode(<<"@v">>,
+        <<Begin/binary, End/binary>>, Rows, Version)),
+    ?assertEqual({ok, [<<>>]}, tmux_option_batch:decode(<<"@v">>,
+        <<Begin/binary, "@v ''\n", End/binary>>, Rows, Version)),
+    Forged = <<"__ltm_option_end_1:%1">>,
+    ?assertEqual({ok, [<<"line\n", Forged/binary>>]}, tmux_option_batch:decode(
+        <<"@v">>, <<Begin/binary, "@v \"line\\n", Forged/binary, "\"\n",
+                    End/binary>>, Rows, Version)),
+    lists:foreach(fun(Output) ->
+        ?assertMatch({error, #{code := invalid_observation}},
+            tmux_option_batch:decode(<<"@v">>, Output, Rows, Version))
+    end, [<<Begin/binary>>, <<Begin/binary, "@other x\n", End/binary>>,
+        <<Begin/binary, "@v a\n@v b\n", End/binary>>,
+        <<Begin/binary, End/binary, "hook-output\n">>,
+        <<Begin/binary, "__ltm_option_end_2:%1\n">>]),
+    ?assertMatch({error, #{code := target_gone}}, tmux_option_batch:decode(
+        <<"@v">>, <<Begin/binary, "__ltm_option_end_1:\n">>, Rows, Version)),
+    {ok, V34} = tmux_version:parse(<<"tmux 3.4">>),
+    OldValue = <<"@v \"line\\r\\\\r\\377", $\\, $\\, $$, "HOME\"\n">>,
+    ?assertEqual({ok, [<<"line", 13, $\\, $r, 255, "$HOME">>]},
+        tmux_option_batch:decode(<<"@v">>,
+            <<Begin/binary, OldValue/binary, End/binary>>, Rows, V34)).
+
+batch_unexpected_lines_heap_bound_test() ->
+    {ok, Version} = tmux_version:parse(<<"tmux 3.8">>),
+    Rows = [#{id => <<"%1">>, metadata => #{type => string, array => false}}],
+    Output = binary:copy(<<$\n>>, 1048576),
+    Parent = self(), Ref = make_ref(),
+    {Pid, Monitor} = spawn_opt(fun() ->
+        Parent ! {Ref, tmux_option_batch:decode(<<"@v">>, Output, Rows, Version)}
+    end, [monitor, {max_heap_size, #{size => 262144, kill => true, error_logger => false}}]),
+    try
+        receive
+            {Ref, Result} -> ?assertMatch({error, #{code := invalid_observation}}, Result);
+            {'DOWN', Monitor, process, Pid, Reason} -> ?assertEqual(normal, Reason)
+        after 900 -> ?assert(false) end,
+        receive {'DOWN', Monitor, process, Pid, normal} -> ok
+        after 900 -> ?assert(false) end
+    after exit(Pid, kill), erlang:demonitor(Monitor, [flush]) end.
+
 scope_validation_before_dispatch_test() ->
     {ok, Pane} = tmux_model:pane(#{id => <<"%1">>}),
     ?assertMatch({error, #{code := wrong_option_scope}},

@@ -2,11 +2,12 @@
 -compile(nowarn_missing_spec).
 -export([all/0, init_per_suite/1, end_per_suite/1, literal_arguments/1,
          singleton_argv/1, source_configuration/1, wait_channels/1,
-         literal_shell_bytes/1, config_command_round_trip/1]).
+         literal_shell_bytes/1, config_command_round_trip/1, command_sequences/1]).
 
 %% Outer: tmux argv/format parsing and singleton pane-command execution.
 all() -> [literal_arguments, literal_shell_bytes, singleton_argv,
-          source_configuration, wait_channels, config_command_round_trip].
+          source_configuration, wait_channels, config_command_round_trip,
+          command_sequences].
 
 init_per_suite(Config) ->
     {ok, _} = application:ensure_all_started(libtmux_erlang),
@@ -18,6 +19,38 @@ init_per_suite(Config) ->
     [{tmux, list_to_binary(Binary)} | Config].
 
 end_per_suite(_) -> ok = application:stop(libtmux_erlang).
+
+command_sequences(Config) ->
+    tmux_test_fixture:with_server(proplists:get_value(tmux, Config), fun(Server, Fixture) ->
+        Commands = [begin {ok, C} = tmux_command:raw(N, A), C end || {N, A} <- [
+            {<<"display-message">>, [<<"-p">>, <<"literal;">>]},
+            {<<"set-option">>, [<<"-g">>, <<"@prefix">>, <<"yes;">>]},
+            {<<"kill-window">>, [<<"-t">>, <<"@999999">>]},
+            {<<"set-option">>, [<<"-g">>, <<"@tail">>, <<"unexpected">>]}]],
+        {ok, Sequence} = tmux_command:sequence(Commands),
+        {error, #{code := command_error, outcome := error, cleanup := complete,
+                  stdout := <<"literal;\n">>}} = tmux_server:command(Server, Sequence, #{}),
+        {ok, <<"yes;">>} = tmux_option:get({session_defaults, Server}, <<"@prefix">>, #{}),
+        none = tmux_option:get({session_defaults, Server}, <<"@tail">>, #{}),
+        {ok, Session} = tmux_session:create(Server,
+            #{launch => #{argv => [<<"/bin/cat">>]}}),
+        {ok, Snapshot} = tmux_server:snapshot(Server),
+        lists:foreach(fun(P) ->
+            ok = tmux_test_fixture:track_process(Fixture, tmux_model:get(pid, P))
+        end, tmux_snapshot:panes(Snapshot)),
+        {ok, Bound} = tmux_session:rename_command(Session, <<"sequence-origin">>),
+        {ok, BoundSequence} = tmux_command:sequence([hd(Commands), Bound]),
+        {ok, Other} = tmux_server:open(#{executable => proplists:get_value(tmux, Config),
+            socket_path => maps:get(socket, tmux_test_fixture:info(Fixture))}),
+        try
+            {error, #{code := different_owner}} =
+                tmux_server:command(Other, BoundSequence, #{}),
+            {ok, _} = tmux_server:command(Server, BoundSequence, #{}),
+            {ok, Captured} = tmux_server:snapshot(Server),
+            [Renamed] = tmux_snapshot:sessions(Captured),
+            <<"sequence-origin">> = tmux_model:get(name, Renamed)
+        after ok = tmux_server:close(Other) end
+    end).
 
 literal_arguments(Config) ->
     {ok, Fixture} = tmux_test_fixture:start(proplists:get_value(tmux, Config)),
