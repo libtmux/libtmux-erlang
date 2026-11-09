@@ -15,6 +15,7 @@ import sys
 import tempfile
 import time
 import unittest
+from unittest.mock import patch
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -83,7 +84,7 @@ class Helper:
         def identity(candidate):
             try:
                 text = Path(f"/proc/{candidate}/stat").read_text()
-            except FileNotFoundError:
+            except (FileNotFoundError, ProcessLookupError):
                 return None
             fields = text[text.rfind(")") + 2:].split()
             return int(fields[1]), fields[19]
@@ -164,6 +165,21 @@ class Helper:
                 self.acknowledge(packet)
                 return packets, packet
             packets.append(packet)
+
+
+class TrackingTests(unittest.TestCase):
+    def test_child_disappearing_during_stat_read_needs_no_pidfd(self):
+        for error in [FileNotFoundError(errno.ENOENT, "gone"),
+                      ProcessLookupError(errno.ESRCH, "gone")]:
+            with self.subTest(error=type(error).__name__):
+                helper = Helper()
+                helper.pidfds = []
+                with patch.object(Path, "read_text", side_effect=error):
+                    helper.track(42)
+                self.assertEqual([], helper.pidfds)
+        with patch.object(Path, "read_text", side_effect=PermissionError(errno.EACCES, "denied")):
+            with self.assertRaises(PermissionError):
+                helper.track(42)
 
 
 def build_missing_children_helper(root: Path) -> Path:
