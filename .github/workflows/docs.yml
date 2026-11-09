@@ -44,7 +44,7 @@ concurrency:
 
 jobs:
   build:
-    uses: libtmux/docs/.github/workflows/port-docs.yml@f4c5cf6a6af23fc71240a92accb78bf4dd196151
+    uses: libtmux/docs/.github/workflows/port-docs.yml@e7740d9a779342831df40cd93ff35f3dc99bc9df
     with:
       port: erlang
       tag-prefix: ''
@@ -65,7 +65,7 @@ jobs:
     permissions:
       contents: read
       id-token: write
-    uses: libtmux/docs/.github/workflows/reusable-deploy.yml@f4c5cf6a6af23fc71240a92accb78bf4dd196151
+    uses: libtmux/docs/.github/workflows/reusable-deploy.yml@e7740d9a779342831df40cd93ff35f3dc99bc9df
     with:
       path-prefix: erlang/${{ matrix.version }}
       artifact: docs-erlang-${{ matrix.version }}
