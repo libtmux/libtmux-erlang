@@ -56,7 +56,10 @@ with_client(Fixture, Session, Environment, Function) ->
         false -> ok
     end,
     try
-        {Name, Session} = client_session(Port),
+        Deadline = erlang:monotonic_time(millisecond) + 900,
+        {ok, Budget} = client_attached(Port, tmux_control_codec:new(make_ref()),
+            Deadline, 65536),
+        {Name, Session} = client_session(Port, Deadline, Budget),
         Function(#{port => Port, name => Name})
     after
         case erlang:port_info(Port) of
@@ -75,18 +78,48 @@ with_client(Fixture, Session, Environment, Function) ->
 
 client_session(#{port := Port}) -> client_session(Port);
 client_session(Port) when is_port(Port) ->
+    client_session(Port, erlang:monotonic_time(millisecond) + 900, 65536).
+
+client_session(Port, Deadline, Budget) when Budget > 0 ->
     true = erlang:port_command(Port,
         <<"display-message -p 'fixture-client\t#{client_name}\t#{session_id}'\n">>),
-    client_line(Port, erlang:monotonic_time(millisecond) + 900, 65536).
+    client_line(Port, Deadline, Budget);
+client_session(_, _, _) -> error(client_output_limit).
+
+%% Control stdin can become readable before the argv attachment is queued.
+%% Match its empty native reply before submitting the identity probe.
+client_attached(Port, Codec, Deadline, Budget) when Budget > 0 ->
+    Remaining = max(0, Deadline - erlang:monotonic_time(millisecond)),
+    receive
+        {Port, {data, {eol, Line}}} when byte_size(Line) < Budget ->
+            NextBudget = Budget - byte_size(Line) - 1,
+            {ok, Events, Next} = tmux_control_codec:feed(Codec, <<Line/binary, 10>>),
+            case Events of
+                [{block_end, #{flags := 0}, ok}] -> {ok, NextBudget};
+                [{block_begin, #{flags := 0}}] ->
+                    client_attached(Port, Next, Deadline, NextBudget);
+                [{notification, _, _}] ->
+                    client_attached(Port, Next, Deadline, NextBudget);
+                _ -> error({client_attachment, Events})
+            end;
+        {Port, {data, {eol, _}}} -> error(client_output_limit);
+        {Port, {data, {noeol, _}}} -> error(client_line_limit);
+        {Port, {exit_status, Status}} -> error({client_exit, Status})
+    after Remaining -> error(client_reply_timeout)
+    end;
+client_attached(_, _, _, _) -> error(client_output_limit).
 
 client_line(Port, Deadline, Budget) when Budget > 0 ->
     Remaining = max(0, Deadline - erlang:monotonic_time(millisecond)),
     receive
-        {Port, {data, {eol, <<"fixture-client\t", Fields/binary>>}}} ->
-            [Name, Session] = binary:split(Fields, <<"\t">>, [global]),
-            {Name, Session};
-        {Port, {data, {eol, Line}}} ->
-            client_line(Port, Deadline, Budget - byte_size(Line) - 1);
+        {Port, {data, {eol, Line}}} when byte_size(Line) < Budget ->
+            case Line of
+                <<"fixture-client\t", Fields/binary>> ->
+                    [Name, Session] = binary:split(Fields, <<"\t">>, [global]),
+                    {Name, Session};
+                _ -> client_line(Port, Deadline, Budget - byte_size(Line) - 1)
+            end;
+        {Port, {data, {eol, _}}} -> error(client_output_limit);
         {Port, {data, {noeol, _}}} -> error(client_line_limit);
         {Port, {exit_status, Status}} -> error({client_exit, Status})
     after Remaining -> error(client_reply_timeout)
