@@ -84,6 +84,13 @@ Linked windows can increase raw batch output because the list traversal
 repeats memberships. Row bounds count those observations before physical
 deduplication. Fewer commands do not imply fewer transferred bytes.
 
+The decoder rebuilds field binaries rather than retaining slices of the batch
+frame. A snapshot-backed selection still retains the complete captured graph.
+After relationship evaluation, callers can keep extracted rows and release
+their other snapshot and selection references. Extraction preserves field
+values, including any backing allocations shared by caller-created rows; see
+the selection contracts in the [API guide](api.md).
+
 ## Qualification and measurements
 
 The linked-graph regression first returned 21 logical commands, then returned

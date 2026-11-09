@@ -14,6 +14,12 @@ filter. `filter/2` accepts a unary Boolean function, whose
 exceptions propagate. Cardinality criteria validate the whole expression and
 its coverage before stopping at sufficient evidence. Selections are opaque
 values; use `to_list/1` for functions in `m:lists`.
+
+A snapshot-backed selection retains the complete captured graph, including
+rows removed by filtering. After relationship evaluation, store the result of
+`to_list/1` and release other snapshot and selection references to allow that
+context to be collected. Row extraction preserves the supplied field binaries;
+caller-created subbinaries can still retain their backing allocation.
 """.
 -export([panes/1, windows/1, window_links/1, sessions/1, from_list/2,
          where/2, try_where/2, filter/2, matching/2, to_list/1, fold/3,
@@ -159,6 +165,9 @@ matching({Module, _}, #selection{}) when is_atom(Module) ->
 -doc """
 Return the current ordered rows as an ordinary Erlang list without I/O. Use
 list functions or comprehensions for transformations to other value types.
+Returns the stored rows without copying their binary fields. Keeping only
+the list allows the selection's snapshot context to be collected; other
+references can still keep that context alive.
 """.
 -spec to_list(t(Row)) -> [Row] when Row :: tmux_model:row().
 to_list(#selection{rows = Rows}) -> Rows.
