@@ -13,9 +13,83 @@ import sys
 import tempfile
 import time
 import unittest
+from contextlib import suppress
+from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "tools"))
 from check_workspace_cli import retire
+import check_workspace_cli
+
+
+class WorkspaceSignalReceipts(unittest.TestCase):
+    def test_echo_or_diagnostics_cannot_mask_a_receipt(self):
+        for output in (b'^C{"status":"applied"}\r\n',
+                       b'diagnostic\n{"error":{"code":"cancelled"}}\ntrailer',
+                       b'{not json} {"status":"applied"}'):
+            self.assertTrue(check_workspace_cli.has_receipt(output))
+        self.assertFalse(check_workspace_cli.has_receipt(b'^C\r\n'))
+
+
+class WorkspaceProcessCapture(unittest.TestCase):
+    def exercise_capture(self, recycled):
+        pipes = {pid: os.pipe() for pid in (13, 14, 17)}
+        roots = {}
+        temporary = tempfile.TemporaryDirectory(prefix='ltm-process-model-')
+        self.addCleanup(temporary.cleanup)
+        helper = Path(temporary.name) / 'helper'
+        native = str(Path(temporary.name) / 'tmux')
+        readlink = os.readlink
+
+        def executable(path, *args, **kwargs):
+            if path == '/proc/14/exe':
+                return str(helper)
+            if path == '/proc/17/exe':
+                return native
+            return readlink(path, *args, **kwargs)
+
+        def stat(pid, parent, started):
+            return f'{pid} (owned) S {parent} ' + '0 ' * 17 + started
+
+        def read(path, *args, **kwargs):
+            values = {'/proc/13/stat': stat(13, 1, '10'),
+                '/proc/14/stat': stat(14, 13, '20'),
+                '/proc/17/stat': stat(17, 14, '30'),
+                '/proc/13/task/13/children': '14',
+                '/proc/14/task/14/children': '17' if recycled else '',
+                '/proc/17/task/17/children': ''}
+            return values[str(path)]
+
+        def tasks(path):
+            pid = int(path.parts[2])
+            if pid == 14 and recycled:
+                # The old parent's pidfd reports death while its numeric PID
+                # now exposes a replacement process's child table.
+                os.write(pipes[14][1], b'X')
+            return iter([path / str(pid)])
+
+        try:
+            with patch.object(Path, 'read_text', read), patch.object(Path, 'iterdir', tasks), \
+                 patch.object(os, 'pidfd_open', side_effect=lambda p: pipes[p][0]), \
+                 patch.object(os, 'readlink', side_effect=executable):
+                with self.assertRaisesRegex(RuntimeError, 'not observed'):
+                    check_workspace_cli.cli_roots(13, helper, native, roots)
+            self.assertNotIn(17, roots, 'replacement parent conferred false ownership')
+            self.assertIn(14, roots)
+            try:
+                os.fstat(roots[14])
+            except OSError:
+                self.fail('capture closed a partial ownership handle before caller cleanup')
+        finally:
+            for pair in pipes.values():
+                for fd in pair:
+                    with suppress(OSError):
+                        os.close(fd)
+
+    def test_parent_reuse_cannot_extend_owned_tree(self):
+        self.exercise_capture(True)
+
+    def test_capture_failure_keeps_partial_handles_for_cleanup(self):
+        self.exercise_capture(False)
 
 
 class WorkspaceFixtureRetirement(unittest.TestCase):

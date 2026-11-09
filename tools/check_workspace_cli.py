@@ -20,6 +20,97 @@ import zipfile
 ROOT = Path(__file__).resolve().parent.parent
 
 
+def has_receipt(output: bytes) -> bool:
+    """Find complete JSON objects even beside terminal echo or diagnostics."""
+    text = output.decode(errors="replace")
+    decoder = json.JSONDecoder()
+    for offset, char in enumerate(text):
+        if char == "{":
+            try:
+                value, _ = decoder.raw_decode(text, offset)
+            except ValueError:
+                continue
+            if isinstance(value, dict):
+                return True
+    return False
+
+
+def cli_roots(pid: int, helper: Path, tmux: str, found: dict[int, int]) -> None:
+    """Pin descendants; caller owns partial handles even if capture fails."""
+    def identity(candidate):
+        text = Path(f"/proc/{candidate}/stat").read_text()
+        fields = text[text.rfind(")") + 2:].split()
+        return int(fields[1]), fields[19]
+
+    root_fd = os.pidfd_open(pid)
+    identities = {}
+    pending, executables = [pid], set()
+
+    def current(parent):
+        fd = root_fd if parent == pid else found[parent]
+        try:
+            return identity(parent) == identities[parent] and not select.select([fd], [], [], 0)[0]
+        except (FileNotFoundError, ProcessLookupError):
+            return False
+
+    try:
+        identities[pid] = identity(pid)
+        while pending:
+            parent = pending.pop()
+            if not current(parent):
+                continue
+            children = set()
+            try:
+                tasks = list(Path(f"/proc/{parent}/task").iterdir())
+            except FileNotFoundError:
+                continue
+            for task in tasks:
+                try:
+                    children.update(int(p) for p in (task / "children").read_text().split())
+                except FileNotFoundError:
+                    pass
+            if not current(parent):
+                continue
+            for child in children - found.keys():
+                fd = None
+                try:
+                    before = identity(child)
+                    if before[0] != parent:
+                        continue
+                    fd = os.pidfd_open(child)
+                    executable = Path(os.readlink(f"/proc/{child}/exe"))
+                    if (identity(child) != before or not current(parent)
+                            or select.select([fd], [], [], 0)[0]):
+                        os.close(fd)
+                        continue
+                except (FileNotFoundError, ProcessLookupError):
+                    if fd is not None:
+                        os.close(fd)
+                    continue
+                found[child] = fd
+                identities[child] = before
+                executables.add(executable)
+                pending.append(child)
+                if len(found) > 64:
+                    raise RuntimeError("unexpectedly large CLI process tree")
+        if helper not in executables or Path(tmux).resolve() not in executables:
+            observed = sorted(path.name for path in executables)
+            raise RuntimeError("blocked CLI helper or native client was not observed: " + str(observed))
+        return
+    finally:
+        os.close(root_fd)
+
+
+def wait_cli_roots(roots: dict[int, int]) -> None:
+    pending = set(roots.values())
+    deadline = time.monotonic() + 0.9
+    while pending:
+        ready, _, _ = select.select(list(pending), [], [], max(0, deadline-time.monotonic()))
+        if not ready:
+            raise RuntimeError("native helper/client outlived the CLI VM")
+        pending.difference_update(ready)
+
+
 def retire(daemon, watcher, stop) -> None:
     """Retire owned fixture processes even when the native stop attempt raises."""
     try:
@@ -199,48 +290,139 @@ def exercise_cli(artifact: Path, tmux: str, directory: Path) -> dict:
         # Invalid schema and unknown endpoint cannot choose arbitrary sockets.
         write({**document, "endpoint": "not-configured"})
         invoke("plan", str(source), "--output", str(plan), expected=2)
-        # SIGTERM arrives while a native command is held by an owned hook.
-        cancel = copy.deepcopy(document)
-        cancel["id"] = "cancel-tests"
-        cancel["sessions"][0]["name"] = "cancel-project"
-        write(cancel)
-        invoke("plan", str(source), "--output", str(plan))
-        native("set-hook", "-g", "after-new-session",
-               "wait-for -S cli-entered ; wait-for cli-release")
-        entered = subprocess.Popen([tmux, "-N", "-S", str(socket), "wait-for", "cli-entered"],
-                                   env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        running = subprocess.Popen([str(cli), "apply", str(plan), "--config", str(config)],
-                                   cwd=directory, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        try:
-            if entered.wait(timeout=3) != 0:
-                raise RuntimeError("cancellation hook did not start")
-            [runtime] = directory.glob("libtmux-workspace-*")
-            helper = runtime / "libtmux_erlang/priv/tmux_owned_io"
-            with zipfile.ZipFile(cli) as archive:
-                bundled = archive.read("libtmux_erlang/priv/tmux_owned_io")
-            if (hashlib.sha256(helper.read_bytes()).digest() != hashlib.sha256(bundled).digest()
-                    or helper.stat().st_mode & 0o777 != 0o700
-                    or runtime.stat().st_mode & 0o777 != 0o700
-                    or list(runtime.rglob("*.beam"))):
-                raise RuntimeError("materialized helper differs or BEAMs left the archive")
-            running.send_signal(signal.SIGTERM)
-            stdout, stderr = running.communicate(timeout=3)
-            response = json.loads(stdout)
-            if (running.returncode != 4 or response["error"]["code"] != "cancelled"
-                    or response["error"]["operation_outcome"] != "unknown"
-                    or response["error"]["cleanup"] != "complete"):
-                raise RuntimeError(f"unexpected SIGTERM receipt: {response} {stderr!r}")
-            if list(directory.glob("libtmux-workspace-*")):
-                raise RuntimeError("cancelled CLI left its helper directory")
-        finally:
-            if running.poll() is None:
-                running.kill()
-                running.wait(timeout=1)
-            if entered.poll() is None:
-                entered.kill()
-                entered.wait(timeout=1)
-            native("wait-for", "-S", "cli-release")
-            native("set-hook", "-gu", "after-new-session")
+        # Outer: interrupt a command after its mutation, before its native reply.
+        server_identity = native("display-message", "-p", "#{pid}\t#{start_time}").stdout
+        unmanaged = native("display-message", "-p", "-t", "unmanaged:",
+                           "#{session_id}\t#{pane_id}\t#{pane_pid}").stdout
+        signal_results = []
+        for mode in ("sigterm", "ctrl_c", "sigkill"):
+            cancel = copy.deepcopy(document)
+            cancel["id"] = mode + "-tests"
+            name = mode + "-project"
+            cancel["sessions"][0]["name"] = name
+            write(cancel)
+            invoke("plan", str(source), "--output", str(plan))
+            entered_channel = "cli-" + mode + "-entered"
+            release_channel = "cli-" + mode + "-release"
+            native("set-hook", "-g", "after-new-session",
+                   f"wait-for -S {entered_channel} ; wait-for {release_channel}")
+            entered = running = None
+            roots, master, slave = {}, None, None
+            try:
+                entered = subprocess.Popen(
+                    [tmux, "-N", "-S", str(socket), "wait-for", entered_channel],
+                    env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                args = [str(cli), "apply", str(plan), "--config", str(config)]
+                if mode == "ctrl_c":
+                    master, slave = os.openpty()
+                    # A separate exec avoids preexec_fn in the source-package
+                    # checker, whose registry thread is already running.
+                    terminal_exec = (
+                        "import fcntl,os,sys,termios\n"
+                        "fcntl.ioctl(0,termios.TIOCSCTTY,0)\n"
+                        "m=termios.tcgetattr(0)\n"
+                        "m[3]&=~(termios.ECHO|termios.ECHOCTL)\n"
+                        "termios.tcsetattr(0,termios.TCSANOW,m)\n"
+                        "os.execv(sys.argv[1],sys.argv[1:])\n")
+                    running = subprocess.Popen(["/usr/bin/python3", "-c", terminal_exec, *args],
+                        cwd=directory, env=env, stdin=slave, stdout=slave, stderr=slave,
+                        start_new_session=True)
+                    os.close(slave)
+                    slave = None
+                else:
+                    running = subprocess.Popen(args, cwd=directory, env=env,
+                        stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                if entered.wait(timeout=3) != 0 or running.poll() is not None:
+                    raise RuntimeError("signal hook did not hold a live CLI")
+                [runtime] = directory.glob("libtmux-workspace-*")
+                helper = runtime / "libtmux_erlang/priv/tmux_owned_io"
+                with zipfile.ZipFile(cli) as archive:
+                    bundled = archive.read("libtmux_erlang/priv/tmux_owned_io")
+                if (hashlib.sha256(helper.read_bytes()).digest() != hashlib.sha256(bundled).digest()
+                        or helper.stat().st_mode & 0o777 != 0o700
+                        or runtime.stat().st_mode & 0o777 != 0o700
+                        or list(runtime.rglob("*.beam"))):
+                    raise RuntimeError("materialized helper differs or BEAMs left the archive")
+                cli_roots(running.pid, helper, tmux, roots)
+                if mode == "ctrl_c":
+                    if os.tcgetpgrp(master) != running.pid:
+                        raise RuntimeError("CLI did not own the isolated terminal foreground")
+                    os.write(master, b"\x03")
+                    running.wait(timeout=3)
+                    terminal = bytearray()
+                    while select.select([master], [], [], 0)[0]:
+                        try:
+                            chunk = os.read(master, 65536)
+                        except OSError as error:
+                            if error.errno != 5:
+                                raise
+                            break
+                        if not chunk:
+                            break
+                        terminal.extend(chunk)
+                        if len(terminal) > 65536:
+                            raise RuntimeError("unexpectedly large terminal output")
+                    stdout, stderr = bytes(terminal), b""
+                else:
+                    running.send_signal(signal.SIGTERM if mode == "sigterm" else signal.SIGKILL)
+                    stdout, stderr = running.communicate(timeout=3)
+                wait_cli_roots(roots)
+                runtime_remains = runtime.exists()
+                if mode == "sigterm":
+                    response = json.loads(stdout)
+                    if (running.returncode != 4 or response["error"]["code"] != "cancelled"
+                            or response["error"]["operation_outcome"] != "unknown"
+                            or response["error"]["cleanup"] != "complete"):
+                        raise RuntimeError(f"unexpected SIGTERM receipt: {response} {stderr!r}")
+                    if runtime_remains:
+                        raise RuntimeError("cancelled CLI left its helper directory")
+                else:
+                    expected = -signal.SIGINT if mode == "ctrl_c" else -signal.SIGKILL
+                    if running.returncode != expected:
+                        raise RuntimeError(f"unexpected abrupt CLI exit: {running.returncode}")
+                    if has_receipt(stdout):
+                        raise RuntimeError("abrupt CLI emitted an unexpected JSON receipt")
+                    # The VM could not run its cleanup clause. Remove only this
+                    # fixture's runtime after all pinned native roots have exited.
+                    if runtime_remains:
+                        shutil.rmtree(runtime)
+                if native("display-message", "-p", "#{pid}\t#{start_time}").stdout != server_identity:
+                    raise RuntimeError("CLI signal replaced the borrowed server")
+                if native("display-message", "-p", "-t", "unmanaged:",
+                          "#{session_id}\t#{pane_id}\t#{pane_pid}").stdout != unmanaged:
+                    raise RuntimeError("CLI signal changed the unmanaged pane")
+                native("has-session", "-t", "=" + name)
+                signal_results.append({"mode": mode, "exit_status": running.returncode,
+                    "tracked_roots": len(roots), "native_roots_retired": True,
+                    "server_and_unmanaged_pane_unchanged": True,
+                    "created_session_survives": True,
+                    "json_receipt": mode == "sigterm", "runtime_remained": runtime_remains})
+            finally:
+                try:
+                    if running is not None and running.poll() is None:
+                        running.kill()
+                        running.wait(timeout=1)
+                    if entered is not None and entered.poll() is None:
+                        entered.kill()
+                        entered.wait(timeout=1)
+                    try:
+                        wait_cli_roots(roots)
+                    except RuntimeError:
+                        for fd in roots.values():
+                            try:
+                                signal.pidfd_send_signal(fd, signal.SIGKILL)
+                            except ProcessLookupError:
+                                pass
+                        wait_cli_roots(roots)
+                        raise
+                finally:
+                    for fd in roots.values():
+                        os.close(fd)
+                    for fd in (master, slave):
+                        if fd is not None:
+                            os.close(fd)
+                    native("wait-for", "-S", release_channel)
+                    native("set-hook", "-gu", "after-new-session")
         pids = native("list-panes", "-a", "-F", "#{pane_pid}").stdout.splitlines()
         pane_fds = [os.pidfd_open(int(pid)) for pid in pids]
         native("kill-server")
@@ -251,7 +433,9 @@ def exercise_cli(artifact: Path, tmux: str, directory: Path) -> dict:
                 raise RuntimeError("owned pane process survived fixture cleanup")
         return {"result": "PASS", "seconds": time.monotonic() - started,
                 "calls": calls, "sigterm_cancellation": "PASS",
-                "sigint_receipt": "UNVERIFIED; OTP break signal has a separate path",
+                "signal_lifecycle": signal_results,
+                "sigint_receipt": "ABSENT; escript disables the break handler and exits by SIGINT",
+                "abrupt_runtime_cleanup": "fixture removed residual files after native retirement",
                 "owned_server_and_panes_retired": True,
                 "standalone_archive": True, "launch_fields_omitted": True}
     finally:
