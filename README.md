@@ -142,8 +142,8 @@ session/index membership.
   them explicitly and inspect fresh state without changing captured rows.
 - [Control attachments](docs/control.md): verify connection identity, inspect
   attachment effects and retire the client explicitly.
-- [Load a workspace file](docs/workspaces.md): validate desired sessions,
-  windows and panes, resolve working directories and inspect stable keys.
+- [Plan and apply a workspace](docs/workspaces.md): validate desired sessions,
+  windows and panes, review saved operations, and handle drift or cancellation.
 - [Run a job and capture its result](docs/jobs.md): wait for a pane's completion
   event, check its exit status, capture bytes, and cancel a separate operation.
 - [Local filters and source queries](docs/querying.md): Boolean criteria,
@@ -176,8 +176,9 @@ An await timeout abandons that wait; it does not cancel the operation.
 Cancellation after dispatch can leave the tmux outcome unknown.
 
 An explicit control attachment verifies identity on its persistent connection
-and owns its client cleanup. Control command submission, output streams and
-the workspace CLI remain implementation work. The
+and owns its client cleanup. The workspace application plans and applies JSON
+files through a standalone escript. Control command submission and output
+streams remain implementation work. The
 [support and gaps](docs/compatibility.md) page lists
 what is exercised, what remains open, and the required Linux/tmux matrix.
 There is no control-versus-streaming performance claim.

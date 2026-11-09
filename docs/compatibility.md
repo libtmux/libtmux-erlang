@@ -89,10 +89,11 @@ missing target positionally.
 
 ## Not yet shipped
 
-Control command submission and groups, output subscriptions/streams,
-workspace planning/apply and a workspace CLI remain implementation work.
-The workspace application loads and validates JSON files; the
-[workspace guide](workspaces.md) includes its executable reader example.
+Control command submission and groups and output subscriptions/streams remain
+implementation work. Workspace planning/apply and the CLI use the one-shot
+path. The [workspace guide](workspaces.md) includes executable loader and
+apply examples. Large-workspace performance and a Ctrl-C JSON receipt remain
+unqualified; SIGTERM exercises the explicit cancellation path.
 
 MCP packages, servers and SDK integration are excluded by
 [project policy](project-policy.md).

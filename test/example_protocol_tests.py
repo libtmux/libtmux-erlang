@@ -9,9 +9,38 @@ import select
 import signal
 import shutil
 import subprocess
+import sys
 import tempfile
 import time
 import unittest
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "tools"))
+from check_workspace_cli import retire
+
+
+class WorkspaceFixtureRetirement(unittest.TestCase):
+    def test_native_stop_timeout_still_retires_owned_processes(self):
+        daemon = subprocess.Popen(["/bin/cat"], stdin=subprocess.PIPE,
+                                  stdout=subprocess.DEVNULL)
+        watcher = subprocess.Popen(["/usr/bin/python3", "-c",
+                                    "import sys; sys.stdin.buffer.read(1)"],
+                                   stdin=subprocess.PIPE, stdout=subprocess.PIPE)
+        def timeout():
+            raise subprocess.TimeoutExpired("owned-stop", 0.1)
+        try:
+            with self.assertRaises(subprocess.TimeoutExpired):
+                retire(daemon, watcher, timeout)
+            self.assertIsNotNone(daemon.poll())
+            self.assertIsNotNone(watcher.poll())
+        finally:
+            for process in (daemon, watcher):
+                if process.poll() is None:
+                    process.kill()
+                process.wait(timeout=1)
+                if process.stdin:
+                    process.stdin.close()
+                if process.stdout:
+                    process.stdout.close()
 
 
 class TerminalCompletion(unittest.TestCase):

@@ -6,7 +6,8 @@ Load a versioned JSON workspace as validated, immutable desired state.
 `tmux_json:decode/1` for bounded JSON, duplicate keys and exact numbers.
 `to_map/1` exposes the normalized document for inspection. Neither call
 contacts tmux, resolves an endpoint to a socket, or executes a launch.
-Planning, applying changes and a workspace CLI are not implemented here.
+`tmux_workspace_plan:new/3` observes tmux to build a plan;
+`tmux_workspace_apply:run/3` executes its stored operations explicitly.
 
 Version 1 requires `version`, `endpoint` and nonempty `sessions`. Sessions
 require `name` and `windows`; windows require `name` and `panes`, with optional

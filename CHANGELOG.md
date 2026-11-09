@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Qualify workspace planning/apply examples and a standalone escript through
+  fresh source-package installation, owned fixtures and cancellation checks.
+
 - Report native pane exit/signal details when the installed consumer's input
   job ends unexpectedly, while retaining its expected successful-exit check.
 

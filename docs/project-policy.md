@@ -24,13 +24,14 @@ responsibility and explicit consumer dependencies.
 
 Package qualification must install each consumer outside the umbrella against
 the produced core package. A successful umbrella build alone does not prove
-that an independently installed workspace package works. The workspace CLI is
-still implementation work; see [current support](compatibility.md).
+that an independently installed workspace package works. Qualification builds
+the workspace CLI from those source packages and runs it outside the checkout;
+see [current support](compatibility.md).
 
 ## Runtime dependencies
 
 Use the latest stable Erlang/OTP baseline and native OTP facilities. Use OTP
-JSON for documents and the standard argument parser for the planned CLI.
+JSON for documents and the standard argument parser for the workspace CLI.
 Prefer module functions, native records, specs, tagged results and supervised
 processes where ownership requires them.
 

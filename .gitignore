@@ -20,6 +20,7 @@ erl_crash.dump
 *.ez
 /apps/libtmux_erlang/priv/tmux_owned_io
 /apps/libtmux_erlang/priv/owned_io.LICENSE
+/apps/libtmux_erlang/priv/owned_io.provenance.json
 /*.tar
 /*.tar.gz
 

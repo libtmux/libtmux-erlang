@@ -79,9 +79,10 @@ def exercise_consumer(root: Path, temp: Path, installed_ebin: Path,
     shutil.copyfile(root / "tools/run_examples.escript", temp / "tools/run_examples.escript")
     for name in ("tmux_test_fixture.erl", "tmux_fixture_watch.py"):
         shutil.copyfile(root / "test" / name, temp / "test" / name)
-    for name in ("filter_demo", "inspect_demo", "readme_demo", "linked_graph", "job_demo", "options_demo", "buffer_demo", "pane_demo", "config_demo", "pipe_demo", "hook_demo", "key_demo", "command_demo", "control_demo", "workspace_demo"):
+    for name in ("filter_demo", "inspect_demo", "readme_demo", "linked_graph", "job_demo", "options_demo", "buffer_demo", "pane_demo", "config_demo", "pipe_demo", "hook_demo", "key_demo", "command_demo", "control_demo", "workspace_demo", "workspace_apply_demo"):
         shutil.copyfile(root / "examples" / (name + ".erl"), temp / "examples" / (name + ".erl"))
     shutil.copyfile(root / "examples/workspace.json", temp / "examples/workspace.json")
+    shutil.copyfile(root / "examples/workspace_apply.json", temp / "examples/workspace_apply.json")
     shutil.copyfile(root / "examples/terminal_job.py", temp / "examples/terminal_job.py")
     env = dict(os.environ)
     env.pop("ERL_LIBS", None)

@@ -36,7 +36,8 @@ run(Arguments) ->
     Modules = case Selected of
         [] -> [filter_demo, inspect_demo, readme_demo, linked_graph, job_demo,
                options_demo, buffer_demo, pane_demo, config_demo, pipe_demo,
-               hook_demo, key_demo, command_demo, control_demo, workspace_demo];
+               hook_demo, key_demo, command_demo, control_demo, workspace_demo,
+               workspace_apply_demo];
         ["filter"] -> [filter_demo];
         ["inspect"] -> [inspect_demo];
         ["readme"] -> [readme_demo];
@@ -51,7 +52,8 @@ run(Arguments) ->
         ["keys"] -> [key_demo];
         ["commands"] -> [command_demo];
         ["control"] -> [control_demo];
-        ["workspace"] -> [workspace_demo]
+        ["workspace"] -> [workspace_demo];
+        ["workspace-apply"] -> [workspace_apply_demo]
     end,
     case lists:any(fun(M) -> M =/= filter_demo andalso M =/= workspace_demo end, Modules) of
         true -> true = is_list(Executable);
@@ -92,8 +94,9 @@ example(Module, _) when Module =:= filter_demo; Module =:= workspace_demo ->
     #{module => Module, output => Module:run(),
       sessions_removed => true, owned_cleanup => complete,
       transport => not_used};
-example(readme_demo, Executable) ->
-    #{module => readme_demo, output => readme_demo:run(list_to_binary(Executable)),
+example(Module, Executable) when Module =:= readme_demo;
+                                Module =:= workspace_apply_demo ->
+    #{module => Module, output => Module:run(list_to_binary(Executable)),
       sessions_removed => true, owned_cleanup => complete};
 example(Module, Executable) ->
     BinaryExecutable = list_to_binary(Executable),
