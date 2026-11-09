@@ -132,6 +132,12 @@ layouts and ownership before and after its command. Captures span commands,
 so concurrent changes can still intervene.
 There is no atomic reservation, automatic retry or terminal-effect rollback.
 
+Ownership reads use at most three workers and retain the captured row order.
+Cancellation stops the next batch and drains reads already in flight before
+returning. Their core operation deadlines still apply individually; there is
+no separate batch deadline. Lost results leave cleanup unverified, and a
+later cleanup failure remains visible alongside an earlier metadata error.
+
 Pane creation uses fixed targets and the saved unzoomed layout. It distributes
 splits across tiled cells, then applies the requested arrangement and pane
 order. Floating cells are excluded. For a new window, the plan stores a

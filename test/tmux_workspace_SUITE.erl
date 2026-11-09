@@ -3,11 +3,12 @@
 -export([all/0, init_per_suite/1, end_per_suite/1,
          reconcile/1, ordering/1, pane_capacity/1, zoomed_expansion/1,
          adoption_and_drift/1, destructive_boundaries/1,
-         failed_prefix/1, cancellation/1]).
+         failed_prefix/1, cancellation/1, metadata_cancellation/1]).
 
 %% Outer: real owned tmux, persistent intent, conflict and cancellation evidence.
 all() -> [reconcile, ordering, pane_capacity, zoomed_expansion,
-          adoption_and_drift, destructive_boundaries, failed_prefix, cancellation].
+          adoption_and_drift, destructive_boundaries, failed_prefix, cancellation,
+          metadata_cancellation].
 init_per_suite(Config) ->
     {ok, _} = application:ensure_all_started(libtmux_erlang_workspace),
     Executable = case os:getenv("LIBTMUX_TEST_TMUX") of
@@ -227,6 +228,64 @@ cancellation(Config) -> with_workspace(Config, fun(Server, Fixture, Dir, File) -
         exit(Worker, shutdown), erlang:demonitor(Monitor, [flush]),
         {ok, Signal} = tmux_command:wait_for(<<"workspace-release">>, signal),
         {ok, _} = tmux_server:command(Server, Signal, #{})
+    end
+end).
+
+%% Outer: block three real metadata clients, then cancel and prove retirement.
+metadata_cancellation(Config) -> with_workspace(Config, fun(Server, Fixture, Dir, File) ->
+    write(File, desired(Dir, 4)),
+    {ok, Initial} = tmux_workspace_plan:new(File, Server, #{}),
+    {ok, _} = tmux_workspace_apply:run(Initial, Server, #{}),
+    {ok, Empty} = tmux_workspace_plan:new(File, Server, #{}),
+    #{<<"steps">> := []} = tmux_workspace_plan:to_map(Empty),
+    Socket = filename:join(Dir, <<"metadata.sock">>),
+    Helper = filename:join(Dir, <<"metadata.py">>),
+    ok = file:write_file(Helper, <<
+        "import os,socket,sys\n",
+        "s=socket.socket(socket.AF_UNIX,socket.SOCK_STREAM)\n",
+        "s.connect(sys.argv[1])\n",
+        "s.sendall(str(os.getpid()).encode()+b'\\n')\n",
+        "s.recv(1)\n",
+        "s.close()\n">>),
+    {ok, Listen} = gen_tcp:listen(0, [{ifaddr, {local, binary_to_list(Socket)}},
+        binary, {packet, line}, {packet_size, 64}, {active, false}]),
+    Token = make_ref(), put(Token, []),
+    {ok, #{exit_status := 0}} = tmux_test_fixture:command(Fixture,
+        [<<"set-hook">>, <<"-g">>, <<"after-show-options">>,
+         <<"run-shell '/usr/bin/python3 ", Helper/binary, $\s, Socket/binary, $'>>]),
+    Parent = self(), Cancel = make_ref(),
+    {Caller, Monitor} = spawn_monitor(fun() ->
+        Parent ! {Token, tmux_workspace_apply:run(Empty, Server, #{cancel => Cancel})}
+    end),
+    try
+        lists:foreach(fun(_) ->
+            case gen_tcp:accept(Listen, 900) of
+                {ok, Connection} ->
+                    put(Token, [Connection | get(Token)]),
+                    {ok, Line} = gen_tcp:recv(Connection, 0, 900),
+                    Pid = binary_to_integer(string:trim(Line)),
+                    ok = tmux_test_fixture:track_process(Fixture, Pid);
+                {error, timeout} -> ct:fail({parallel_metadata_reads_missing,
+                    length(get(Token))})
+            end
+        end, lists:seq(1, 3)),
+        Caller ! {tmux_workspace_cancel, Cancel},
+        lists:foreach(fun(C) -> ok = gen_tcp:send(C, <<"Q">>) end, get(Token)),
+        receive {Token, {error, #{code := cancelled, completed := [],
+                                  cleanup := complete}}} -> ok
+        after 900 -> ct:fail(metadata_cancellation_missing) end,
+        receive {'DOWN', Monitor, process, Caller, normal} -> ok
+        after 900 -> ct:fail(metadata_caller_alive) end,
+        {ok, #{operations := 0}} = tmux_server:status(Server),
+        {error, timeout} = gen_tcp:accept(Listen, 0),
+        {ok, Snapshot} = tmux_server:snapshot(Server),
+        4 = length(tmux_snapshot:panes(Snapshot))
+    after
+        exit(Caller, kill), erlang:demonitor(Monitor, [flush]),
+        {ok, #{exit_status := 0}} = tmux_test_fixture:command(Fixture,
+            [<<"set-hook">>, <<"-ug">>, <<"after-show-options">>]),
+        lists:foreach(fun(C) -> ok = gen_tcp:close(C) end, erase(Token)),
+        ok = gen_tcp:close(Listen)
     end
 end).
 

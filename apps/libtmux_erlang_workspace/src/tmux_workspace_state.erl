@@ -12,8 +12,7 @@ observe(Server, Options) ->
     Key = result(tmux_identity:fingerprint(Instance)),
     Rows = tmux_snapshot:sessions(Snapshot) ++
         tmux_snapshot:windows(Snapshot) ++ tmux_snapshot:panes(Snapshot),
-    Resources = [begin
-        checkpoint(Options),
+    Resources = tmux_workspace_reads:map(fun(Row) ->
         Kind = atom_to_binary(tmux_model:entity(Row)),
         Id = tmux_model:get(id, Row),
         Tag = case tmux_option:get(Row, ?TAG, #{}) of
@@ -23,13 +22,14 @@ observe(Server, Options) ->
                 catch throw:{workspace_error, _} ->
                     conflict(invalid_metadata, ref(Kind, Id))
                 end;
-            {error, Error} -> throw({workspace_error, Error});
+            {error, Error} -> throw({workspace_error,
+                Error#{cleanup => maps:get(cleanup, Error, unverified)}});
             _ -> conflict(invalid_metadata, ref(Kind, Id))
         end,
         #{<<"kind">> => Kind, <<"id">> => Id, <<"tag">> => Tag,
           <<"name">> => field(name, Row), <<"parent">> => field(window_id, Row),
           <<"index">> => field(index, Row), <<"layout">> => field(layout, Row)}
-    end || Row <- Rows],
+    end, Rows, Options),
     Links = [#{<<"session">> => tmux_model:get(session_id, L),
                <<"window">> => tmux_model:get(window_id, L),
                <<"index">> => tmux_model:get(index, L)}
