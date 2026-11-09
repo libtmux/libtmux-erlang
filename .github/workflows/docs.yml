@@ -46,7 +46,7 @@ concurrency:
 
 jobs:
   build:
-    uses: libtmux/docs/.github/workflows/port-docs.yml@6e6cbd8342476ee18aafb532cd14597ed3a90700
+    uses: libtmux/docs/.github/workflows/port-docs.yml@8245169584882f09e302881f136512df41aba2a4
     with:
       port: erlang
       tag-prefix: ''
@@ -64,14 +64,20 @@ jobs:
 
   publish:
     needs: build
-    if: needs.build.outputs.should-publish == 'true'
+    if: >-
+      needs.build.outputs.should-publish == 'true'
+      && ((github.event_name == 'workflow_dispatch' && inputs.publish == true)
+        || (github.event_name == 'pull_request'
+          && github.event.pull_request.head.repo.full_name == github.repository
+          && !github.event.pull_request.draft
+          && !contains(github.event.pull_request.labels.*.name, 'no-preview')))
     strategy:
       fail-fast: false
       matrix: ${{ fromJSON(needs.build.outputs.matrix) }}
     permissions:
       contents: read
       id-token: write
-    uses: libtmux/docs/.github/workflows/reusable-deploy.yml@6e6cbd8342476ee18aafb532cd14597ed3a90700
+    uses: libtmux/docs/.github/workflows/reusable-deploy.yml@8245169584882f09e302881f136512df41aba2a4
     with:
       path-prefix: erlang/${{ matrix.version }}
       artifact: docs-erlang-${{ matrix.version }}
