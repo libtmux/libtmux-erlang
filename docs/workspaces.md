@@ -159,8 +159,11 @@ pane adoption respawns its ordered target. Linked windows with another
 membership, duplicate ownership and missing/tampered metadata conflict.
 Removal requires matching ownership for the whole affected subtree.
 
-Machine stdout contains one JSON line. OTP diagnostics use stderr. Exit codes
-are 0 for success, 2 for validation, 3 for changed input or observed conflict,
+### Interrupt the CLI
+
+Completed CLI calls write one JSON line to stdout; help writes text. OTP
+diagnostics use stderr. Exit codes are 0 for success, 2 for validation,
+3 for changed input or observed conflict,
 and 4 for operational failure, cancellation or uncertain outcome. Failures
 retain the verified completed prefix and native command outcome separately.
 A native creation can return success while its process exits before observation;
@@ -168,8 +171,15 @@ that returns creation_not_observed with the reported IDs for explicit recovery.
 
 SIGTERM requests cancellation and waits for owned client cleanup. A command
 possibly delivered to tmux can return unknown; earlier steps remain applied.
-Ctrl-C uses OTP's separate VM break path and has no qualified JSON-receipt
-guarantee. Abrupt process death also has no CLI temporary-file cleanup promise.
+Ctrl-C sends SIGINT. OTP 29's escript launcher disables the VM break handler,
+so the standalone CLI exits by signal without a JSON receipt. SIGKILL also
+returns no receipt. These exits retire observed helpers and tmux clients
+in the installed-consumer checks; the borrowed server and existing panes remain.
+Completed remote steps remain applied. Abrupt exit can leave the CLI's private
+temporary directory behind, so callers must not infer rollback or file cleanup
+from process exit. See the
+[OTP escript launcher](https://github.com/erlang/otp/blob/OTP-29.1.2/erts/etc/common/escript.c#L509-L522)
+and [emulator flags](https://www.erlang.org/doc/apps/erts/erl_cmd.html#emulator-flags).
 Cancellation in Erlang uses an application-owned reference and a cancel message,
 as documented by the apply module.
 

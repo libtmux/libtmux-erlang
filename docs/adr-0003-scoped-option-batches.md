@@ -100,9 +100,10 @@ newline-heavy response also runs under an explicit decoder heap bound.
 An eight-pane apply retains 45 graph observations and 384 ownership-row reads;
 transport starts change from 1608 to 1164. A 64-pane apply retains all 176
 steps, 353 graph observations and 19,200 ownership-row reads; starts change
-from 45,092 to 13,880 on both tmux 3.3a and 3.8. Final layout/identity/launch
-fingerprints match the recorded individual-read baseline, the second plan is
-empty, and owned cleanup completes.
+from 45,092 to 13,880 on both tmux 3.3a and 3.8. Ordered pane-summary
+fingerprints match the recorded individual-read baseline. Binding and expected
+launch-metadata checks pass separately, layout cell counts agree, the second
+plan is empty, and owned cleanup completes.
 
 The candidate completion runs took 4.76 seconds for eight panes on tmux 3.8,
 42.27 seconds for 64 panes on 3.8, and 40.14 seconds for 64 panes on 3.3a,

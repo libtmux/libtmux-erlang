@@ -92,8 +92,12 @@ missing target positionally.
 Control command submission and groups and output subscriptions/streams remain
 implementation work. Workspace planning/apply and the CLI use the one-shot
 path. The [workspace guide](workspaces.md) includes executable loader and
-apply examples. Large-workspace performance and a Ctrl-C JSON receipt remain
-unqualified; SIGTERM exercises the explicit cancellation path.
+apply examples. SIGTERM exercises explicit cancellation and returns JSON.
+Installed-consumer checks also cover terminal Ctrl-C and SIGKILL: both exit by
+signal without a receipt, retire observed helper/client processes, and preserve
+the borrowed server and existing panes. Remote steps can remain applied and
+temporary files can remain; see [CLI interruption](workspaces.md#interrupt-the-cli).
+Complete performance qualification remains open.
 
 MCP packages, servers and SDK integration are excluded by
 [project policy](project-policy.md).
