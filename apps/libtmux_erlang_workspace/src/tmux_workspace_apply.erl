@@ -169,11 +169,21 @@ command(#{<<"op">> := <<"create_window">>, <<"key">> := K,
         <<Id/binary, $:, (integer_to_binary(Index))/binary>>,
         <<"-n">>, literal(maps:get(name, W))] ++ launch(P));
 command(#{<<"op">> := <<"create_pane">>, <<"key">> := K,
-          <<"anchor">> := Anchor}, Nodes, Bindings, State, _) ->
+          <<"anchor">> := Anchor, <<"axis">> := <<"longest_available">>},
+        Nodes, Bindings, State, _) ->
     Ref = anchor(Anchor, Bindings),
-    P = maps:get(K, Nodes),
+    P = maps:get(K, Nodes), R = tmux_workspace_state:resource(Ref, State),
+    Window = tmux_workspace_state:resource(tmux_workspace_state:ref(
+        <<"window">>, maps:get(<<"parent">>, R)), State),
+    Cells = tmux_workspace_layout:cells(maps:get(<<"layout">>, Window)),
+    Cell = maps:get(maps:get(<<"id">>, R), Cells, floating),
+    Axis = case tmux_workspace_layout:split(Cell) of
+        {horizontal, _, _} -> <<"-h">>;
+        {vertical, _, _} -> <<"-v">>;
+        none -> tmux_workspace_wire:fail(pane_capacity_exhausted, [])
+    end,
     raw(<<"split-window">>, [<<"-d">>, <<"-P">>, <<"-F">>, <<"#{pane_id}">>,
-        <<"-t">>, native_target(tmux_workspace_state:resource(Ref, State))] ++ launch(P));
+        Axis, <<"-t">>, native_target(R)] ++ launch(P));
 command(#{<<"op">> := <<"remove">>, <<"target">> := Ref}, _, _, State, Document) ->
     R = tmux_workspace_state:resource(Ref, State),
     tmux_workspace_plan:removable(R, Document, State),
@@ -268,7 +278,8 @@ verify_change(Step, Before, After, Bindings, NextBindings, Nodes, Document) ->
         <<"swap_panes">> -> [Touched, maps:get(maps:get(<<"with">>, Step), Bindings)];
         _ -> []
     end,
-    AffectedWindows = affected_windows(Created ++ Removed ++ Swapped, Before, After),
+    Layout = case Op of <<"layout">> -> [Touched]; _ -> [] end,
+    AffectedWindows = affected_windows(Created ++ Removed ++ Swapped ++ Layout, Before, After),
     maps:foreach(fun(Ref, Old) ->
         case maps:find(Ref, NewRows) of
             error -> ok;
@@ -284,7 +295,10 @@ verify_change(Step, Before, After, Bindings, NextBindings, Nodes, Document) ->
                     false -> case maps:get(<<"parent">>, Old) of
                         Parent when is_binary(Parent) ->
                             case lists:member(tmux_workspace_state:ref(<<"window">>, Parent),
-                                    AffectedWindows) of true -> [<<"index">>]; false -> [] end;
+                                    AffectedWindows) of
+                                true -> [<<"index">>];
+                                false -> []
+                            end;
                         _ -> []
                     end
                 end,

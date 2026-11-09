@@ -132,6 +132,15 @@ layouts and ownership before and after its command. Captures span commands,
 so concurrent changes can still intervene.
 There is no atomic reservation, automatic retry or terminal-effect rollback.
 
+Pane creation uses fixed targets and the saved unzoomed layout. It distributes
+splits across tiled cells, then applies the requested arrangement and pane
+order. Floating cells are excluded. For a new window, the plan stores a
+breadth-first target schedule; apply chooses the longer usable axis from each
+checked cell. Available area and options such as reserved scrollbars can
+still reject a split. The failure retains the completed prefix; apply never
+substitutes another target. A pane count within the file limit does not promise
+that the server's window geometry can accommodate it.
+
 Run the plan command again with unchanged managed state: its step count is
 zero. An existing untagged session/window name instead conflicts. To adopt it,
 add one adopt option for each explicit resource key you intend to manage;

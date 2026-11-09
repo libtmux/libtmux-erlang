@@ -1,12 +1,13 @@
 -module(tmux_workspace_SUITE).
 -compile(nowarn_missing_spec).
 -export([all/0, init_per_suite/1, end_per_suite/1,
-         reconcile/1, ordering/1, adoption_and_drift/1, destructive_boundaries/1,
+         reconcile/1, ordering/1, pane_capacity/1, zoomed_expansion/1,
+         adoption_and_drift/1, destructive_boundaries/1,
          failed_prefix/1, cancellation/1]).
 
 %% Outer: real owned tmux, persistent intent, conflict and cancellation evidence.
-all() -> [reconcile, ordering, adoption_and_drift, destructive_boundaries,
-          failed_prefix, cancellation].
+all() -> [reconcile, ordering, pane_capacity, zoomed_expansion,
+          adoption_and_drift, destructive_boundaries, failed_prefix, cancellation].
 init_per_suite(Config) ->
     {ok, _} = application:ensure_all_started(libtmux_erlang_workspace),
     Executable = case os:getenv("LIBTMUX_TEST_TMUX") of
@@ -61,6 +62,48 @@ ordering(Config) -> with_workspace(Config, fun(Server, _Fixture, Dir, File) ->
     true = lists:member(<<"swap_panes">>, Ops),
     true = lists:member(<<"swap_windows">>, Ops),
     {ok, _} = tmux_workspace_apply:run(Update, Server, #{}),
+    {ok, Settled} = tmux_workspace_plan:new(File, Server, #{}),
+    #{<<"steps">> := []} = tmux_workspace_plan:to_map(Settled)
+end).
+
+pane_capacity(Config) -> with_workspace(Config, fun(Server, _Fixture, Dir, File) ->
+    write(File, desired(Dir, 8)),
+    {ok, Plan} = tmux_workspace_plan:new(File, Server, #{}),
+    Result = tmux_workspace_apply:run(Plan, Server, #{}),
+    {ok, Snapshot} = tmux_server:snapshot(Server),
+    case Result of
+        {error, _} -> ct:pal("Pane dimensions at failure: ~p", [
+            [{tmux_model:get(id, P), tmux_model:get(width, P),
+              tmux_model:get(height, P)} || P <- tmux_snapshot:panes(Snapshot)]]);
+        _ -> ok
+    end,
+    {ok, _} = Result,
+    8 = length(tmux_snapshot:panes(Snapshot)),
+    {ok, Settled} = tmux_workspace_plan:new(File, Server, #{}),
+    #{<<"steps">> := []} = tmux_workspace_plan:to_map(Settled)
+end).
+
+zoomed_expansion(Config) -> with_workspace(Config, fun(Server, Fixture, Dir, File) ->
+    write(File, desired(Dir, 2)),
+    {ok, Initial} = tmux_workspace_plan:new(File, Server, #{}),
+    {ok, #{bindings := Bindings}} = tmux_workspace_apply:run(Initial, Server, #{}),
+    <<"pane:", First/binary>> = maps:get(<<"p0">>, Bindings),
+    <<"pane:", Other/binary>> = maps:get(<<"p1">>, Bindings),
+    <<"window:", Window/binary>> = maps:get(<<"w">>, Bindings),
+    lists:foreach(fun(Args) ->
+        {ok, #{exit_status := 0}} = tmux_test_fixture:command(Fixture, Args)
+    end, [[<<"select-layout">>, <<"-t">>, Window, <<"even-horizontal">>],
+        [<<"set-window-option">>, <<"-t">>, Window, <<"pane-border-status">>, <<"top">>],
+        [<<"resize-pane">>, <<"-t">>, First, <<"-x">>, <<"1">>],
+        [<<"resize-pane">>, <<"-t">>, First, <<"-Z">>]]),
+    write(File, desired(Dir, 8)),
+    {ok, Plan} = tmux_workspace_plan:new(File, Server, #{}),
+    [#{<<"anchor">> := #{<<"target">> := <<"pane:", Other/binary>>}} | _] =
+        [Step || #{<<"op">> := <<"create_pane">>} = Step <-
+            maps:get(<<"steps">>, tmux_workspace_plan:to_map(Plan))],
+    {ok, _} = tmux_workspace_apply:run(Plan, Server, #{}),
+    {ok, Snapshot} = tmux_server:snapshot(Server),
+    8 = length(tmux_snapshot:panes(Snapshot)),
     {ok, Settled} = tmux_workspace_plan:new(File, Server, #{}),
     #{<<"steps">> := []} = tmux_workspace_plan:to_map(Settled)
 end).

@@ -63,8 +63,26 @@ ordered_creation_test() ->
     {ok, Plan} = tmux_workspace_plan:from_state(<<"/workspace.json">>, Three, Empty, #{}),
     Splits = [X || #{<<"op">> := <<"create_pane">>} = X <-
         maps:get(<<"steps">>, tmux_workspace_plan:to_map(Plan))],
-    ?assertEqual([#{<<"key">> => <<"p">>}, #{<<"key">> => <<"p1">>}],
-        [maps:get(<<"anchor">>, X) || X <- Splits]).
+    ?assertEqual([#{<<"key">> => <<"p">>}, #{<<"key">> => <<"p">>}],
+        [maps:get(<<"anchor">>, X) || X <- Splits]),
+    ?assertEqual([#{<<"op">> => <<"swap_panes">>, <<"key">> => <<"p1">>,
+        <<"with">> => <<"p2">>}], [X || #{<<"op">> := <<"swap_panes">>} = X <-
+            maps:get(<<"steps">>, tmux_workspace_plan:to_map(Plan))]).
+
+exhausted_anchor_is_not_reused_test() ->
+    D = desired(), [S] = maps:get(sessions, D), [W] = maps:get(windows, S),
+    [P] = maps:get(panes, W),
+    More = D#{sessions => [S#{windows => [W#{panes => [P |
+        [P#{key => integer_to_binary(I)} || I <- lists:seq(1, 8)]]}]}]},
+    State = managed(), [SR, WR, PR] = maps:get(<<"resources">>, State),
+    Tiny = PR,
+    Large = PR#{<<"id">> => <<"%2">>, <<"tag">> => null, <<"index">> => 1},
+    Layout = layout([cell(<<"%1">>, 3, 1), cell(<<"%2">>, 40, 24)]),
+    {ok, Plan} = tmux_workspace_plan:from_state(<<"/workspace.json">>, More,
+        State#{<<"resources">> => [SR, WR#{<<"layout">> => Layout}, Tiny, Large]}, #{}),
+    Anchors = [A || #{<<"op">> := <<"create_pane">>, <<"anchor">> := A} <-
+        maps:get(<<"steps">>, tmux_workspace_plan:to_map(Plan))],
+    ?assertEqual(1, length([A || #{<<"target">> := <<"pane:%1">>} = A <- Anchors])).
 
 changed_input_cannot_dispatch_test() ->
     File = filename:join("/tmp", <<"ltm-plan-",
@@ -151,7 +169,7 @@ managed() ->
         <<"layout">> => null, <<"tag">> => null} end,
     R0 = [(Base(<<"session">>, <<"$1">>))#{<<"name">> => <<"work">>},
         (Base(<<"window">>, <<"@1">>))#{<<"name">> => <<"api">>,
-            <<"layout">> => <<"layout">>},
+            <<"layout">> => layout([cell(<<"%1">>, 80, 24)])},
         (Base(<<"pane">>, <<"%1">>))#{<<"parent">> => <<"@1">>, <<"index">> => 0}],
     State = #{<<"instance">> => instance(), <<"resources">> => R0,
         <<"links">> => [#{<<"session">> => <<"$1">>, <<"window">> => <<"@1">>,
@@ -160,3 +178,10 @@ managed() ->
         <<"p">> => <<"pane:%1">>},
     State#{<<"resources">> => [R#{<<"tag">> => tmux_workspace_state:tag(
         desired(), N, Bindings, State)} || {R, N} <- lists:zip(R0, [S, W, P])]}.
+
+layout(Cells) ->
+    iolist_to_binary(json:encode(#{<<"V">> => 2, <<"L">> => #{<<"t">> => <<"h">>,
+        <<"w">> => 80, <<"h">> => 24, <<"c">> => Cells}})).
+
+cell(Id, Width, Height) ->
+    #{<<"t">> => <<"p">>, <<"w">> => Width, <<"h">> => Height, <<"I">> => Id}.

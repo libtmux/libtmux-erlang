@@ -13,6 +13,13 @@ in the adopt option. Pane adoption uses its ordered position within that
 window and always plans a respawn to establish launch intent. Ownership tags
 and parent manifests must agree; missing or edited metadata is a conflict.
 Plans never infer an original launch from a pane's current command.
+
+Pane creation schedules fixed targets from the saved tiled layout, balancing
+splits before applying the requested arrangement. `tmux_workspace_apply:run/3`
+chooses the longest usable cell axis at each checked step. New windows use a
+breadth-first target schedule until their geometry can be observed. Available
+area and tmux options can still reject a split; this is geometric scheduling,
+not a guarantee that every requested pane count fits.
 """.
 -export([new/3, to_map/1, from_map/1, read/1, write/2, schema/0]).
 -export([from_state/4, owned/2, removable/3, validate_desired/2]).
@@ -69,6 +76,7 @@ write({workspace_plan, Map}, Path) ->
 schema() ->
     #{<<"version">> => 1, <<"ownershipVersion">> => 1,
       <<"documentBytes">> => 262144, <<"maxSteps">> => 4096,
+      <<"paneScheduling">> => <<"saved_tiled_cells_v1">>,
       <<"fields">> => [<<"version">>, <<"schemaDigest">>, <<"planHash">>,
           <<"desiredHash">>, <<"observedHash">>, <<"source">>, <<"endpoint">>,
           <<"workspace">>, <<"before">>, <<"bindings">>, <<"adopt">>,
@@ -76,7 +84,7 @@ schema() ->
       <<"operations">> => #{
           <<"create_session">> => [<<"op">>, <<"key">>, <<"window">>, <<"pane">>],
           <<"create_window">> => [<<"op">>, <<"key">>, <<"parent">>, <<"pane">>],
-          <<"create_pane">> => [<<"op">>, <<"key">>, <<"parent">>, <<"anchor">>],
+          <<"create_pane">> => [<<"op">>, <<"key">>, <<"parent">>, <<"anchor">>, <<"axis">>],
           <<"swap_panes">> => [<<"op">>, <<"key">>, <<"with">>],
           <<"swap_windows">> => [<<"op">>, <<"key">>, <<"with">>],
           <<"rename">> => [<<"op">>, <<"key">>],
@@ -102,7 +110,7 @@ build(Source, Document, State, Options) ->
     ensure(lists:all(fun(K) -> lists:member(K, Keys) end,
         maps:get(adopt, Options, [])), unknown_adoption_key),
     Owned = owned(Document, State),
-    Initial = #{bindings => #{}, created => #{}, tails => #{}, steps => [],
+    Initial = #{bindings => #{}, created => #{}, anchors => #{}, steps => [],
         owned => Owned, state => State, options => Options},
     Matched = lists:foldl(fun match/2, Initial, Nodes),
     Bindings = maps:get(bindings, Matched),
@@ -114,7 +122,8 @@ build(Source, Document, State, Options) ->
     Deletes = [begin removable(R, Document, State),
         #{<<"op">> => <<"remove">>, <<"target">> => tmux_workspace_state:ref(R)}
         end || R <- Roots],
-    Swaps = reorder(Nodes, Bindings, Created, State),
+    Creations = lists:reverse(maps:get(steps, Matched)),
+    Swaps = reorder(Nodes, Bindings, State, Creations),
     ChangedParents = [maps:get(parent, N) || N <- Nodes,
         maps:is_key(maps:get(key, N), Created)] ++
         [maps:get(parent, N) || Step <- Swaps, N <- Nodes,
@@ -125,7 +134,7 @@ build(Source, Document, State, Options) ->
     Stamps = [#{<<"op">> => <<"stamp">>, <<"key">> => maps:get(key, N)}
         || N <- lists:reverse(Nodes), needs_stamp(N, Document, Bindings,
             Created, State, Layouts)],
-    Steps = lists:reverse(maps:get(steps, Matched)) ++ Deletes ++ Swaps ++ Layouts ++ Stamps,
+    Steps = Creations ++ Deletes ++ Swaps ++ Layouts ++ Stamps,
     Base = #{<<"version">> => 1, <<"schemaDigest">> => tmux_workspace_wire:digest(schema()),
         <<"source">> => Source, <<"endpoint">> => maps:get(endpoint, Document),
         <<"workspace">> => maps:get(id, Document),
@@ -202,18 +211,40 @@ create(#{key := Key, kind := <<"window">>, parent := Parent, panes := [P | _]}, 
     created([Key, PK], add(#{<<"op">> => <<"create_window">>,
         <<"key">> => Key, <<"parent">> => Parent, <<"pane">> => PK}, Acc));
 create(#{key := Key, kind := <<"pane">>, parent := Parent}, Acc) ->
-    #{bindings := Bindings, state := State, tails := Tails} = Acc,
-    Anchor = case maps:find(Parent, Tails) of
-        {ok, Last} -> Last;
+    #{bindings := Bindings, state := State, anchors := Anchors} = Acc,
+    Queue = case maps:find(Parent, Anchors) of
+        {ok, Existing} -> Existing;
         error ->
             Children = tmux_workspace_state:children(tmux_workspace_state:resource(
                 maps:get(Parent, Bindings), State), State),
-            #{<<"target">> => tmux_workspace_state:ref(lists:last(Children))}
+            Window = tmux_workspace_state:resource(maps:get(Parent, Bindings), State),
+            Cells = tmux_workspace_layout:cells(maps:get(<<"layout">>, Window)),
+            Candidates = [{R, Cell} || R <- Children,
+                Cell <- [maps:get(maps:get(<<"id">>, R), Cells, floating)],
+                tmux_workspace_layout:split(Cell) =/= none],
+            Largest = lists:sort(fun({A, CA}, {B, CB}) ->
+                {-area(CA), maps:get(<<"index">>, A)} < {-area(CB), maps:get(<<"index">>, B)}
+            end, Candidates),
+            [{#{<<"target">> => tmux_workspace_state:ref(R)}, Cell}
+                || {R, Cell} <- Largest]
     end,
+    ensure(Queue =/= [], pane_capacity_exhausted),
+    [{Anchor, Cell} | Rest] = Queue,
+    Halves = case Cell of
+        unknown -> [{Anchor, unknown}, {#{<<"key">> => Key}, unknown}];
+        _ ->
+            {_, Old, New} = tmux_workspace_layout:split(Cell),
+            [{A, C} || {A, C} <- [{Anchor, Old}, {#{<<"key">> => Key}, New}],
+                tmux_workspace_layout:split(C) =/= none]
+    end,
+    Next = Acc#{anchors => Anchors#{Parent => Rest ++ Halves}},
     created([Key], add(#{<<"op">> => <<"create_pane">>, <<"key">> => Key,
-        <<"parent">> => Parent, <<"anchor">> => Anchor}, Acc)).
+        <<"parent">> => Parent, <<"anchor">> => Anchor,
+        <<"axis">> => <<"longest_available">>}, Next)).
 
-created(_Keys, #{created := Created, tails := Tails, steps := [Step | _]} = Acc) ->
+area({Width, Height}) -> Width * Height.
+
+created(_Keys, #{created := Created, anchors := Anchors, steps := [Step | _]} = Acc) ->
     Key = maps:get(<<"key">>, Step),
     Pairs = case maps:get(<<"op">>, Step) of
         <<"create_session">> ->
@@ -225,34 +256,60 @@ created(_Keys, #{created := Created, tails := Tails, steps := [Step | _]} = Acc)
              {maps:get(<<"pane">>, Step), <<"pane">>, Key}];
         _ -> [{Key, <<"pane">>, maps:get(<<"parent">>, Step)}]
     end,
-    Acc#{tails => lists:foldl(fun
-        ({K, <<"pane">>, Parent}, M) -> M#{Parent => #{<<"key">> => K}};
-        (_, M) -> M
-    end, Tails, Pairs), created => lists:foldl(fun({K, Kind, Parent}, M) ->
+    Queues = case maps:get(<<"op">>, Step) of
+        <<"create_pane">> -> Anchors;
+        _ -> lists:foldl(fun
+            ({K, <<"pane">>, Parent}, M) -> M#{Parent => [{#{<<"key">> => K}, unknown}]};
+            (_, M) -> M
+        end, Anchors, Pairs)
+    end,
+    Acc#{anchors => Queues, created => lists:foldl(fun({K, Kind, Parent}, M) ->
         M#{K => #{parent => Parent, kind => Kind}}
     end, Created, Pairs)}.
 
 add(Step, #{steps := Steps} = Acc) -> Acc#{steps => [Step | Steps]}.
 
-reorder(Nodes, Bindings, Created, State) ->
+reorder(Nodes, Bindings, State, Steps) ->
     Reverse = maps:from_list([{Ref, K} || {K, Ref} <- maps:to_list(Bindings)]),
+    Initial = maps:from_list([{maps:get(key, N), case maps:find(maps:get(key, N), Bindings) of
+        error -> [];
+        {ok, Ref} -> [order_symbol(tmux_workspace_state:ref(R), Reverse)
+            || R <- tmux_workspace_state:children(tmux_workspace_state:resource(Ref, State), State)]
+    end} || N <- Nodes, maps:get(kind, N) =/= <<"pane">>]),
+    Orders = lists:foldl(fun(Step, Acc) ->
+        case Step of
+            #{<<"op">> := <<"create_session">>, <<"key">> := K,
+              <<"window">> := WK, <<"pane">> := PK} ->
+                Acc#{K => [{key, WK}], WK => [{key, PK}]};
+            #{<<"op">> := <<"create_window">>, <<"key">> := K,
+              <<"parent">> := Parent, <<"pane">> := PK} ->
+                Acc#{Parent => maps:get(Parent, Acc) ++ [{key, K}], K => [{key, PK}]};
+            #{<<"op">> := <<"create_pane">>, <<"key">> := K,
+              <<"parent">> := Parent, <<"anchor">> := Anchor} ->
+                A = case Anchor of
+                    #{<<"key">> := AK} -> {key, AK};
+                    #{<<"target">> := Ref} -> order_symbol(Ref, Reverse)
+                end,
+                Acc#{Parent => insert_after(A, {key, K}, maps:get(Parent, Acc))};
+            _ -> Acc
+        end
+    end, Initial, Steps),
     lists:append([begin
         Parent = maps:get(key, N),
         Desired = [maps:get(key, C) || C <- Nodes, maps:get(parent, C) =:= Parent],
-        Existing = case maps:find(Parent, Bindings) of
-            error -> [];
-            {ok, Ref} -> [maps:get(tmux_workspace_state:ref(R), Reverse)
-                || R <- tmux_workspace_state:children(
-                    tmux_workspace_state:resource(Ref, State), State),
-                   maps:is_key(tmux_workspace_state:ref(R), Reverse)]
-        end,
-        Added = [K || K <- Desired, maps:is_key(K, Created)],
+        Current = [K || {key, K} <- maps:get(Parent, Orders)],
         Op = case maps:get(kind, N) of
             <<"session">> -> <<"swap_windows">>;
             <<"window">> -> <<"swap_panes">>
         end,
-        swaps(Desired, Existing ++ Added, Op)
+        swaps(Desired, Current, Op)
     end || N <- Nodes, maps:get(kind, N) =/= <<"pane">>]).
+
+order_symbol(Ref, Reverse) ->
+    case maps:find(Ref, Reverse) of {ok, K} -> {key, K}; error -> {target, Ref} end.
+insert_after(A, Value, [A | Rest]) -> [A, Value | Rest];
+insert_after(A, Value, [H | Rest]) -> [H | insert_after(A, Value, Rest)];
+insert_after(_, _, []) -> tmux_workspace_wire:fail(invalid_plan, []).
 
 swaps([], [], _) -> [];
 swaps([K | Desired], [K | Current], Op) -> swaps(Desired, Current, Op);

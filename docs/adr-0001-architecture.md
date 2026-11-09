@@ -345,6 +345,11 @@ Fresh tmux state can reject a plan without supplying replacement operations.
 Ownership tags bind resource keys, parent manifests, server incarnation and
 launch hashes. Explicit adoption establishes ownership; changed launch intent
 requires respawning. Ordered windows/panes use stable IDs for explicit swaps.
+Pane creation uses the saved, unzoomed tiled layout to schedule fixed targets
+and discard exhausted split cells. New windows use a breadth-first schedule
+until their geometry is observable. Axis selection remains an explicit stored
+policy, evaluated at each checked step. Custom tmux options and available area
+can reject this geometric schedule; it is not a complete packing algorithm.
 
 Apply recaptures the complete projected graph around each step, retaining a
 verified prefix on failure. Source work therefore grows with both graph size
