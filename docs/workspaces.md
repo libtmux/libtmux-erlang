@@ -1,8 +1,8 @@
 # Load a workspace file
 
-Load desired sessions, windows and panes with `tmux_workspace:load/1`, then
-inspect the normalized graph with `tmux_workspace:to_map/1`. The workspace
-application depends on the core's public JSON API and OTP libraries.
+Load desired sessions, windows and panes with the workspace application's
+load function, then inspect the normalized graph with its to_map function. The
+workspace application depends on the core's public JSON API and OTP libraries.
 
 This loader performs filesystem I/O. It does not contact tmux or launch the
 programs in the file. Planning, applying changes and an installed workspace

@@ -86,8 +86,8 @@ run(Socket, Executable) ->
 
 There are three physical windows and four physical panes. Five window links
 remain because the shared window occurs at two indexes in `work` and once
-in `mirror`. `Session.windows` projects two unique windows for `work`;
-`Session.window_links` retains its three memberships.
+in `mirror`. The session record's windows field projects two unique windows
+for `work`; its window_links field retains its three memberships.
 
 A link is identified within a capture by session, index and expected physical
 window. It has no stable tmux link ID. Captured index references cannot promise
