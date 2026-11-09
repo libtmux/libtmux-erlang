@@ -197,54 +197,137 @@ recursive_candidate_implication(Config) ->
                     [<<"link-window">>, <<"-d">>, <<"-s">>, WindowId,
                      <<"-t">>, <<Id/binary, ":", Index/binary>>])
             end, [{S1, <<"7">>}, {S2, <<"9">>}]),
-            {ok, Snapshot} = tmux_server:snapshot(Server),
-            Panes = tmux_select:panes(Snapshot),
-            5 = tmux_select:size(Panes),
-            1 = tmux_select:count(#{pid => none}, Panes),
-            1 = tmux_select:count(#{id => WindowId,
-                window_links => #{count => 3}}, tmux_select:windows(Snapshot)),
-            Leaves = [#{active => true}, #{active => false}, #{index => 0},
-                #{width => #{gte => 120}}, #{width => #{lt => 1}},
-                #{id => Id1}, #{id => #{in => [Id1, Id2]}},
-                #{title => #{contains => <<"needle">>}},
-                #{title => #{contains => <<"missing-needle">>}},
-                #{pid => #{present => true}}, #{pid => none},
-                #{window => #{is => #{window_links =>
-                    #{count => #{gte => 2}}}}},
-                #{window => #{is_not => #{panes =>
-                    #{every => #{active => true}}}}}],
-            Criteria = recursive_conditions(Leaves),
-            Base = tmux_query:pushdown(true, tmux_query:panes(Server)),
-            Cases = [begin
-                Query = tmux_query:where(C, Base),
-                #{candidate := Candidate} = tmux_query:explain(Query),
-                Candidate#{criteria => C,
-                    matches => ids(tmux_select:where(C, Panes))}
-            end || C <- Criteria],
-            true = lists:any(fun(#{exact := Exact, format := F}) ->
-                Exact andalso F =/= <<"0">> andalso F =/= <<"1">>
-            end, Cases),
-            true = lists:any(fun(#{exact := Exact, format := F}) ->
-                not Exact andalso F =/= <<"0">> andalso F =/= <<"1">>
-            end, Cases),
-            lists:foreach(fun(Row) ->
-                Target = {tmux_model:get(window_id, Row),
-                    tmux_model:get(id, Row)},
-                candidate_batches(Cases, Target, Fixture)
-            end, tmux_select:to_list(Panes)),
-            {ok, After} = tmux_server:snapshot(Server),
-            Fields = [id, window_id, index, active, width, title, pid],
-            BeforeRows = [maps:with(Fields, tmux_model:to_map(P))
-                || P <- tmux_snapshot:panes(Snapshot)],
-            BeforeRows = [maps:with(Fields, tmux_model:to_map(P))
-                || P <- tmux_snapshot:panes(After)],
-            BeforeLinks = [tmux_model:to_map(L)
-                || L <- tmux_snapshot:window_links(Snapshot)],
-            BeforeLinks = [tmux_model:to_map(L)
-                || L <- tmux_snapshot:window_links(After)],
-            ct:pal("Native recursive candidates: ~p conditions / ~p panes",
-                [length(Cases), tmux_select:size(Panes)])
+            SessionId = tmux_model:get(id, S1),
+            tmux_test_fixture:with_client(Fixture, SessionId, [], fun(_) ->
+                tmux_test_fixture:with_client(Fixture, SessionId, [], fun(_) ->
+                    recursive_candidates(Server, Fixture, SessionId, WindowId,
+                        Id1, Id2)
+                end)
+            end)
         end).
+
+recursive_candidates(Server, Fixture, SessionId, WindowId, Id1, Id2) ->
+    {ok, Snapshot} = tmux_server:snapshot(Server),
+    Panes = tmux_select:panes(Snapshot),
+    5 = tmux_select:size(Panes),
+    lists:foreach(fun(Pane) ->
+        case tmux_model:get(pid, Pane) of
+            none -> ok;
+            Pid -> ok = tmux_test_fixture:track_process(Fixture, Pid)
+        end
+    end, tmux_select:to_list(Panes)),
+    1 = tmux_select:count(#{pid => none}, Panes),
+    1 = tmux_select:count(#{id => WindowId,
+        window_links => #{count => 3}}, tmux_select:windows(Snapshot)),
+    Leaves = [#{active => true}, #{active => false}, #{index => 0},
+        #{width => #{gte => 120}}, #{width => #{lt => 1}},
+        #{id => Id1}, #{id => #{in => [Id1, Id2]}},
+        #{title => #{contains => <<"needle">>}},
+        #{title => #{contains => <<"missing-needle">>}},
+        #{pid => #{present => true}}, #{pid => none},
+        #{window => #{is => #{window_links =>
+            #{count => #{gte => 2}}}}},
+        #{window => #{is_not => #{panes =>
+            #{every => #{active => true}}}}}],
+    Criteria = recursive_conditions(Leaves),
+    Base = tmux_query:pushdown(true, tmux_query:panes(Server)),
+    Cases = [begin
+        Query = tmux_query:where(C, Base),
+        #{candidate := Candidate} = tmux_query:explain(Query),
+        Candidate#{criteria => C,
+            matches => ids(tmux_select:where(C, Panes))}
+    end || C <- Criteria],
+    true = lists:any(fun(#{exact := Exact, format := F}) ->
+        Exact andalso F =/= <<"0">> andalso F =/= <<"1">>
+    end, Cases),
+    true = lists:any(fun(#{exact := Exact, format := F}) ->
+        not Exact andalso F =/= <<"0">> andalso F =/= <<"1">>
+    end, Cases),
+    lists:foreach(fun(Row) ->
+        Target = {tmux_model:get(window_id, Row),
+            tmux_model:get(id, Row)},
+        candidate_batches(Cases, Target, Fixture)
+    end, tmux_select:to_list(Panes)),
+    session_window_candidates(Server, Fixture, Snapshot,
+        SessionId, WindowId),
+    {ok, After} = tmux_server:snapshot(Server),
+    Fields = [id, window_id, index, active, width, title, pid],
+    BeforeRows = [maps:with(Fields, tmux_model:to_map(P))
+        || P <- tmux_snapshot:panes(Snapshot)],
+    BeforeRows = [maps:with(Fields, tmux_model:to_map(P))
+        || P <- tmux_snapshot:panes(After)],
+    BeforeLinks = [tmux_model:to_map(L)
+        || L <- tmux_snapshot:window_links(Snapshot)],
+    BeforeLinks = [tmux_model:to_map(L)
+        || L <- tmux_snapshot:window_links(After)],
+    lists:foreach(fun(Entity) ->
+        Before = [tmux_model:to_map(Row) || Row <- tmux_snapshot:rows(Entity, Snapshot)],
+        Before = [tmux_model:to_map(Row) || Row <- tmux_snapshot:rows(Entity, After)]
+    end, [session, window]),
+    ct:pal("Native recursive candidates: ~p conditions / ~p panes",
+        [length(Cases), tmux_select:size(Panes)]).
+
+session_window_candidates(Server, Fixture, Snapshot, SessionId, WindowId) ->
+    Sessions = tmux_select:sessions(Snapshot),
+    Windows = tmux_select:windows(Snapshot),
+    [0, 2] = lists:sort([tmux_model:get(attached_count, Session)
+        || Session <- tmux_select:to_list(Sessions)]),
+    1 = tmux_select:count(#{id => WindowId, pane_count => 3}, Windows),
+    1 = tmux_select:count(#{id => WindowId,
+        window_links => #{count => 3}}, Windows),
+    {ok, SelectedSession} = tmux_select:one(#{id => SessionId}, Sessions),
+    Created = tmux_model:get(created, SelectedSession),
+    Inputs = [
+        {session, Sessions, tmux_query:sessions(Server), [
+            #{id => SessionId}, #{id => #{in => [SessionId, <<"$999">>]}},
+            #{attached_count => 0}, #{attached_count => 2},
+            #{attached_count => #{gte => 1}}, #{created => Created},
+            #{attached => true}, #{name => #{contains => <<"recursive">>}},
+            #{windows => #{some => #{panes => #{some => #{pid => none}}}}},
+            #{window_links => #{count => #{gte => 3}}}]},
+        {window, Windows, tmux_query:windows(Server), [
+            #{id => WindowId}, #{id => #{not_in => [WindowId, <<"@999">>]}},
+            #{width => #{gt => 0}}, #{height => #{lt => 1}},
+            #{pane_count => 1}, #{pane_count => 3},
+            #{name => #{contains => <<"workers">>}},
+            #{panes => #{some => #{title => <<"needle">>}}},
+            #{panes => #{every => #{pid => #{present => true}}}},
+            #{window_links => #{count => #{gte => 2}}}]}
+    ],
+    lists:foreach(fun({Entity, Selection, Base, Leaves}) ->
+        Conditions = recursive_conditions(Leaves),
+        Cases = [begin
+            Query = tmux_query:where(Criteria, tmux_query:pushdown(true, Base)),
+            #{candidate := Candidate} = tmux_query:explain(Query),
+            Candidate#{criteria => Criteria,
+                matches => ids(tmux_select:where(Criteria, Selection))}
+        end || Criteria <- Conditions],
+        true = lists:any(fun(#{exact := Exact, format := Format}) ->
+            Exact andalso Format =/= <<"0">> andalso Format =/= <<"1">>
+        end, Cases),
+        true = lists:any(fun(#{exact := Exact, format := Format}) ->
+            not Exact andalso Format =/= <<"0">> andalso Format =/= <<"1">>
+        end, Cases),
+        lists:foreach(fun(Row) ->
+            candidate_batches(Cases, {Entity, tmux_model:get(id, Row)}, Fixture)
+        end, tmux_select:to_list(Selection)),
+        ct:pal("Native recursive candidates: ~p conditions / ~p ~p rows",
+            [length(Cases), tmux_select:size(Selection), Entity])
+    end, Inputs),
+    SessionBase = tmux_query:where(#{attached_count => 2},
+        tmux_query:pushdown(true, tmux_query:sessions(Server))),
+    _ = fetch_candidate(tmux_query:where(#{window_links => #{count => 3}},
+        SessionBase), [SessionId]),
+    _ = fetch_candidate(tmux_query:where(#{window_links => #{count => 2}},
+        SessionBase), []),
+    WindowBase = tmux_query:where(#{pane_count => 3},
+        tmux_query:pushdown(true, tmux_query:windows(Server))),
+    SelectedWindows = fetch_candidate(tmux_query:where(
+        #{window_links => #{count => 3}}, WindowBase), [WindowId]),
+    _ = fetch_candidate(tmux_query:where(#{window_links => #{count => 1}},
+        WindowBase), []),
+    1 = tmux_select:count(#{panes => #{some => #{pid => none}}},
+        SelectedWindows).
 
 limits_and_read_retry(Config) ->
     tmux_test_fixture:with_server(proplists:get_value(executable, Config), fun(Server, Fixture) ->
@@ -269,6 +352,13 @@ limits_and_read_retry(Config) ->
         {error, #{code := stale_reference}} = tmux_query:fetch(Query)
     end).
 
+fetch_candidate(Query, Expected) ->
+    {ok, Selection} = tmux_query:fetch(Query),
+    Expected = ids(Selection),
+    #{query := #{candidate_count := 1, pushed_down := true}} =
+        tmux_select:summary(Selection),
+    Selection.
+
 fetch_count(Query) ->
     Trace = trace:session_create(query_fetch, self(), []),
     Boundary = {tmux_server, command, 3},
@@ -288,13 +378,13 @@ numeric_batches(Cases, Fixture) ->
     numeric_batches(Rest, Fixture).
 
 candidate_batches([], _, _) -> ok;
-candidate_batches(Cases, {_Window, Id} = Target, Fixture) ->
+candidate_batches(Cases, {_, Id} = Target, Fixture) ->
     {Batch, Rest} = lists:split(min(32, length(Cases)), Cases),
     Values = boolean_formats([maps:get(format, C) || C <- Batch],
         Target, Fixture),
     lists:foreach(fun({Case, Actual}) ->
         Full = lists:member(Id, maps:get(matches, Case)),
-        Detail = #{pane => Id, criteria => maps:get(criteria, Case),
+        Detail = #{target => Target, criteria => maps:get(criteria, Case),
             format => maps:get(format, Case), full => Full, candidate => Actual},
         case {Full, Actual, maps:get(exact, Case)} of
             {true, false, _} -> error({candidate_excluded_match, Detail});
@@ -304,8 +394,29 @@ candidate_batches(Cases, {_Window, Id} = Target, Fixture) ->
     end, lists:zip(Batch, Values)),
     candidate_batches(Rest, Target, Fixture).
 
-%% list-panes uses the same expansion as -f, without strftime on pane IDs.
-%% Test frames contain a canonical pane ID and generated 0/1 results.
+%% The list commands use the same expansion as -f, without strftime on IDs.
+%% Repeated window memberships must produce the same physical-row values.
+boolean_formats(Formats, {Entity, Id}, Fixture)
+  when Entity =:= session; Entity =:= window ->
+    {Command, Arguments, Field} = case Entity of
+        session -> {<<"list-sessions">>, [], <<"session_id">>};
+        window -> {<<"list-windows">>, [<<"-a">>], <<"window_id">>}
+    end,
+    Format = iolist_to_binary(lists:join(<<"\t">>,
+        [<<"#{", Field/binary, "}">> | Formats])),
+    Filter = <<"#{==:#{", Field/binary, "},", Id/binary, "}">>,
+    {ok, #{stdout := Output, exit_status := 0}} =
+        tmux_test_fixture:command(Fixture,
+            [Command | Arguments] ++ [<<"-f">>, Filter, <<"-F">>, Format]),
+    Lines = binary:split(Output, <<"\n">>, [global, trim_all]),
+    Count = length(Formats),
+    [Values] = lists:usort([begin
+        [Id | Columns] = binary:split(Line, <<"\t">>, [global]),
+        Count = length(Columns),
+        [case Value of <<"0">> -> false; <<"1">> -> true end
+            || Value <- Columns]
+    end || Line <- Lines]),
+    Values;
 boolean_formats(Formats, Target, Fixture) ->
     Arguments = case Target of
         none -> [];
