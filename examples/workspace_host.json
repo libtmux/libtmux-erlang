@@ -1,0 +1,7 @@
+{
+  "version": 1,
+  "allowShell": false,
+  "endpoints": {
+    "dev": {"socketPath": "/tmp/project/tmux.sock"}
+  }
+}

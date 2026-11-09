@@ -140,6 +140,10 @@ run_endpoint(Socket, Executable) ->
                 tmux_window:get(Server, tmux_model:get(id, Window)),
             OriginalLayout = tmux_model:get(layout, RestoredWindow),
             {ok, Snapshot} = tmux_server:snapshot(Server),
+            #{server_instance := Instance} = tmux_snapshot:metadata(Snapshot),
+            {ok, InstanceKey} = tmux_identity:fingerprint(Instance),
+            {ok, #{<<"instance">> := InstanceKey}} = tmux_json:decode(
+                iolist_to_binary(json:encode(#{instance => InstanceKey}))),
             {ok, CatPane} = tmux_select:one(
                 #{window_id => tmux_model:get(id, Window),
                   pid => #{present => true}}, tmux_select:panes(Snapshot)),
@@ -227,7 +231,25 @@ run_endpoint(Socket, Executable) ->
                 {ok, CompletedInput} = tmux_pane:get(
                     Server, tmux_model:get(id, InputPane)),
                 true = tmux_model:get(dead, CompletedInput),
-                0 = tmux_model:get(exit_status, CompletedInput),
+                case tmux_model:get(exit_status, CompletedInput) of
+                    0 -> ok;
+                    ObservedExit ->
+                        {ok, ExitProbe} = tmux_command:raw(
+                            <<"display-message">>, [<<"-p">>, <<"-t">>,
+                                tmux_model:get(id, CompletedInput),
+                                <<"#{pane_id}|#{pane_dead}|",
+                                  "#{pane_dead_status}|#{pane_dead_signal}">>]),
+                        ExitDetails = case tmux_server:command(
+                            Server, ExitProbe, #{}) of
+                            {ok, #{stdout := NativeExit}} -> NativeExit;
+                            {error, ExitFailure} -> maps:with(
+                                [code, outcome, phase, cleanup], ExitFailure)
+                        end,
+                        error({unexpected_pane_exit,
+                            #{expected => 0, observed => ObservedExit,
+                              pane => tmux_model:get(id, CompletedInput),
+                              native => ExitDetails}})
+                end,
                 {ok, _} = tmux_pane:kill(CompletedInput),
                 {error, #{code := target_gone}} = tmux_pane:get(
                     Server, tmux_model:get(id, InputPane)),

@@ -335,10 +335,42 @@ The core has no dependency on the workspace application. Each package owns
 metadata, license and changelog material, and needs an installed-consumer check
 outside the umbrella before independent delivery.
 
-The [workspace loader](https://github.com/libtmux/libtmux-erlang/blob/9a1ca749f7bf6f082c910c99f961bb586781ab0b/apps/libtmux_erlang_workspace/src/tmux_workspace.erl#L71) currently validates versioned JSON into
-inert desired state. Planning, apply and the CLI remain implementation work.
+The [workspace loader](https://github.com/libtmux/libtmux-erlang/blob/9a1ca749f7bf6f082c910c99f961bb586781ab0b/apps/libtmux_erlang_workspace/src/tmux_workspace.erl#L71) validates versioned JSON into
+inert desired state. The later
+[planner](https://github.com/libtmux/libtmux-erlang/blob/2e681477ed015e61f03c393ded111c2d5e6dd665/apps/libtmux_erlang_workspace/src/tmux_workspace_plan.erl#L34)
+stores canonical operations and observed preconditions; the
+[apply engine](https://github.com/libtmux/libtmux-erlang/blob/2e681477ed015e61f03c393ded111c2d5e6dd665/apps/libtmux_erlang_workspace/src/tmux_workspace_apply.erl#L40)
+checks their derivation against the stored observation and hash-checked input.
+Fresh tmux state can reject a plan without supplying replacement operations.
+Ownership tags bind resource keys, parent manifests, server incarnation and
+launch hashes. Explicit adoption establishes ownership; changed launch intent
+requires respawning. Ordered windows/panes use stable IDs for explicit swaps.
+Pane creation uses the saved, unzoomed tiled layout to schedule fixed targets
+and discard exhausted split cells. New windows use a breadth-first schedule
+until their geometry is observable. Axis selection remains an explicit stored
+policy, evaluated at each checked step. Custom tmux options and available area
+can reject this geometric schedule; it is not a complete packing algorithm.
+
+Apply recaptures the complete projected graph around each step, retaining a
+verified prefix on failure. Source work therefore grows with both graph size
+and step count. This initial strategy favors explicit drift evidence; measured
+large-workspace performance remains a qualification gate. No atomic reservation
+or automatic rollback is claimed. The standalone Rebar3 escript materializes
+its bundled helper, license and provenance in a private runtime directory;
+BEAM code stays in the archive. SIGTERM follows explicit cancellation, while
+Ctrl-C receipt semantics remain unqualified. See the
+[workspace guide](workspaces.md) for current contracts and executable examples.
+
+Ownership metadata reads use bounded batches of three workers. A private
+coordinator monitors the caller and joins its workers; the caller gates each
+new batch after checking cancellation. Results retain row order and the worst
+cleanup evidence across the drained batch. Worker exit alone cannot prove
+native retirement. This changes scheduling while retaining every graph and
+ownership read; total source-call work remains a separate optimization target.
+
 Endpoint names need host policy; loading shell text does not authorize its
-execution. File loading and path resolution are synchronous trusted-filesystem
+execution. Shell execution needs both host policy and a recorded plan opt-in.
+File loading and path resolution are synchronous trusted-filesystem
 operations without an I/O deadline or atomic filesystem-snapshot guarantee.
 
 Erlang runtime dependencies stay within OTP, alongside the recorded external
@@ -415,6 +447,9 @@ and filesystem cleanup retain concurrency races stated in their contracts.
 At the recorded baseline, the core graph/query/one-shot path and control
 attachment exist; workspace JSON loading exists; control submission, groups,
 public streams, workspace plan/apply/CLI and complete delivery remain open.
+Subsequent workspace planning/apply and CLI work follows AD-8; the baseline
+statement above remains the historical review scope. Control submission,
+groups, public streams, full adoption and complete delivery remain open.
 Registry and shared-site publication require their own verified delivery steps.
 Consult [support and gaps](compatibility.md) before selecting an execution lane.
 

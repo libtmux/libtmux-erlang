@@ -1,5 +1,5 @@
 {application, libtmux_erlang_workspace, [
-    {description, "Validated JSON workspace desired state using the public core API"},
+    {description, "Erlang tmux workspaces with saved plans and explicit execution"},
     {vsn, "0.0.0+development"},
     {licenses, ["MIT"]},
     {links, #{"GitHub" => "https://github.com/libtmux/libtmux-erlang"}},

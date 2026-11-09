@@ -22,6 +22,7 @@ import urllib.request
 from urllib.parse import unquote
 
 from check_package import exercise_consumer
+from check_workspace_cli import exercise_cli
 
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -132,7 +133,8 @@ def main() -> None:
                "machine": platform.machine(), "tools": PINS, "commands": [],
                "source_sha256": {name: digest(ROOT / name) for name in (
                    "tools/check_source_package.py", "tools/source_package_registry.escript",
-                   "tools/check_package.py", "tools/package-tool.json", ".tool-versions")},
+                   "tools/check_package.py", "tools/check_workspace_cli.py",
+                   "tools/package-tool.json", ".tool-versions")},
                "packages": {}, "publication": "UNVERIFIED; local artifacts only"}
     env = dict(os.environ, ERL_FLAGS=os.environ.get("ERL_FLAGS", "+S 4:4"))
     for key in ("ERL_LIBS", "TMUX", "TMUX_PANE", "REBAR_CONFIG", "HEX_CDN",
@@ -261,8 +263,13 @@ def main() -> None:
                 config_file.parent.mkdir(parents=True)
                 config_file.write_text(repo_config)
                 version = receipt["packages"][APPS[1]]["metadata"]["version"]
-                (consumer / "rebar.config").write_text(
-                    '{deps, [{libtmux_erlang_workspace, ' + json.dumps(version) + '}]}.\n')
+                config_terms = [
+                    '{deps, [{libtmux_erlang_workspace, ' + json.dumps(version) + '}]}.',
+                    '{escript_main_app, libtmux_erlang_workspace}.',
+                    '{escript_name, "libtmux-workspace"}.',
+                    r'{escript_emu_args, "%%! +S 4:4 -escript main tmux_workspace_cli\n"}.',
+                    '{escript_incl_priv, [{libtmux_erlang, "*"}]}.']
+                (consumer / "rebar.config").write_text("\n".join(config_terms) + "\n")
                 env.update(REBAR_GLOBAL_CONFIG_DIR=str(config),
                            REBAR_CACHE_DIR=str(temp / "consumer-cache"),
                            REBAR_GLOBAL_CACHE_DIR=str(temp / "consumer-cache"))
@@ -287,6 +294,12 @@ def main() -> None:
                         raise RuntimeError(f"consumer did not fetch source artifact: {app}")
                 receipt["consumer"] = exercise_consumer(
                     ROOT, consumer, installed / APPS[0] / "ebin", installed / APPS[1] / "ebin")
+                run(["rebar3", "escriptize"], consumer)
+                cli_fixture = temp / "cli-fixture"
+                cli_fixture.mkdir()
+                receipt["workspace_cli"] = exercise_cli(
+                    consumer / "_build/default/bin/libtmux-workspace",
+                    env.get("LIBTMUX_TEST_TMUX") or shutil.which("tmux"), cli_fixture)
                 receipt["requests"] = requests
                 receipt["helper_built_from_source"] = True
                 receipt["source_only_consumer"] = True

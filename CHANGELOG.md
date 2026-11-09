@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+- Qualify workspace planning/apply examples and a standalone escript through
+  fresh source-package installation, owned fixtures and cancellation checks.
+
+- Report native pane exit/signal details when the installed consumer's input
+  job ends unexpectedly, while retaining its expected successful-exit check.
+
+- Add a source-pinned Erlang/Elixir filter comparison that reports wire,
+  field-domain and validation-diagnostic incompatibilities.
+
 - Record batched complete-graph hydration, byte framing, measured source cost
   and the explicit isolated strategy in ADR 0002.
 

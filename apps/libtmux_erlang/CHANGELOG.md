@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Include helper source provenance alongside its binary and license for
+  standalone workspace archives; helper protocol and source stay unchanged.
+
+- Expose a versioned fingerprint of captured Linux process identity for
+  persistent comparison across endpoint handles, without an I/O or liveness
+  claim.
+
 - Batch snapshot text and byte fields in one scan per entity, with strict
   byte framing, identity checks and unchanged capture bracketing. Capture and
   fetch options accept `hydration => isolated` for larger entity output under

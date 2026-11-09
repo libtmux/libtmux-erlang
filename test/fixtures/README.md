@@ -12,8 +12,11 @@ Unicode, byte values and Boolean identities. The Erlang runner also checks
 repeatability, normalization idempotence and wire round trips across composed
 conditions. It runs in the normal EUnit suite without tmux I/O.
 
-Other ports can consume the same file. Only the Erlang consumer is currently
-verified here; these fixtures do not establish cross-port conformance.
+The optional [cross-port comparison](../../tools/filter-conformance/README.md)
+also exercises the unchanged wire documents through Elixir v0.1.1. It finds
+wire, field-domain and diagnostic differences, so full interoperability
+remains FAIL. The comparison records its narrower projected-graph matches
+separately; they do not establish cross-port conformance.
 
 The test-only [graph properties](../../property/prop_tmux_graph.erl) generate
 complete captured graphs with empty relations, shared physical windows and

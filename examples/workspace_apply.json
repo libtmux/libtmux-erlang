@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "id": "workspace-example",
+  "endpoint": "dev",
+  "sessions": [
+    {
+      "key": "session",
+      "name": "project",
+      "windows": [
+        {
+          "key": "api",
+          "name": "api",
+          "layout": "even-horizontal",
+          "panes": [
+            {"key": "editor", "cwd": ".", "argv": ["/bin/cat"]},
+            {"key": "worker", "cwd": ".", "argv": ["/bin/cat"]}
+          ]
+        }
+      ]
+    }
+  ]
+}
