@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Report native pane exit/signal details when the installed consumer's input
+  job ends unexpectedly, while retaining its expected successful-exit check.
+
 - Add a source-pinned Erlang/Elixir filter comparison that reports wire,
   field-domain and validation-diagnostic incompatibilities.
 

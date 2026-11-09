@@ -109,6 +109,15 @@ contain only a code; do not assume every error contains output or certainty.
 The native API defines `t:tmux_operation:completed/0`,
 `t:tmux_operation:failure/0` and `t:tmux_operation:state/0`.
 
+Treat a pane's exit_status field independently from its dead flag. tmux exposes
+a numeric status after collecting a normal child exit; signal termination has
+no numeric value in that field. The captured absence value is none, which does
+not mean success. The native pane_dead_signal format can identify a signal
+when diagnosing an unexpected exit. This distinction appears in the
+[tmux 3.3a status callback](https://github.com/tmux/tmux/blob/3.3a/format.c#L1792)
+and the
+[tmux 3.8 status callback](https://github.com/tmux/tmux/blob/3.8/format.c#L2288).
+
 ## Operation ownership
 
 The process that starts an operation owns it. Other processes can await its
