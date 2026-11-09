@@ -127,8 +127,8 @@ the bytes returned even though physical rows remain unique.
 Each command remains bounded to 1 MiB of stdout. If a whole entity exceeds
 that bound, use `hydration => isolated` in snapshot or fetch options to read
 one field per physical row. The total capture bound and deadline still apply.
-`commands.hydration` describes the default templates;
-`commands.isolated_hydration` describes isolated reads and unqualified-schema
+The hydration entry of the commands metadata describes the default templates;
+its isolated_hydration entry describes isolated reads and unqualified-schema
 fallback. Snapshot metadata records the chosen strategy and actual calls.
 [ADR 0002](adr-0002-batched-hydration.md) records the framing, measurements and
 tradeoffs.
