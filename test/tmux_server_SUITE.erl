@@ -154,6 +154,24 @@ replacement_endpoint(Config) ->
         {ok, OldSession} = tmux_session:create(OldServer,
             #{name => <<"original">>, launch => #{argv => [<<"cat">>]}}),
         {ok, OldSnapshot} = tmux_server:snapshot(OldServer),
+        Fingerprint = fun(Snapshot) ->
+            #{server_instance := Instance} = tmux_snapshot:metadata(Snapshot),
+            {ok, Key} = tmux_identity:fingerprint(Instance),
+            Key
+        end,
+        OldKey = Fingerprint(OldSnapshot),
+        Executable = proplists:get_value(executable, Config),
+        {ok, Reconnected} = tmux_server:open(#{socket_path => Socket,
+                                             executable => Executable}),
+        try
+            {ok, ReconnectedSnapshot} = tmux_server:snapshot(Reconnected),
+            OldKey = Fingerprint(ReconnectedSnapshot),
+            #{generation := OldGeneration} = tmux_snapshot:metadata(OldSnapshot),
+            #{generation := ReconnectedGeneration} =
+                tmux_snapshot:metadata(ReconnectedSnapshot),
+            false = OldGeneration =:= ReconnectedGeneration
+        after ok = tmux_server:close(Reconnected)
+        end,
         [OldWindow] = tmux_snapshot:windows(OldSnapshot),
         [OldPane] = tmux_snapshot:panes(OldSnapshot),
         #tmux_model:session{id = SessionId} = OldSession,
@@ -163,13 +181,13 @@ replacement_endpoint(Config) ->
         ok = tmux_test_fixture:replace(Fixture),
         #{socket := Socket, server_pid := NewPid} = tmux_test_fixture:info(Fixture),
         true = NewPid =/= OldPid,
-        Executable = proplists:get_value(executable, Config),
         {ok, NewServer} = tmux_server:open(#{socket_path => Socket,
                                            executable => Executable}),
         try
             {ok, #tmux_model:session{id = SessionId}} = tmux_session:create(NewServer,
                 #{name => <<"replacement">>, launch => #{argv => [<<"cat">>]}}),
             {ok, NewSnapshot} = tmux_server:snapshot(NewServer),
+            false = OldKey =:= Fingerprint(NewSnapshot),
             [#tmux_model:window{id = WindowId}] = tmux_snapshot:windows(NewSnapshot),
             [#tmux_model:pane{id = PaneId}] = tmux_snapshot:panes(NewSnapshot),
             {error, #{code := stale_server, submitted := false}} =

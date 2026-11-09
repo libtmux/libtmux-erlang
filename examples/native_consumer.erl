@@ -140,6 +140,10 @@ run_endpoint(Socket, Executable) ->
                 tmux_window:get(Server, tmux_model:get(id, Window)),
             OriginalLayout = tmux_model:get(layout, RestoredWindow),
             {ok, Snapshot} = tmux_server:snapshot(Server),
+            #{server_instance := Instance} = tmux_snapshot:metadata(Snapshot),
+            {ok, InstanceKey} = tmux_identity:fingerprint(Instance),
+            {ok, #{<<"instance">> := InstanceKey}} = tmux_json:decode(
+                iolist_to_binary(json:encode(#{instance => InstanceKey}))),
             {ok, CatPane} = tmux_select:one(
                 #{window_id => tmux_model:get(id, Window),
                   pid => #{present => true}}, tmux_select:panes(Snapshot)),

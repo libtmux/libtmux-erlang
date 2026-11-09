@@ -114,3 +114,17 @@ The relation query checks the full captured graph. Filtering a window selection
 does not replace its panes with only matching panes. `some`, `every`, `none`
 and `count` require complete membership coverage, including empty selections.
 The [query guide](querying.md) explains validation and correlation.
+
+## Compare captured server incarnations
+
+Live `tmux_snapshot:metadata/1` includes an opaque server_instance value.
+`tmux_identity:fingerprint/1` derives a versioned binary comparison key from
+that captured identity without I/O. The key survives reconnecting through
+another endpoint handle and changes when the observed process incarnation
+changes. The installed consumer checks its JSON round trip.
+
+An endpoint's generation identifies that handle's lifetime; it changes when
+the handle is reopened. A persisted incarnation key serves a different
+purpose: comparing the server observed by those handles. It cannot make a
+stale row actionable, establish current liveness or authorize an action.
+Use `tmux_server:bind/2` to obtain a fresh actionable row.
