@@ -107,7 +107,8 @@ def check_contents(path: Path, app: str) -> dict:
                      or n.endswith((".beam", ".o", ".so"))]
         if forbidden:
             raise RuntimeError(f"prebuilt files in {app}: {forbidden}")
-        required = {"LICENSE", "CHANGELOG.md", "rebar.config", f"src/{app}.app.src"}
+        required = {"LICENSE", "CHANGELOG.md", "README.md", "rebar.config",
+                    "assets/logo.svg", "assets/logo-128.png", f"src/{app}.app.src"}
         if app == APPS[0]:
             required.update({"c_src/owned_io.c", "c_src/Makefile", "c_src/LICENSE",
                              "c_src/provenance.json"})

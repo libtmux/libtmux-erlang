@@ -13,9 +13,14 @@
 
 </div>
 
-Create tmux sessions, windows and panes from Erlang. Capture their object graph,
-filter it as immutable data, and execute source queries and owned operations
-explicitly.
+libtmux for Erlang is a tmux client library. Create sessions, windows and panes,
+capture their object graph, filter it as immutable data, and execute source
+queries and owned operations explicitly.
+
+[Documentation](https://libtmux.org/en/erlang/latest/) ·
+[Core package](apps/libtmux_erlang/README.md) ·
+[Workspace package](apps/libtmux_erlang_workspace/README.md) ·
+[Changelog](CHANGELOG.md)
 
 ## Install
 

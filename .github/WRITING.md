@@ -20,6 +20,8 @@ Use CommonMark with blank lines around headings and lists. Wrap repository
 prose near 80 columns except tables, links, and commands. Keep personal
 information and local absolute paths out of published text.
 
+### Code blocks
+
 - Use `console` fences with a `$ ` prefix for shell commands.
 - Put one paste-and-run command in each block. An explicit `&&`, `;`, or
   `\` chain counts as one command.
@@ -114,6 +116,17 @@ Good, name the reusable criteria:
     Editors = #{current_command => #{in => [<<"nvim">>, <<"vim">>]}},
     Result = tmux_select:where(Editors, Panes).
 ```
+
+## Package READMEs
+
+Each OTP application owns a README with its existing logo, package name,
+purpose and installation or build steps. Use task headings, link sibling
+packages and the API reference, and state release and support limits.
+
+Run every shown command from the stated directory. Copy code from complete
+executed examples, check displayed output, and link detailed contracts to
+their guides. Keep logos and the README in the source package so the package
+entry point survives installation. Link its changelog and license.
 
 ## Erlang documentation
 
