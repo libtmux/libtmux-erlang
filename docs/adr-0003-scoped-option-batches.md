@@ -3,17 +3,15 @@
 ## Status
 
 Accepted design. Native qualification, measurements and package delivery have
-separate evidence gates. This refines the workspace observation strategy in
-[ADR 0001, AD-8](adr-0001-architecture.md#ad-8-keep-workspace-execution-downstream-and-mcp-excluded).
-It preserves complete graph
-observations, local ownership metadata, per-step checks and interval semantics.
+separate evidence gates. It preserves complete graph observations, local
+ownership metadata and interval semantics.
 
 ## Context and drivers
 
-Workspace plan/apply observes the graph and every local ownership tag around
-each step. Three concurrent readers reduce waiting, but one client per row
-still incurs an identity preflight, helper and tmux client. Large workspaces
-pay this process cost repeatedly even when metadata values are small.
+Reading the local ownership tag of every row in a captured graph starts one
+client per row. Each client incurs an identity preflight, helper and tmux
+client. Large graphs pay this process cost repeatedly even when metadata values
+are small.
 
 Retain every ownership read and distinguish absence from target loss. Bound
 native output and parser allocation. Reduce client starts without introducing
@@ -63,54 +61,26 @@ success does not turn that outcome into a native execution error.
 These are observations over an interval. Hooks and queued work can intervene;
 a removed sole-pane window can keep its pane observable through queued
 references on older tmux. Envelopes do not prove membership, atomic reads or
-an atomic server-incarnation check. Workspace graph and ownership checks still
-govern each apply step. Ambient aliases/configuration retain the existing
-unresolved qualification boundary; batching establishes no new alias policy.
+an atomic server-incarnation check. Ambient aliases/configuration retain the
+existing unresolved qualification boundary; batching establishes no new alias
+policy.
 
-## Workspace execution and cost
+## Cost
 
-Partition rows by entity kind and then into groups of at most seven. Use the
-existing coordinator to run at most three groups concurrently, preserve row
-order and drain dispatched groups on cancellation. The next coordinator batch
-requires another cancellation check. A group may contain several native reads
-after cancellation arrives; all belong to already dispatched work.
-
-For nonempty complete graphs, let `R` be physical session/window/pane rows and
-`B = ceil(S/7) + ceil(W/7) + ceil(P/7)`. Metadata changes from `R` to `B`
-library commands. Observation therefore uses `9 + B` library commands and
-`18 + 2B` client/helper starts, including snapshot identity preflights.
-Empty collections skip their corresponding work.
+A caller partitions rows into groups of at most seven. For `R` rows, metadata
+reads change from `R` library commands to `ceil(R/7)`.
 
 This reduces processes, not the number of commands executed inside tmux:
 each metadata row now uses two display guards and one option read. It can
-also transfer more bytes and retain larger frames. Complete apply still makes
-graph observations around every step; it is not a linear-time reconciliation
-algorithm. Report source calls, elapsed time, semantic equality and cleanup
-together when comparing it with individual reads.
+also transfer more bytes and retain larger frames. Report source calls, elapsed
+time, semantic equality and cleanup together when comparing it with individual
+reads.
 
 ## Qualification
 
-The four-pane observation regression changes from 15 library commands to 12,
-while inherited global tags remain absent from local ownership reads. Native
-tests cover missing middle targets, deletion during a read, hook output,
-arbitrary non-NUL bytes and seven maximally escaped 32 KiB values. Cancellation
-drains three dispatched groups and prevents the fourth from starting. A
+Native tests cover missing middle targets, deletion during a read, hook output,
+arbitrary non-NUL bytes and seven maximally escaped 32 KiB values. A
 newline-heavy response also runs under an explicit decoder heap bound.
-
-An eight-pane apply retains 45 graph observations and 384 ownership-row reads;
-transport starts change from 1608 to 1164. A 64-pane apply retains all 176
-steps, 353 graph observations and 19,200 ownership-row reads; starts change
-from 45,092 to 13,880 on both tmux 3.3a and 3.8. Ordered pane-summary
-fingerprints match the recorded individual-read baseline. Binding and expected
-launch-metadata checks pass separately, layout cell counts agree, the second
-plan is empty, and owned cleanup completes.
-
-The candidate completion runs took 4.76 seconds for eight panes on tmux 3.8,
-42.27 seconds for 64 panes on 3.8, and 40.14 seconds for 64 panes on 3.3a,
-including caller startup and owned fixture setup. These are single completion
-observations under shared host load, not latency distributions, speedup ratios
-or a tmux-version ranking. Full-product adoption and publication remain
-separate gates.
 
 ## Alternatives and reconsideration
 

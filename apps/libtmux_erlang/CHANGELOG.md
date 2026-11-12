@@ -6,7 +6,7 @@
   with native ID envelopes, strict byte framing and explicit interval semantics.
 
 - Include helper source provenance alongside its binary and license for
-  standalone workspace archives; helper protocol and source stay unchanged.
+  standalone archives; helper protocol and source stay unchanged.
 
 - Expose a versioned fingerprint of captured Linux process identity for
   persistent comparison across endpoint handles, without an I/O or liveness

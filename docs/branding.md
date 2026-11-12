@@ -8,9 +8,6 @@ the [libtmux asset kit](https://github.com/libtmux/assets).
 paths, sizes, and SHA-256 digests. The directory includes SVG and PNG logos,
 favicons, touch and maskable icons, manifests, and light/dark social cards.
 
-The workspace mark lives in its application's `assets/` directory. Its
-presence does not establish a working workspace consumer.
-
 The root README uses these local files.
 `.github/social-preview.png` copies the library's 1200 × 630 light Open Graph
 card for manual upload in GitHub's Social preview settings. The dedicated

@@ -1,7 +1,7 @@
 # Guides
 
-[Project policy](project-policy.md) defines the core/workspace package boundary,
-OTP runtime dependencies and excluded integrations.
+[Project policy](project-policy.md) defines the package boundary and OTP
+runtime dependencies.
 
 Start with the [complete README program](../README.md#create-capture-and-query).
 It creates sessions, windows and panes, traverses a captured graph, queries the

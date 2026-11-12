@@ -327,58 +327,16 @@ The helper's internal credit protocol does not establish a public streaming
 API. Any such API must define credits, gaps, acknowledgement and retirement,
 and describe sampled observations without promising unobserved terminal history.
 
-### AD-8: Keep workspace execution downstream and MCP excluded
+### AD-8: Keep runtime dependencies within OTP
 
-Use a Rebar3 umbrella to develop independent OTP applications together.
-libtmux_erlang owns the core; libtmux_erlang_workspace consumes its public API.
-The core has no dependency on the workspace application. Each package owns
-metadata, license and changelog material, and needs an installed-consumer check
-outside the umbrella before independent delivery.
-
-The [workspace loader](https://github.com/libtmux/libtmux-erlang/blob/9a1ca749f7bf6f082c910c99f961bb586781ab0b/apps/libtmux_erlang_workspace/src/tmux_workspace.erl#L71) validates versioned JSON into
-inert desired state. The later
-[planner](https://github.com/libtmux/libtmux-erlang/blob/2e681477ed015e61f03c393ded111c2d5e6dd665/apps/libtmux_erlang_workspace/src/tmux_workspace_plan.erl#L34)
-stores canonical operations and observed preconditions; the
-[apply engine](https://github.com/libtmux/libtmux-erlang/blob/2e681477ed015e61f03c393ded111c2d5e6dd665/apps/libtmux_erlang_workspace/src/tmux_workspace_apply.erl#L40)
-checks their derivation against the stored observation and hash-checked input.
-Fresh tmux state can reject a plan without supplying replacement operations.
-Ownership tags bind resource keys, parent manifests, server incarnation and
-launch hashes. Explicit adoption establishes ownership; changed launch intent
-requires respawning. Ordered windows/panes use stable IDs for explicit swaps.
-Pane creation uses the saved, unzoomed tiled layout to schedule fixed targets
-and discard exhausted split cells. New windows use a breadth-first schedule
-until their geometry is observable. Axis selection remains an explicit stored
-policy, evaluated at each checked step. Custom tmux options and available area
-can reject this geometric schedule; it is not a complete packing algorithm.
-
-Apply recaptures the complete projected graph around each step, retaining a
-verified prefix on failure. Source work therefore grows with both graph size
-and step count. This initial strategy favors explicit drift evidence; measured
-large-workspace performance remains a qualification gate. No atomic reservation
-or automatic rollback is claimed. The standalone Rebar3 escript materializes
-its bundled helper, license and provenance in a private runtime directory;
-BEAM code stays in the archive. SIGTERM follows explicit cancellation, while
-Ctrl-C receipt semantics remain unqualified. See the
-[workspace guide](workspaces.md) for current contracts and executable examples.
-
-Ownership metadata reads use bounded batches of three workers. A private
-coordinator monitors the caller and joins its workers; the caller gates each
-new batch after checking cancellation. Results retain row order and the worst
-cleanup evidence across the drained batch. Worker exit alone cannot prove
-native retirement. [ADR 0003](adr-0003-scoped-option-batches.md) further groups
-up to seven local scalar reads per native sequence. Every graph and ownership
-read remains; complete apply cost still grows with graph size and step count.
-
-Endpoint names need host policy; loading shell text does not authorize its
-execution. Shell execution needs both host policy and a recorded plan opt-in.
-File loading and path resolution are synchronous trusted-filesystem
-operations without an I/O deadline or atomic filesystem-snapshot guarantee.
+Use a Rebar3 umbrella to develop the OTP application. libtmux_erlang owns the
+core, its metadata, license and changelog material, and needs an
+installed-consumer check outside the umbrella before independent delivery.
 
 Erlang runtime dependencies stay within OTP, alongside the recorded external
 helper exception. Build, test and documentation dependencies have separate
 roles. An additional runtime dependency needs a concrete capability requirement
-and a new recorded decision. MCP packages, servers and SDK integration are
-excluded by [project policy](project-policy.md); they are not pending packages.
+and a new recorded decision.
 
 ### AD-9: Keep contracts and verification native to Erlang
 
@@ -426,7 +384,6 @@ gate remains open at the recorded baseline.
 | Direct ports without the helper | A replacement must prove separate bounded output, input accounting and owned-tree retirement. The selected helper exposes those contracts explicitly. |
 | A native extension inside the VM | Keep the transport helper outside the VM, accepting Linux build and IPC costs. |
 | Transparent lazy relationship reads | Reject incomplete local coverage. Arrange hydration only during explicit source execution. |
-| One application for core and consumers | Separate OTP applications preserve dependency direction and expose installed-package integration failures. |
 | QLC, graph or ETS as the public predicate language | Defer adapters; portable filters remain data and local callers retain native Erlang tools. |
 
 ## Consequences
@@ -446,11 +403,8 @@ confinement, or bound arbitrary application callbacks. Observed identity checks
 and filesystem cleanup retain concurrency races stated in their contracts.
 
 At the recorded baseline, the core graph/query/one-shot path and control
-attachment exist; workspace JSON loading exists; control submission, groups,
-public streams, workspace plan/apply/CLI and complete delivery remain open.
-Subsequent workspace planning/apply and CLI work follows AD-8; the baseline
-statement above remains the historical review scope. Control submission,
-groups, public streams, full adoption and complete delivery remain open.
+attachment exist; control submission, groups, public streams, full adoption and
+complete delivery remain open.
 Registry and shared-site publication require their own verified delivery steps.
 Consult [support and gaps](compatibility.md) before selecting an execution lane.
 
@@ -466,9 +420,8 @@ default execution lane; compare equal workloads, errors and cleanup outcomes.
 Revisit caching or advanced query adapters when measured workloads justify
 their additional state and lifecycle costs.
 
-Record a separate consumer decision if MCP is brought back into scope or if a
-new runtime dependency is proposed. Do not infer either change from artwork,
-an empty package directory or an implementation plan.
+Record a separate decision if a new runtime dependency is proposed. Do not
+infer one from artwork, an empty package directory or an implementation plan.
 
 ## References
 

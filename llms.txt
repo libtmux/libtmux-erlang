@@ -17,10 +17,9 @@ Native Erlang/OTP 29 library for explicit tmux operations and captured graph que
 - [Pane piping](docs/pipe.md): tmux-owned shell processes and explicit byte-consumption acknowledgements.
 - [Option catalogue](docs/options-reference.md): canonical names and version-specific scopes.
 - [API browser](docs/api.md): build the native reference locally.
-- [Project policy](docs/project-policy.md): core/workspace boundaries and OTP runtime dependencies.
-- [Current gaps](docs/compatibility.md): control/streams/workspace and delivery status.
+- [Project policy](docs/project-policy.md): application boundary and OTP runtime dependencies.
+- [Current gaps](docs/compatibility.md): control/streams and delivery status.
 
 Query construction and local snapshot/selection reads perform no tmux I/O.
 Opening an endpoint, live get/snapshot/fetch calls and actions perform explicit I/O.
 Local selections never load missing relationships. Payload keys never become atoms.
-MCP is excluded by project policy. Do not propose an MCP package or server command.

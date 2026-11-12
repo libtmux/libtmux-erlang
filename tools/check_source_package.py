@@ -22,13 +22,12 @@ import urllib.request
 from urllib.parse import unquote
 
 from check_package import exercise_consumer
-from check_workspace_cli import exercise_cli
 
 
 ROOT = Path(__file__).resolve().parent.parent
 TOOLS = ROOT / "_build/source-package-tools"
 PINS = json.loads((ROOT / "tools/package-tool.json").read_text())["packages"]
-APPS = ("libtmux_erlang", "libtmux_erlang_workspace")
+APP = "libtmux_erlang"
 
 
 def digest(path: Path) -> str:
@@ -109,9 +108,8 @@ def check_contents(path: Path, app: str) -> dict:
             raise RuntimeError(f"prebuilt files in {app}: {forbidden}")
         required = {"LICENSE", "CHANGELOG.md", "README.md", "rebar.config",
                     "assets/logo.svg", "assets/logo-128.png", f"src/{app}.app.src"}
-        if app == APPS[0]:
-            required.update({"c_src/owned_io.c", "c_src/Makefile", "c_src/LICENSE",
-                             "c_src/provenance.json"})
+        required.update({"c_src/owned_io.c", "c_src/Makefile", "c_src/LICENSE",
+                         "c_src/provenance.json"})
         if missing := required - set(names):
             raise RuntimeError(f"missing source-package files in {app}: {sorted(missing)}")
         return {"sha256": digest(path), "files": names}
@@ -134,8 +132,8 @@ def main() -> None:
                "machine": platform.machine(), "tools": PINS, "commands": [],
                "source_sha256": {name: digest(ROOT / name) for name in (
                    "tools/check_source_package.py", "tools/source_package_registry.escript",
-                   "tools/check_package.py", "tools/check_workspace_cli.py",
-                   "tools/package-tool.json", ".tool-versions")},
+                   "tools/check_package.py", "tools/package-tool.json",
+                   ".tool-versions")},
                "packages": {}, "publication": "UNVERIFIED; local artifacts only"}
     env = dict(os.environ, ERL_FLAGS=os.environ.get("ERL_FLAGS", "+S 4:4"))
     for key in ("ERL_LIBS", "TMUX", "TMUX_PANE", "REBAR_CONFIG", "HEX_CDN",
@@ -232,29 +230,22 @@ def main() -> None:
                 env.update(REBAR_GLOBAL_CONFIG_DIR=str(build_config),
                            REBAR_CACHE_DIR=str(temp / "build-cache"),
                            REBAR_GLOBAL_CACHE_DIR=str(temp / "build-cache"))
-                for app in APPS:
-                    stage = temp / "build" / app
-                    shutil.copytree(ROOT / "apps" / app, stage,
-                                    ignore=shutil.ignore_patterns("_build", "priv", "test", "ebin"))
-                    run(["rebar3", "hex", "build", "package"], stage)
-                    artifacts = list((stage / "_build/default/lib" / app / "hex").glob("*.tar"))
-                    if len(artifacts) != 1:
-                        raise RuntimeError(f"expected one actual Hex artifact for {app}")
-                    artifact = attempt / artifacts[0].name
-                    shutil.copyfile(artifacts[0], artifact)
-                    receipt["packages"][app] = check_contents(artifact, app)
-                    shutil.copyfile(artifact, tarballs / artifact.name)
-                    metadata = registry()
-                    current = next(m for m in metadata if m["name"] == app)
-                    receipt["packages"][app]["metadata"] = current
-                    if app == APPS[1]:
-                        requirements = current["requirements"]
-                        if set(requirements) != {APPS[0]}:
-                            raise RuntimeError("workspace package must depend on core only")
-                        if requirements[APPS[0]]["requirement"] != current["version"]:
-                            raise RuntimeError("workspace/core version mismatch")
-                    elif current["requirements"]:
-                        raise RuntimeError("core must have no Hex runtime dependencies")
+                stage = temp / "build" / APP
+                shutil.copytree(ROOT / "apps" / APP, stage,
+                                ignore=shutil.ignore_patterns("_build", "priv", "test", "ebin"))
+                run(["rebar3", "hex", "build", "package"], stage)
+                artifacts = list((stage / "_build/default/lib" / APP / "hex").glob("*.tar"))
+                if len(artifacts) != 1:
+                    raise RuntimeError(f"expected one actual Hex artifact for {APP}")
+                artifact = attempt / artifacts[0].name
+                shutil.copyfile(artifacts[0], artifact)
+                receipt["packages"][APP] = check_contents(artifact, APP)
+                shutil.copyfile(artifact, tarballs / artifact.name)
+                metadata = registry()
+                current = next(m for m in metadata if m["name"] == APP)
+                receipt["packages"][APP]["metadata"] = current
+                if current["requirements"]:
+                    raise RuntimeError("core must have no Hex runtime dependencies")
 
                 # This consumer has no source checkout, plugin or build cache.
                 consumer = temp / "consumer"
@@ -263,21 +254,16 @@ def main() -> None:
                 config_file = config / ".config/rebar3/rebar.config"
                 config_file.parent.mkdir(parents=True)
                 config_file.write_text(repo_config)
-                version = receipt["packages"][APPS[1]]["metadata"]["version"]
-                config_terms = [
-                    '{deps, [{libtmux_erlang_workspace, ' + json.dumps(version) + '}]}.',
-                    '{escript_main_app, libtmux_erlang_workspace}.',
-                    '{escript_name, "libtmux-workspace"}.',
-                    r'{escript_emu_args, "%%! +S 4:4 -escript main tmux_workspace_cli\n"}.',
-                    '{escript_incl_priv, [{libtmux_erlang, "*"}]}.']
-                (consumer / "rebar.config").write_text("\n".join(config_terms) + "\n")
+                version = receipt["packages"][APP]["metadata"]["version"]
+                (consumer / "rebar.config").write_text(
+                    '{deps, [{libtmux_erlang, ' + json.dumps(version) + '}]}.\n')
                 env.update(REBAR_GLOBAL_CONFIG_DIR=str(config),
                            REBAR_CACHE_DIR=str(temp / "consumer-cache"),
                            REBAR_GLOBAL_CACHE_DIR=str(temp / "consumer-cache"))
                 first_request = len(requests)
                 failed_env = dict(env, CC=str(temp / "missing-c-compiler"))
                 failure = run(["rebar3", "compile"], consumer, failed_env, expected_failure=True)
-                helper = consumer / "_build/default/lib" / APPS[0] / "priv/tmux_owned_io"
+                helper = consumer / "_build/default/lib" / APP / "priv/tmux_owned_io"
                 if "missing-c-compiler" not in failure or helper.exists():
                     raise RuntimeError("missing compiler did not fail before helper installation")
                 receipt["missing_compiler_rejected"] = True
@@ -287,20 +273,13 @@ def main() -> None:
                     "installed", str(consumer)], consumer))
                 shutil.copyfile(consumer / "rebar.lock", attempt / "consumer-rebar.lock")
                 installed = consumer / "_build/default/lib"
-                for app in APPS:
-                    if not (installed / app / "ebin" / (app + ".app")).is_file():
-                        raise RuntimeError(f"dependency not compiled: {app}")
-                    name = next(a.name for a in attempt.glob(app + "-*.tar"))
-                    if "/tarballs/" + name not in map(unquote, requests[first_request:]):
-                        raise RuntimeError(f"consumer did not fetch source artifact: {app}")
+                if not (installed / APP / "ebin" / (APP + ".app")).is_file():
+                    raise RuntimeError(f"dependency not compiled: {APP}")
+                name = next(a.name for a in attempt.glob(APP + "-*.tar"))
+                if "/tarballs/" + name not in map(unquote, requests[first_request:]):
+                    raise RuntimeError(f"consumer did not fetch source artifact: {APP}")
                 receipt["consumer"] = exercise_consumer(
-                    ROOT, consumer, installed / APPS[0] / "ebin", installed / APPS[1] / "ebin")
-                run(["rebar3", "escriptize"], consumer)
-                cli_fixture = temp / "cli-fixture"
-                cli_fixture.mkdir()
-                receipt["workspace_cli"] = exercise_cli(
-                    consumer / "_build/default/bin/libtmux-workspace",
-                    env.get("LIBTMUX_TEST_TMUX") or shutil.which("tmux"), cli_fixture)
+                    ROOT, consumer, installed / APP / "ebin")
                 receipt["requests"] = requests
                 receipt["helper_built_from_source"] = True
                 receipt["source_only_consumer"] = True

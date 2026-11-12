@@ -18,7 +18,6 @@ panes, capture their relationships, and filter the captured values locally.
 Source queries and mutations execute explicitly through owned operations.
 
 [API reference](https://libtmux.org/en/erlang/latest/reference/) ·
-[Workspace package](../libtmux_erlang_workspace/README.md) ·
 [Changelog](CHANGELOG.md)
 
 ## Add the core application
@@ -110,7 +109,6 @@ results without that context. Actions can encounter a vanished target or an
 uncertain outcome; the [ownership guide](../../docs/ownership.md) explains
 endpoint lifetimes and cleanup evidence.
 
-The [workspace application](../libtmux_erlang_workspace/README.md) consumes the
-public core API. The core depends on OTP applications. See
+The core depends on OTP applications. See
 [project policy](../../docs/project-policy.md),
 [contributor checks](../../.github/CONTRIBUTING.md), and the [MIT license](LICENSE).

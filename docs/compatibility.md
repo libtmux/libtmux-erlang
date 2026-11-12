@@ -90,17 +90,7 @@ missing target positionally.
 ## Not yet shipped
 
 Control command submission and groups and output subscriptions/streams remain
-implementation work. Workspace planning/apply and the CLI use the one-shot
-path. The [workspace guide](workspaces.md) includes executable loader and
-apply examples. SIGTERM exercises explicit cancellation and returns JSON.
-Installed-consumer checks also cover terminal Ctrl-C and SIGKILL: both exit by
-signal without a receipt, retire observed helper/client processes, and preserve
-the borrowed server and existing panes. Remote steps can remain applied and
-temporary files can remain; see [CLI interruption](workspaces.md#interrupt-the-cli).
-Complete performance qualification remains open.
-
-MCP packages, servers and SDK integration are excluded by
-[project policy](project-policy.md).
+implementation work. Complete performance qualification remains open.
 
 Typed command coverage, generated capability inventory, registry delivery,
 public cross-port filter conformance, published native API pages, shared-site documentation and
@@ -110,11 +100,11 @@ claimed.
 
 ## Source installation
 
-The [source-package check](../tools/check_source_package.py) builds each
-application separately with pinned `rebar3_hex` tooling. It serves the exact
-tarballs through a signed local registry, then creates a fresh Rebar3 consumer
-whose only dependency is workspace. Core must resolve transitively and compile
-its helper from packaged C source. Missing compiler support fails installation.
+The [source-package check](../tools/check_source_package.py) builds the core
+application with pinned `rebar3_hex` tooling. It serves the exact tarball
+through a signed local registry, then creates a fresh Rebar3 consumer whose
+only dependency is the core. The core must compile its helper from packaged C
+source. Missing compiler support fails installation.
 The installed examples, native-record imports, model-upgrade check and owned
 transport checks run against that consumer.
 
