@@ -19,7 +19,6 @@ queries and owned operations explicitly.
 
 [Documentation](https://libtmux.org/en/erlang/latest/) ·
 [Core package](apps/libtmux_erlang/README.md) ·
-[Workspace package](apps/libtmux_erlang_workspace/README.md) ·
 [Changelog](CHANGELOG.md)
 
 ## Install
@@ -147,8 +146,6 @@ session/index membership.
   them explicitly and inspect fresh state without changing captured rows.
 - [Control attachments](docs/control.md): verify connection identity, inspect
   attachment effects and retire the client explicitly.
-- [Plan and apply a workspace](docs/workspaces.md): validate desired sessions,
-  windows and panes, review saved operations, and handle drift or cancellation.
 - [Run a job and capture its result](docs/jobs.md): wait for a pane's completion
   event, check its exit status, capture bytes, and cancel a separate operation.
 - [Local filters and source queries](docs/querying.md): Boolean criteria,
@@ -181,16 +178,14 @@ An await timeout abandons that wait; it does not cancel the operation.
 Cancellation after dispatch can leave the tmux outcome unknown.
 
 An explicit control attachment verifies identity on its persistent connection
-and owns its client cleanup. The workspace application plans and applies JSON
-files through a standalone escript. Control command submission and output
-streams remain implementation work. The
+and owns its client cleanup. Control command submission and output streams remain
+implementation work. The
 [support and gaps](docs/compatibility.md) page lists
 what is exercised, what remains open, and the required Linux/tmux matrix.
 There is no control-versus-streaming performance claim.
 
-The [project policy](docs/project-policy.md) keeps core and workspace in
-separate OTP applications with OTP runtime dependencies. MCP is excluded from
-this port's scope.
+The [project policy](docs/project-policy.md) records the OTP application
+boundary and runtime dependencies.
 
 ## Verify and contribute
 

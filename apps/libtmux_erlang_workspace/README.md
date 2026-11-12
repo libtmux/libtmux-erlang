@@ -18,7 +18,6 @@
 before execution; failures preserve the completed prefix and distinguish
 observed drift from uncertain command outcomes.
 
-[Workspace guide](../../docs/workspaces.md) ·
 [Core API reference](https://libtmux.org/en/erlang/latest/reference/) ·
 [Changelog](CHANGELOG.md)
 
@@ -39,9 +38,7 @@ $ mise exec -- _build/default/bin/libtmux-workspace --help
 ```
 
 The escript includes the compiled helper, its license and provenance. Copy it
-to another machine using the same Linux architecture and OTP baseline. The
-[CLI guide](../../docs/workspaces.md#configure-the-endpoint) explains trusted
-endpoint configuration, planning and applying a saved plan.
+to another machine using the same Linux architecture and OTP baseline.
 
 ## Apply a workspace and verify an empty second plan
 
@@ -83,11 +80,9 @@ workspace file cannot choose an arbitrary socket. Plans store stable targets,
 ownership markers, launch intent and preconditions; apply executes that saved
 plan and stops on observed drift or an uncertain result.
 
-Use the [planning workflow](../../docs/workspaces.md#review-a-plan-then-execute-it)
-for real input and host files, explicit adoption, CLI exit codes and recovery.
-Read [CLI interruption](../../docs/workspaces.md#interrupt-the-cli) before
-relying on cancellation: SIGTERM returns a receipt, while Ctrl-C and SIGKILL
-exit without JSON and can leave remote steps applied or temporary files behind.
+Before relying on cancellation, note that SIGTERM returns a receipt, while
+Ctrl-C and SIGKILL exit without JSON and can leave remote steps applied or
+temporary files behind.
 
 ## Check the package boundary
 

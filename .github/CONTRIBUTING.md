@@ -1,9 +1,8 @@
 # Contributing
 
-This repository uses a Rebar umbrella with core and workspace OTP applications
-under apps/. Workspace code depends on the core's public API. The
-[project policy](../docs/project-policy.md) defines these package boundaries,
-OTP runtime dependencies and the explicit MCP exclusion.
+This repository uses a Rebar umbrella with the core OTP application under
+apps/. The [project policy](../docs/project-policy.md) defines the package
+boundary and OTP runtime dependencies.
 Current checks cover models, the helper adapter, owned fixtures, borrowed
 endpoints, operation ownership, initial domain commands, captured graphs,
 local filtering, bounded JSON, source-query planning and package structure.
@@ -174,9 +173,9 @@ Run the source-installation outer check with the selected supported tmux:
 $ time mise exec -- python3 tools/check_source_package.py
 ```
 
-It builds core and workspace separately with `rebar3 hex build package`, then
-serves those exact tarballs through a signed local registry. A fresh consumer
-declares only workspace, resolves core transitively and builds the C helper.
+It builds the core with `rebar3 hex build package`, then serves that exact
+tarball through a signed local registry. A fresh consumer declares only the
+core and builds the C helper.
 A missing compiler must fail installation before the successful build. The
 same installed examples and native-record checks used by the compiled archive
 run against this installation. Tarballs, source/tool hashes, logs and timings
