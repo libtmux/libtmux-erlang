@@ -45,3 +45,21 @@ lifecycle, cleanup, framing and installed-consumer cases, including native
 ct_doctest examples. The initial generated properties check portable-filter
 round trips, Boolean composition and arbitrary byte operands. Generated
 state-machine sequences remain part of the lifecycle qualification work.
+
+## Documentation publication
+
+[docs.yml](../../.github/workflows/docs.yml) builds selected source through
+the shared libtmux/docs producer. Production publication requires a manual
+dispatch with `publish` enabled; its default is false. Ready pull requests
+from this repository may publish previews unless labelled `no-preview`.
+Draft and fork pull requests build without publishing.
+
+Publication and [close cleanup](../../.github/workflows/docs-preview-cleanup.yml)
+share one queue. Cleanup reads the current PR state before assuming its role,
+so rerunning a close event for a reopened PR leaves its preview intact. It
+deletes only that PR's `en/erlang/pr-N/` prefix and never checks out PR code.
+The mid loop exercises these shell steps with local GitHub and AWS stand-ins.
+
+Keep the producer and deploy workflows pinned to the same complete shared
+commit. Qualify the selected source build before enabling publication; a
+workflow or IAM role alone does not establish a deployed documentation tree.

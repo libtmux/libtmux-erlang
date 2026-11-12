@@ -1,9 +1,11 @@
 name: docs
 
 # Build a selected source revision with the shared native Erlang producer.
-# Publication remains an explicit manual choice; trunk pushes and pull
-# requests do not deploy documentation. Keep both reusable workflow pins equal.
+# Production publication remains an explicit manual choice. Ready, same-repo
+# pull requests may publish previews. Keep both reusable workflow pins equal.
 on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
   workflow_dispatch:
     inputs:
       source-ref:
@@ -40,7 +42,7 @@ permissions:
 
 concurrency:
   group: docs-deploy-${{ github.repository }}
-  cancel-in-progress: false
+  queue: max
 
 jobs:
   build:
@@ -48,7 +50,11 @@ jobs:
     with:
       port: erlang
       tag-prefix: ''
-      publish-previews: false
+      publish-previews: >-
+        ${{ github.event_name == 'pull_request'
+          && github.event.pull_request.head.repo.full_name == github.repository
+          && !github.event.pull_request.draft
+          && !contains(github.event.pull_request.labels.*.name, 'no-preview') }}
       source-ref: ${{ inputs.source-ref }}
       version: ${{ inputs.version }}
       version-kind: ${{ inputs.version-kind }}
@@ -58,7 +64,13 @@ jobs:
 
   publish:
     needs: build
-    if: github.event_name == 'workflow_dispatch' && inputs.publish == true && needs.build.outputs.should-publish == 'true'
+    if: >-
+      needs.build.outputs.should-publish == 'true'
+      && ((github.event_name == 'workflow_dispatch' && inputs.publish == true)
+        || (github.event_name == 'pull_request'
+          && github.event.pull_request.head.repo.full_name == github.repository
+          && !github.event.pull_request.draft
+          && !contains(github.event.pull_request.labels.*.name, 'no-preview')))
     strategy:
       fail-fast: false
       matrix: ${{ fromJSON(needs.build.outputs.matrix) }}
@@ -76,8 +88,8 @@ jobs:
       label: ${{ matrix.version }}
       is-default: ${{ matrix.isDefault }}
       resolves-to: ${{ matrix.resolvesTo }}
-      environment: docs
+      environment: ${{ matrix.kind == 'pr' && 'docs-preview' || 'docs' }}
     secrets:
-      role-arn: ${{ secrets.LIBTMUX_DOCS_ROLE_ARN }}
+      role-arn: ${{ secrets[matrix.kind == 'pr' && 'LIBTMUX_DOCS_PREVIEW_ROLE_ARN' || 'LIBTMUX_DOCS_ROLE_ARN'] }}
       bucket: ${{ secrets.LIBTMUX_DOCS_BUCKET }}
       distribution: ${{ secrets.LIBTMUX_DOCS_DISTRIBUTION }}
