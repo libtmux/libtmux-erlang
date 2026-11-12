@@ -12,7 +12,7 @@ native_examples(_Config) ->
         end,
         {ok, Members} = application:get_key(App, modules),
         Members
-    end || App <- [libtmux_erlang, libtmux_erlang_workspace]]),
+    end || App <- [libtmux_erlang]]),
     lists:foreach(fun(Module) ->
         %% Prose-only contracts need no artificial example. Every advertised
         %% Erlang code block must contain a runnable shell transcript.

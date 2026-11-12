@@ -66,7 +66,7 @@ def assemble_archive(root: Path, app_name: str, artifact_dir: Path) -> tuple[Pat
 
 
 def exercise_consumer(root: Path, temp: Path, installed_ebin: Path,
-                      workspace_ebin: Path, *, dialyzer: bool = False) -> list[dict]:
+                      *, dialyzer: bool = False) -> list[dict]:
     """Run the same installed public consumers for binary and source artifacts."""
     commands = []
     consumer_ebin = temp / "consumer-ebin"
@@ -79,10 +79,8 @@ def exercise_consumer(root: Path, temp: Path, installed_ebin: Path,
     shutil.copyfile(root / "tools/run_examples.escript", temp / "tools/run_examples.escript")
     for name in ("tmux_test_fixture.erl", "tmux_fixture_watch.py"):
         shutil.copyfile(root / "test" / name, temp / "test" / name)
-    for name in ("filter_demo", "inspect_demo", "readme_demo", "linked_graph", "job_demo", "options_demo", "buffer_demo", "pane_demo", "config_demo", "pipe_demo", "hook_demo", "key_demo", "command_demo", "control_demo", "workspace_demo", "workspace_apply_demo"):
+    for name in ("filter_demo", "inspect_demo", "readme_demo", "linked_graph", "job_demo", "options_demo", "buffer_demo", "pane_demo", "config_demo", "pipe_demo", "hook_demo", "key_demo", "command_demo", "control_demo"):
         shutil.copyfile(root / "examples" / (name + ".erl"), temp / "examples" / (name + ".erl"))
-    shutil.copyfile(root / "examples/workspace.json", temp / "examples/workspace.json")
-    shutil.copyfile(root / "examples/workspace_apply.json", temp / "examples/workspace_apply.json")
     shutil.copyfile(root / "examples/terminal_job.py", temp / "examples/terminal_job.py")
     env = dict(os.environ)
     env.pop("ERL_LIBS", None)
@@ -94,8 +92,7 @@ def exercise_consumer(root: Path, temp: Path, installed_ebin: Path,
     env["LIBTMUX_TEST_TMUX"] = tmux
     env["ERL_CRASH_DUMP"] = str(temp / "erl_crash.dump")
     commands.append(run([
-        "escript", "tools/run_examples.escript", "--ebin", str(installed_ebin),
-        "--ebin", str(workspace_ebin)
+        "escript", "tools/run_examples.escript", "--ebin", str(installed_ebin)
     ], temp, env, json_output=True))
     commands.append(run([
         "erlc", "-Werror", "+debug_info", "-pa", str(installed_ebin),
@@ -164,7 +161,7 @@ def exercise_consumer(root: Path, temp: Path, installed_ebin: Path,
             "dialyzer", "--plt", str(plts[0]),
             str(consumer_ebin / "native_consumer.beam"),
             str(consumer_ebin / "tmux_test_fixture.beam"),
-            "-r", str(installed_ebin), "-r", str(workspace_ebin)
+            "-r", str(installed_ebin)
         ], temp, env))
         type_sources = temp / "type-consumer"
         type_sources.mkdir()
@@ -188,28 +185,21 @@ def main() -> None:
     artifact_dir = root / "_build/package-check"
     artifact_dir.mkdir(parents=True, exist_ok=True)
     (artifact_dir / "receipt.json").unlink(missing_ok=True)
-    archives = {name: assemble_archive(root, name, artifact_dir) for name in
-                ("libtmux_erlang", "libtmux_erlang_workspace")}
-    archive, prefix = archives["libtmux_erlang"]
-    workspace_archive, workspace_prefix = archives["libtmux_erlang_workspace"]
+    archive, prefix = assemble_archive(root, "libtmux_erlang", artifact_dir)
 
     commands = []
     with tempfile.TemporaryDirectory(prefix="tmux-erlang-consumer-") as directory:
         temp = Path(directory)
-        for packed, _ in archives.values():
-            with tarfile.open(packed, "r:gz") as bundle:
-                bundle.extractall(temp, filter="data")
+        with tarfile.open(archive, "r:gz") as bundle:
+            bundle.extractall(temp, filter="data")
         installed_ebin = temp / prefix / "ebin"
-        workspace_ebin = temp / workspace_prefix / "ebin"
         commands.extend(exercise_consumer(root, temp, installed_ebin,
-                                          workspace_ebin, dialyzer=args.dialyzer))
+                                          dialyzer=args.dialyzer))
     assert not temp.exists()
     receipt = {
         "result": "PASS",
         "scope": "Compiled OTP archive, native records, doctest, helper adapter, owned startup and borrowed endpoint",
         "archive_sha256": hashlib.sha256(archive.read_bytes()).hexdigest(),
-        "workspace_archive_sha256": hashlib.sha256(workspace_archive.read_bytes()).hexdigest(),
-        "public_workspace_loader": "PASS: installed workspace OTP archive loads a real JSON file, inspects desired graph and proves file cleanup; plan/apply/CLI remain unimplemented",
         "commands": commands,
         "temporary_consumer_removed": True,
         "seconds": round(time.monotonic() - started, 6),

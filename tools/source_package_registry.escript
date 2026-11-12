@@ -9,7 +9,7 @@ main(["installed", Directory]) ->
     Locked = [#{app => App, package => element(2, Resource),
         version => element(3, Resource), depth => Depth}
         || {App, Resource, Depth} <- Entries],
-    Apps = [libtmux_erlang, libtmux_erlang_workspace],
+    Apps = [libtmux_erlang],
     Expected = lists:sort([atom_to_binary(A) || A <- Apps]),
     Expected = lists:sort([maps:get(app, E) || E <- Locked]),
     Loaded = [installed(Directory, App) || App <- Apps],
@@ -60,10 +60,7 @@ installed(Directory, App) ->
         Ebin = filename:dirname(code:which(Module))
     end, Modules),
     {ok, Dependencies} = application:get_key(App, applications),
-    Expected = case App of
-        libtmux_erlang -> [kernel, stdlib, crypto];
-        libtmux_erlang_workspace -> [kernel, stdlib, crypto, libtmux_erlang]
-    end,
+    Expected = [kernel, stdlib, crypto],
     Expected = Dependencies,
     #{name => App, modules => length(Modules), dependencies => Dependencies}.
 

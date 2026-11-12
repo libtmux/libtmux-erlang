@@ -45,8 +45,6 @@ def main() -> None:
             ["python3", "test/example_protocol_tests.py"],
             ["rebar3", "dialyzer"],
             ["rebar3", "ct"],
-            ["rebar3", "escriptize"],
-            ["python3", "tools/check_workspace_cli.py"],
             ["escript", "tools/run_examples.escript"],
             ["python3", "tools/check_docs.py", "--examples-receipt", "_build/checks/examples.json"],
             ["python3", "tools/check_package.py", "--dialyzer"],

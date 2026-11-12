@@ -55,8 +55,7 @@ def main():
     env = dict(os.environ)
     env.setdefault("ERL_FLAGS", "+S 4:4")
     subprocess.run(["rebar3", "compile"], check=True, env=env, timeout=30)
-    app_ebins = [Path("_build/default/lib") / app / "ebin"
-                 for app in ("libtmux_erlang", "libtmux_erlang_workspace")]
+    app_ebins = [Path("_build/default/lib/libtmux_erlang/ebin")]
     if any(not (path / (path.parent.name + ".app")).is_file() for path in app_ebins):
         raise SystemExit("Compile first: rebar3 compile")
     head = subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()

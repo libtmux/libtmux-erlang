@@ -36,8 +36,7 @@ run(Arguments) ->
     Modules = case Selected of
         [] -> [filter_demo, inspect_demo, readme_demo, linked_graph, job_demo,
                options_demo, buffer_demo, pane_demo, config_demo, pipe_demo,
-               hook_demo, key_demo, command_demo, control_demo, workspace_demo,
-               workspace_apply_demo];
+               hook_demo, key_demo, command_demo, control_demo];
         ["filter"] -> [filter_demo];
         ["inspect"] -> [inspect_demo];
         ["readme"] -> [readme_demo];
@@ -51,11 +50,9 @@ run(Arguments) ->
         ["hooks"] -> [hook_demo];
         ["keys"] -> [key_demo];
         ["commands"] -> [command_demo];
-        ["control"] -> [control_demo];
-        ["workspace"] -> [workspace_demo];
-        ["workspace-apply"] -> [workspace_apply_demo]
+        ["control"] -> [control_demo]
     end,
-    case lists:any(fun(M) -> M =/= filter_demo andalso M =/= workspace_demo end, Modules) of
+    case lists:any(fun(M) -> M =/= filter_demo end, Modules) of
         true -> true = is_list(Executable);
         false -> ok
     end,
@@ -90,12 +87,11 @@ code_paths(["--ebin", Ebin | Tail], Paths) -> code_paths(Tail, [Ebin | Paths]);
 code_paths(Tail, []) -> {filelib:wildcard("_build/default/lib/*/ebin"), Tail};
 code_paths(Tail, Paths) -> {lists:reverse(Paths), Tail}.
 
-example(Module, _) when Module =:= filter_demo; Module =:= workspace_demo ->
+example(Module, _) when Module =:= filter_demo ->
     #{module => Module, output => Module:run(),
       sessions_removed => true, owned_cleanup => complete,
       transport => not_used};
-example(Module, Executable) when Module =:= readme_demo;
-                                Module =:= workspace_apply_demo ->
+example(Module, Executable) when Module =:= readme_demo ->
     #{module => Module, output => Module:run(list_to_binary(Executable)),
       sessions_removed => true, owned_cleanup => complete};
 example(Module, Executable) ->

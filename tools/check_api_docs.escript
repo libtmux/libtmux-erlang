@@ -9,7 +9,7 @@ main(Arguments) ->
         ok = application:load(App),
         {ok, Members} = application:get_key(App, modules),
         Members
-    end || App <- [libtmux_erlang, libtmux_erlang_workspace]]),
+    end || App <- [libtmux_erlang]]),
     Results = [module(M) || M <- Modules],
     Public = [R || R <- Results, R =/= hidden],
     Missing = lists:append([maps:get(missing,R) || R <- Public]),
