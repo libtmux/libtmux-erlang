@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Prepare the 0.0.1 core candidate and tag-based Hex publication, with
+  native source qualification, executable docs and OIDC after bootstrap.
+
 - Record bounded local scalar option batches in ADR 0003.
 
 - Report native pane exit/signal details when the installed consumer's input

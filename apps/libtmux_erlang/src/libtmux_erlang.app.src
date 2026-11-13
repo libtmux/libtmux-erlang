@@ -1,6 +1,6 @@
 {application, libtmux_erlang, [
     {description, "Native Erlang values and explicit tmux operations"},
-    {vsn, "0.0.0+development"},
+    {vsn, "0.0.1"},
     {licenses, ["MIT"]},
     {links, #{"GitHub" => "https://github.com/libtmux/libtmux-erlang"}},
     {files, ["src", "c_src", "rebar.config", "LICENSE", "CHANGELOG.md",

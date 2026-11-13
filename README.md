@@ -201,5 +201,6 @@ The outer check owns its tmux fixtures and tests installed consumers. See
 [contributor setup](.github/CONTRIBUTING.md) for prerequisites and test budgets,
 [CI](https://github.com/libtmux/libtmux-erlang/actions/workflows/ci.yml) for
 individual release/architecture results, and the [MIT license](LICENSE).
+Maintainers can follow the [Hex release instructions](.github/RELEASE.md).
 
 [Branding assets](docs/branding.md) include the logo, icons, and social cards.

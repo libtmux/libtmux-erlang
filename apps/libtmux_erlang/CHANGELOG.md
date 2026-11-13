@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Prepare package metadata for the initial 0.0.1 release. Publication awaits
+  maintainer account setup and a release tag.
+
 - Add bounded one-shot command sequences and ordered scalar option batches,
   with native ID envelopes, strict byte framing and explicit interval semantics.
 
