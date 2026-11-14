@@ -9,15 +9,19 @@
 
 <div align="center">
 
-# libtmux for Erlang
+<h1>libtmux for Erlang</h1>
 
-[Hex.pm](https://hex.pm/packages/libtmux_erlang) ·
-[Documentation](https://libtmux.org/en/erlang/) ·
-[API reference](https://libtmux.org/en/erlang/latest/reference/) ·
-[Examples](https://github.com/libtmux/libtmux-erlang/tree/master/examples)
+<p>
+  <a href="https://hex.pm/packages/libtmux_erlang">Hex.pm</a> ·
+  <a href="https://libtmux.org/en/erlang/">Documentation</a> ·
+  <a href="https://libtmux.org/en/erlang/latest/reference/">API reference</a> ·
+  <a href="https://github.com/libtmux/libtmux-erlang/tree/master/examples">Examples</a>
+</p>
 
-[![libtmux_erlang](https://img.shields.io/hexpm/v/libtmux_erlang?label=libtmux_erlang)](https://hex.pm/packages/libtmux_erlang)
-[![libtmux.org](https://img.shields.io/badge/docs-libtmux.org-0b7285)](https://libtmux.org/en/erlang/)
+<p>
+  <a href="https://hex.pm/packages/libtmux_erlang"><img src="https://img.shields.io/hexpm/v/libtmux_erlang?label=libtmux_erlang" alt="libtmux_erlang"></a>
+  <a href="https://libtmux.org/en/erlang/"><img src="https://img.shields.io/badge/docs-libtmux.org-0b7285" alt="libtmux.org"></a>
+</p>
 
 </div>
 
