@@ -4,12 +4,17 @@
 
 - Link example section headings directly to their named Erlang API functions.
 
+- Install the published core from Hex in both README examples and the
+  installation guide.
+
+## 0.0.1 - 2026-11-13
+
 - Package the existing 512px logo for a sharp 128px README display on Hex.
 
 - Link the live Erlang guides and API reference from both READMEs and Hex
   package metadata, alongside the executed reader examples.
 
-- Prepare the 0.0.1 core candidate and tag-based Hex publication, with
+- Publish the initial core and add tag-based Hex publication, with
   native source qualification, executable docs and OIDC after bootstrap.
 
 - Record bounded local scalar option batches in ADR 0003.

@@ -2,8 +2,10 @@
 
 ## Unreleased
 
-- Prepare package metadata for the initial 0.0.1 release. Publication awaits
-  maintainer account setup and a release tag.
+## 0.0.1 - 2026-11-13
+
+- Publish the initial core application on Hex with its helper source,
+  native records, captured graphs, filters and explicit tmux operations.
 
 - Add bounded one-shot command sequences and ordered scalar option batches,
   with native ID envelopes, strict byte framing and explicit interval semantics.

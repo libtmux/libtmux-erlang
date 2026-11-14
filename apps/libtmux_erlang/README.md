@@ -12,6 +12,7 @@
 # libtmux for Erlang
 
 <p>
+  <a href="https://hex.pm/packages/libtmux_erlang">Hex.pm</a> ·
   <a href="https://libtmux.org/en/erlang/">Documentation</a> ·
   <a href="https://libtmux.org/en/erlang/latest/reference/">API reference</a> ·
   <a href="https://github.com/libtmux/libtmux-erlang/tree/master/examples">Examples</a>
@@ -34,16 +35,12 @@ and make with a C11 compiler. The helper builds from packaged source. BEAM
 runtime dependencies are OTP libraries; native records are experimental in
 OTP 29.
 
-This application is unreleased. Add its source dependency to `rebar.config`:
+Add the published application to `rebar.config`:
 
 <!-- erlang-term -->
 
 ```erlang
-{deps, [
-    {libtmux_erlang, {git_subdir,
-        "https://github.com/libtmux/libtmux-erlang.git",
-        {branch, "master"}, "apps/libtmux_erlang"}}
-]}.
+{deps, [{libtmux_erlang, "0.0.1"}]}.
 ```
 
 Commit `rebar.lock` and add `libtmux_erlang` to your application's

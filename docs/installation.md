@@ -1,14 +1,11 @@
 # Install the core application
 
-The core OTP application is `libtmux_erlang`. It lives in an umbrella, so a
-Rebar3 source dependency must use `git_subdir` with `apps/libtmux_erlang`.
-Using the repository root as an ordinary single-app Git dependency does not
-select the core application.
+The core OTP application is
+[`libtmux_erlang`](https://hex.pm/packages/libtmux_erlang) on Hex.
 
 The [README](../README.md#install) contains the dependency declaration tested
-in an isolated Rebar3 consumer. Rebar3 resolves the branch to a commit in
-`rebar.lock`; commit that file. To choose a reviewed commit directly, use
-Rebar3's `{ref, Commit}` form instead of `{branch, "master"}`.
+in an isolated Rebar3 consumer. Pin an exact version while the API develops
+and commit `rebar.lock` to retain the resolved package checksum.
 
 Add `libtmux_erlang` to your application's `applications` list in its
 `.app.src`. For an interactive consumer, compile and start the Rebar3 shell:
@@ -20,6 +17,24 @@ $ rebar3 compile
 ```console
 $ rebar3 shell
 ```
+
+## Install a source checkout
+
+The repository is an umbrella. For development from source, use `git_subdir`
+to select `apps/libtmux_erlang`:
+
+<!-- erlang-term -->
+
+```erlang
+{deps, [
+    {libtmux_erlang, {git_subdir,
+        "https://github.com/libtmux/libtmux-erlang.git",
+        {branch, "master"}, "apps/libtmux_erlang"}}
+]}.
+```
+
+Rebar3 records the branch's resolved commit in `rebar.lock`. To select a
+reviewed commit directly, use `{ref, Commit}` instead of `{branch, "master"}`.
 
 ## Inspect an existing server
 

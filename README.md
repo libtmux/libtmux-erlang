@@ -12,6 +12,7 @@
 # libtmux for Erlang
 
 <p>
+  <a href="https://hex.pm/packages/libtmux_erlang">Hex.pm</a> ·
   <a href="https://libtmux.org/en/erlang/">Documentation</a> ·
   <a href="https://libtmux.org/en/erlang/latest/reference/">API reference</a> ·
   <a href="https://github.com/libtmux/libtmux-erlang/tree/master/examples">Examples</a>
@@ -40,21 +41,18 @@ Use Erlang/OTP **29.1.2**, Rebar3 **3.28.0**, Linux, tmux **3.3a–3.8**, and
 uses OTP libraries and a compiled external helper, with no NIF or third-party
 runtime packages.
 
-This checkout is unreleased. Add its core application to your `rebar.config`:
+Add the published core application to your `rebar.config`:
 
 <!-- erlang-term -->
 
 ```erlang
-{deps, [
-    {libtmux_erlang, {git_subdir,
-        "https://github.com/libtmux/libtmux-erlang.git",
-        {branch, "master"}, "apps/libtmux_erlang"}}
-]}.
+{deps, [{libtmux_erlang, "0.0.1"}]}.
 ```
 
-Commit `rebar.lock` to keep the resolved commit. The
+The API is still developing; pin an exact version and commit `rebar.lock`.
+The
 [installation guide](docs/installation.md) covers application startup and
-building a consumer. No Hex release is advertised.
+building a consumer from Hex or a source checkout.
 
 ## Create, capture and query
 
