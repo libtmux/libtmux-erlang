@@ -92,11 +92,12 @@ missing target positionally.
 Control command submission and groups and output subscriptions/streams remain
 implementation work. Complete performance qualification remains open.
 
-Typed command coverage, generated capability inventory, registry delivery,
-public cross-port filter conformance, published native API pages, shared-site documentation and
+Typed command coverage, generated capability inventory, public cross-port
+filter conformance, published native API pages, shared-site documentation and
 independent implementation reviews remain open. Current test success does not
-pass those unfinished surfaces. No registry or documentation publication is
-claimed.
+pass those unfinished surfaces. The only registry publication is the core
+package on [Hex](https://hex.pm/packages/libtmux_erlang); HexDocs is not
+published.
 
 ## Source installation
 
