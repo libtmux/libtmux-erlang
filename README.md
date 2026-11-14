@@ -34,6 +34,8 @@ Drive tmux from Erlang: create [sessions][tmux-session],
 [Install](#install) ·
 [Create, capture and query](#create-capture-and-query) ·
 [Find and filter](#find-and-filter) ·
+[Plan and optimise](#plan-and-optimise-a-query) ·
+[Batch commands](#run-commands-together) ·
 [Own a server](#own-a-server-and-wait-for-work) ·
 [Packages](#packages) ·
 [Core package](apps/libtmux_erlang/README.md) ·
@@ -170,8 +172,69 @@ More: [Linked windows and relationship queries](docs/graph.md).
 
 ### [`tmux_select:where/2`][api-where]: filter captured rows
 
-Filtering runs locally on captured rows and never calls tmux. Criteria are
-maps or Boolean functions, with quantifiers and portable JSON.
+Filtering runs locally on captured rows and never calls tmux.
+[`tmux_filter`][tmux-filter] validates a filter and encodes it as portable
+JSON. This program needs no tmux server:
+
+```console
+$ mise exec -- escript tools/run_examples.escript filter
+```
+
+<!-- example: examples/filter_demo.erl -->
+
+```erlang
+-module(filter_demo).
+-moduledoc "Validate portable JSON and filter captured rows without tmux I/O.".
+-export([run/0]).
+
+-spec run() -> map().
+run() ->
+    {ok, Editor} = tmux_model:pane(#{id => <<"%1">>, active => true,
+        width => 120, current_command => <<"nvim">>}),
+    {ok, Shell} = tmux_model:pane(#{id => <<"%2">>, active => false,
+        width => 80, current_command => <<"bash">>}),
+    Panes = tmux_select:from_list(pane, [Editor, Shell]),
+    Criteria = #{active => true, 'or' => [
+        #{current_command => #{in => [<<"nvim">>, <<"vim">>]}},
+        #{width => #{gte => 160}}
+    ]},
+    {ok, Filter} = tmux_filter:new(pane, Criteria),
+    Encoded = iolist_to_binary(json:encode(tmux_filter:to_wire(Filter))),
+    {ok, Document} = tmux_filter:decode_json(Encoded),
+    {ok, RoundTrip} = tmux_filter:from_wire(pane, Document),
+    {ok, Editor} = tmux_select:one(RoundTrip, Panes),
+    [Editor] = tmux_select:to_list(tmux_select:where(Filter, Panes)),
+    {error, #{code := duplicate_key}} = tmux_filter:decode_json(
+        <<"{\"version\":1,\"version\":2}">>),
+    Invalid = #{active => #{contains => <<"yes">>}},
+    try tmux_select:where(Invalid, Panes) of
+        _ -> error(expected_validation_error)
+    catch
+        error:{bad_filter, #{code := unsupported_operator} = Detail}:Stack ->
+            [active, contains] = maps:get(path, Detail),
+            Reason = {bad_filter, Detail},
+            Message = erl_error:format_exception(error, Reason, Stack),
+            Text = unicode:characters_to_binary(Message),
+            {_, _} = binary:match(Text, <<"Allowed:">>)
+    end,
+    #{matched_ids => [tmux_model:get(id, Editor)],
+      wire_round_trip => true, duplicate_keys_rejected => true}.
+```
+
+It returns:
+
+<!-- example-output: filter_demo -->
+
+```json
+{
+  "matched_ids": ["%1"],
+  "wire_round_trip": true,
+  "duplicate_keys_rejected": true
+}
+```
+
+- Criteria are maps or Boolean functions, with quantifiers and portable JSON.
+- An unknown field or operator fails before any row is read.
 
 More: [Local filters and source queries](docs/querying.md) ·
 [Fields and operators](docs/fields.md).
@@ -183,6 +246,156 @@ Rows you already hold keep their values.
 
 More: [Local filters and source queries](docs/querying.md).
 
+## Plan and optimise a query
+
+### [`tmux_query:explain/1`][api-explain]: see what tmux runs
+
+`explain/1` describes a query without calling tmux. This program explains one
+query twice, then fetches it and checks that the rows agree:
+
+```console
+$ mise exec -- escript tools/run_examples.escript plan
+```
+
+<!-- example: examples/plan_demo.erl -->
+
+```erlang
+-module(plan_demo).
+-moduledoc "Explain a query, let tmux exclude candidates, then fetch it.".
+-export([run/1]).
+
+-spec run(binary()) -> map().
+run(Executable) ->
+    {ok, Result} = tmux_server:with_owned(#{executable => Executable},
+        fun(Server) ->
+            Cat = #{launch => #{argv => [<<"/bin/cat">>]}},
+            Wide = Cat#{name => <<"plan">>, width => 120, height => 30},
+            {ok, Session} = tmux_session:create(Server, Wide),
+            {ok, Window} = tmux_window:create(Session, Cat),
+            {ok, _} = tmux_pane:split(Window, Cat#{direction => horizontal}),
+            Criteria = #{width => #{lt => 100},
+                current_command => <<"cat">>},
+            Query = tmux_query:where(Criteria, tmux_query:panes(Server)),
+            Pushed = tmux_query:pushdown(true, Query),
+            % explain/1 does no I/O: it only describes what fetch would run.
+            #{candidate := #{format := Local}} = tmux_query:explain(Query),
+            #{candidate := #{format := Native, local_only := Kept}} =
+                tmux_query:explain(Pushed),
+            {ok, Everything} = tmux_query:fetch(Query),
+            {ok, Narrowed} = tmux_query:fetch(Pushed),
+            {ok, Isolated} = tmux_query:fetch(Pushed,
+                #{hydration => isolated}),
+            Ids = ids(Narrowed),
+            2 = length(Ids),
+            Ids = ids(Everything),
+            Ids = ids(Isolated),
+            #{local_candidate => Local, native_candidate => Native,
+              kept_local => [maps:get(field, Reason) || Reason <- Kept],
+              matched_panes => length(Ids), same_rows => true}
+        end),
+    Result.
+
+ids(Selection) ->
+    [tmux_model:get(id, Pane) || Pane <- tmux_select:to_list(Selection)].
+```
+
+It returns:
+
+<!-- example-output: plan_demo -->
+
+```json
+{
+  "local_candidate": "1",
+  "native_candidate": "#{e|<|:#{pane_width},100}",
+  "kept_local": ["tmux.pane.currentCommand"],
+  "matched_panes": 2,
+  "same_rows": true
+}
+```
+
+- `local_candidate`: without pushdown, tmux drops nothing.
+- `native_candidate`: the tmux format that drops rows before capture.
+- `kept_local`: fields tmux cannot filter stay in Erlang.
+
+More: [Source plans](docs/querying.md#source-plans).
+
+### [`tmux_query:pushdown/2`][api-pushdown]: let tmux drop rows first
+
+Pushdown is off by default. Turn it on to add a candidate scan that excludes
+rows before capture. The full filter still runs locally, so a candidate can
+admit extra rows but never hides a match.
+
+The program above also fetches with `hydration => isolated`, which reads one
+field per row when a single scan would pass the output limit.
+
+Captures span several commands and are not atomic.
+
+More: [Source plans](docs/querying.md#source-plans).
+
+## Run commands together
+
+### [`tmux_command:sequence/1`][api-sequence]: several commands, one call
+
+Build commands without I/O, join them and run them once. A sequence is not
+atomic: a failing member can leave the commands before it applied.
+
+```console
+$ mise exec -- escript tools/run_examples.escript batch
+```
+
+<!-- example: examples/batch_demo.erl -->
+
+```erlang
+-module(batch_demo).
+-moduledoc "Run several commands in one tmux client and read an option batch.".
+-export([run/1]).
+
+-spec run(binary()) -> map().
+run(Executable) ->
+    {ok, Result} = tmux_server:with_owned(#{executable => Executable},
+        fun(Server) ->
+            Cat = #{launch => #{argv => [<<"/bin/cat">>]}},
+            {ok, Session} = tmux_session:create(Server,
+                Cat#{name => <<"batch">>}),
+            {ok, Window} = tmux_window:create(Session, Cat),
+            Id = tmux_model:get(id, Session),
+            {ok, Rename} = tmux_session:rename_command(Session, <<"batched">>),
+            {ok, Stage} = tmux_command:raw(<<"set-option">>,
+                [<<"-t">>, Id, <<"@stage">>, <<"built">>]),
+            {ok, Owner} = tmux_command:raw(<<"set-option">>,
+                [<<"-t">>, Id, <<"@owner">>, <<"batch-demo">>]),
+            % Three commands, one native sequence. A failure can leave a prefix.
+            {ok, Sequence} = tmux_command:sequence([Rename, Stage, Owner]),
+            {ok, #{exit_status := 0}} =
+                tmux_server:command(Server, Sequence, #{}),
+            {ok, Renamed} = tmux_session:get(Server, Id),
+            {ok, [<<"built">>, none]} =
+                tmux_option:get_many([Session, Window], <<"@stage">>, #{}),
+            #{commands => 3, session_name => tmux_model:get(name, Renamed),
+              stage => <<"built">>, window_stage => none}
+        end),
+    Result.
+```
+
+It returns:
+
+<!-- example-output: batch_demo -->
+
+```json
+{
+  "commands": 3,
+  "session_name": "batched",
+  "stage": "built",
+  "window_stage": "none"
+}
+```
+
+- [`tmux_option:get_many/3`][api-get-many] reads one option from up to seven
+  rows in one batch.
+
+More: [Build command values](docs/commands.md) ·
+[Scoped options](docs/options.md).
+
 ## Own a server and wait for work
 
 ### [`tmux_server:with_server/2`][api-with-server]: borrow an existing server
@@ -192,6 +405,82 @@ Closing the handle leaves the borrowed server and its sessions alone.
 
 More: [Daemon ownership](docs/ownership.md) ·
 [Control attachments](docs/control.md).
+
+### [`tmux_control:attach/3`][api-attach]: hold a control attachment
+
+Attach to a session over a persistent connection, check its identity on that
+connection, then close it and confirm cleanup. Commands still run through
+one-shot clients; control command submission and output streams are not built.
+
+```console
+$ mise exec -- escript tools/run_examples.escript control
+```
+
+<!-- example: examples/control_demo.erl -->
+
+```erlang
+-module(control_demo).
+-moduledoc "Attach explicitly, inspect captured values and prove detachment.".
+-export([run/2]).
+
+-spec run(binary(), binary()) -> map().
+run(Socket, Executable) ->
+    {ok, Server} = tmux_server:open(
+        #{socket_path => Socket, executable => Executable}),
+    tmux_scope:run_or_error(fun() ->
+        {ok, Session} = tmux_session:create(Server,
+            #{name => <<"control-demo">>, width => 120, height => 30,
+              launch => #{argv => [<<"/bin/cat">>]}}),
+        tmux_scope:run_or_error(fun() ->
+            Id = tmux_model:get(id, Session),
+            0 = tmux_model:get(attached_count, Session),
+            {ok, Control} = tmux_control:attach(Server, Session, #{}),
+            tmux_scope:run_or_error(fun() ->
+                {ok, #{phase := open, identity := same_connection}} =
+                    tmux_control:status(Control),
+                {ok, Attached} = tmux_session:get(Server, Id),
+                1 = tmux_model:get(attached_count, Attached),
+                {ok, Graph} = tmux_server:snapshot(Server),
+                [Window] = tmux_snapshot:windows(Graph),
+                120 = tmux_model:get(width, Window),
+                30 = tmux_model:get(height, Window),
+                ok = tmux_control:close(Control),
+                {ok, #{phase := closed, cleanup := complete}} =
+                    tmux_control:status(Control),
+                {ok, Detached} = tmux_session:get(Server, Id),
+                0 = tmux_model:get(attached_count, Detached),
+                0 = tmux_model:get(attached_count, Session),
+                #{identity => same_connection, attached_count => 1,
+                  detached_count => 0, window_size => [120, 30],
+                  cleanup => complete, session_preserved => true}
+            end, fun() ->
+                ok = tmux_control:close(Control)
+            end)
+        end, fun() ->
+            {ok, _} = tmux_session:kill(Session),
+            ok
+        end)
+    end, fun() ->
+        ok = tmux_server:close(Server)
+    end).
+```
+
+It returns:
+
+<!-- example-output: control_demo -->
+
+```json
+{
+  "identity": "same_connection",
+  "attached_count": 1,
+  "detached_count": 0,
+  "window_size": [120, 30],
+  "cleanup": "complete",
+  "session_preserved": true
+}
+```
+
+More: [Control attachments](docs/control.md).
 
 ### [`tmux_operation:await/2`][api-await]: wait for submitted work
 
@@ -284,9 +573,15 @@ $ time python3 tools/check.py outer
 [tmux-snapshot]: https://libtmux.org/en/erlang/latest/reference/tmux_snapshot/
 [tmux-select]: https://libtmux.org/en/erlang/latest/reference/tmux_select/
 [tmux-query]: https://libtmux.org/en/erlang/latest/reference/tmux_query/
+[tmux-filter]: https://libtmux.org/en/erlang/latest/reference/tmux_filter/
 [api-with-owned]: https://libtmux.org/en/erlang/latest/reference/tmux_server-with_owned-2/
 [api-related]: https://libtmux.org/en/erlang/latest/reference/tmux_snapshot-related-3/
 [api-where]: https://libtmux.org/en/erlang/latest/reference/tmux_select-where-2/
 [api-fetch]: https://libtmux.org/en/erlang/latest/reference/tmux_query-fetch-1/
 [api-with-server]: https://libtmux.org/en/erlang/latest/reference/tmux_server-with_server-2/
 [api-await]: https://libtmux.org/en/erlang/latest/reference/tmux_operation-await-2/
+[api-explain]: https://libtmux.org/en/erlang/latest/reference/tmux_query-explain-1/
+[api-pushdown]: https://libtmux.org/en/erlang/latest/reference/tmux_query-pushdown-2/
+[api-sequence]: https://libtmux.org/en/erlang/latest/reference/tmux_command-sequence-1/
+[api-get-many]: https://libtmux.org/en/erlang/latest/reference/tmux_option-get_many-3/
+[api-attach]: https://libtmux.org/en/erlang/latest/reference/tmux_control-attach-3/
