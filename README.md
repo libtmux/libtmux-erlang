@@ -11,14 +11,15 @@
 
 # libtmux for Erlang
 
-<p>
-  <a href="https://hex.pm/packages/libtmux_erlang">Hex.pm</a> ·
-  <a href="https://libtmux.org/en/erlang/">Documentation</a> ·
-  <a href="https://libtmux.org/en/erlang/latest/reference/">API reference</a> ·
-  <a href="https://github.com/libtmux/libtmux-erlang/tree/master/examples">Examples</a>
-</p>
+[Hex.pm](https://hex.pm/packages/libtmux_erlang) ·
+[Documentation](https://libtmux.org/en/erlang/) ·
+[API reference](https://libtmux.org/en/erlang/latest/reference/) ·
+[Examples](https://github.com/libtmux/libtmux-erlang/tree/master/examples)
 
 [![Erlang checks](https://github.com/libtmux/libtmux-erlang/actions/workflows/ci.yml/badge.svg)](https://github.com/libtmux/libtmux-erlang/actions/workflows/ci.yml)
+[![libtmux_erlang](https://img.shields.io/hexpm/v/libtmux_erlang?label=libtmux_erlang)](https://hex.pm/packages/libtmux_erlang)
+[![libtmux.org](https://img.shields.io/badge/docs-libtmux.org-0b7285)](https://libtmux.org/en/erlang/)
+[![license](https://img.shields.io/badge/license-MIT-blue)](https://github.com/libtmux/libtmux-erlang/blob/master/LICENSE)
 
 </div>
 
@@ -31,6 +32,7 @@ filter it as immutable data, and execute source queries and owned operations
 explicitly.
 
 [Create, capture and query](#create-capture-and-query) ·
+[Packages](#packages) ·
 [Core package](apps/libtmux_erlang/README.md) ·
 [Changelog](CHANGELOG.md)
 
@@ -211,6 +213,29 @@ captured values; fetching performs I/O.
   and feature minimums, separate from library API and runtime qualification.
 - [API browser and source docs](docs/api.md): build searchable native reference
   pages with specs, types and links to the exact source revision.
+
+## Packages
+
+| Package | What it is | Hex |
+| --- | --- | --- |
+| [`libtmux_erlang`](apps/libtmux_erlang/README.md) | The core OTP application: servers, sessions, windows, panes, snapshots and queries. | [![libtmux_erlang](https://img.shields.io/hexpm/v/libtmux_erlang?label=libtmux_erlang)](https://hex.pm/packages/libtmux_erlang) |
+
+### [`libtmux_erlang`](https://github.com/libtmux/libtmux-erlang/tree/master/apps/libtmux_erlang): the core application
+
+[`tmux_server`](https://libtmux.org/en/erlang/latest/reference/tmux_server/),
+[`tmux_snapshot`](https://libtmux.org/en/erlang/latest/reference/tmux_snapshot/),
+[`tmux_select`](https://libtmux.org/en/erlang/latest/reference/tmux_select/) and
+[`tmux_query`](https://libtmux.org/en/erlang/latest/reference/tmux_query/), with
+the compiled tmux helper built from packaged source.
+
+[![libtmux_erlang](https://img.shields.io/hexpm/v/libtmux_erlang?label=libtmux_erlang)](https://hex.pm/packages/libtmux_erlang)
+[API reference](https://libtmux.org/en/erlang/latest/reference/) ·
+[Documentation](https://libtmux.org/en/erlang/) ·
+[Hex.pm](https://hex.pm/packages/libtmux_erlang) ·
+[Changelog](apps/libtmux_erlang/CHANGELOG.md)
+
+The examples above are this package's.
+[Its README](apps/libtmux_erlang/README.md) inspects an existing socket.
 
 ## Decide whether it fits
 
