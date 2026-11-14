@@ -128,6 +128,47 @@ executed examples, check displayed output, and link detailed contracts to
 their guides. Keep logos and the README in the source package so the package
 entry point survives installation. Link its changelog and license.
 
+## README shape
+
+A README is a landing page that readers scan. Follow the layout of the
+[Go port's README](https://github.com/libtmux/libtmux-go/blob/master/README.md):
+tasks first, each API linked, an example under it.
+
+- **Header:** logo block, centred title and a badge row: CI, the registry
+  version when the package is published, libtmux.org docs and license. ExDoc's
+  Earmark does not parse Markdown inside an HTML block, so write everything
+  inside the centred `div` as HTML.
+- **Sections:** each `##` heading is a task in the reader's words, such as
+  "Find and filter".
+- **API headings:** each `###` heading is the function or module in code font,
+  linked to its libtmux.org reference page, then a colon and its job in plain
+  words.
+- **Under a heading:** a line or two linking sibling APIs, the executed
+  example, what it prints, at most one short note and a `More:` link to the
+  guide.
+- **No walls:** no paragraph over three lines. A list of facts is a bullet
+  list.
+- **No feature inventory:** sections and examples show what exists. Never open
+  with "Implemented: ...".
+- **Requirements are floors:** "tmux 3.3a or newer", "Erlang/OTP 29". Leave out
+  toolchain patch versions, CI matrix narration and kernel details, and link
+  the page that holds them.
+- **Cut the obvious:** that examples are tested, how docs are built, what the
+  checks cover, and "evidence" or "contract" boilerplate.
+- **Packages:** keep the package table. Under it, one heading per package that
+  links its directory on GitHub, a one-line description and a link line for the
+  API reference, registry and changelog.
+- **Support and status, What it leaves out:** short bullets that start in bold.
+- **Headline features:** show queries and filters, the planner, batching,
+  optimisation and control mode, each under an API-linked heading with an
+  executed example. Leave out a feature the library lacks.
+- **Examples:** each comes from a file CI compiles and runs and starts with its
+  `-module`, `-export` and `-import_record` lines. An example sets up and
+  cleans up through the library, such as `tmux_server:with_owned/2`, never with
+  shell `tmux` commands.
+- **Links:** every link resolves. Link files, not directories, in guides. Do
+  not link HexDocs, which is not published.
+
 ## Erlang documentation
 
 Keep API contracts beside their definitions. Describe inputs, results,
