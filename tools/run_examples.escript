@@ -37,7 +37,7 @@ run(Arguments) ->
         [] -> [filter_demo, inspect_demo, readme_demo, linked_graph, job_demo,
                options_demo, buffer_demo, pane_demo, config_demo, pipe_demo,
                hook_demo, key_demo, command_demo, control_demo, plan_demo,
-               batch_demo];
+               batch_demo, typing_demo];
         ["filter"] -> [filter_demo];
         ["inspect"] -> [inspect_demo];
         ["readme"] -> [readme_demo];
@@ -53,7 +53,8 @@ run(Arguments) ->
         ["commands"] -> [command_demo];
         ["control"] -> [control_demo];
         ["plan"] -> [plan_demo];
-        ["batch"] -> [batch_demo]
+        ["batch"] -> [batch_demo];
+        ["typing"] -> [typing_demo]
     end,
     case lists:any(fun(M) -> M =/= filter_demo end, Modules) of
         true -> true = is_list(Executable);
@@ -96,7 +97,8 @@ example(Module, _) when Module =:= filter_demo ->
       transport => not_used};
 example(Module, Executable) when Module =:= readme_demo;
                                  Module =:= plan_demo;
-                                 Module =:= batch_demo ->
+                                 Module =:= batch_demo;
+                                 Module =:= typing_demo ->
     #{module => Module, output => Module:run(list_to_binary(Executable)),
       sessions_removed => true, owned_cleanup => complete};
 example(Module, Executable) ->
