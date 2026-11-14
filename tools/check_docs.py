@@ -12,6 +12,8 @@ import time
 from urllib.parse import unquote, urlsplit
 from check_example_width import columns
 
+COMMIT = re.compile(r"[0-9a-f]{7,40}")
+
 
 class PageLinks(HTMLParser):
     def __init__(self, text):
@@ -43,7 +45,9 @@ def check_html(directory, root):
             url = urlsplit(target)
             if url.netloc == "github.com" and url.path.startswith("/libtmux/libtmux-erlang/blob/"):
                 revision, _, source = url.path.removeprefix("/libtmux/libtmux-erlang/blob/").partition("/")
-                result = subprocess.run(["git", "cat-file", "-e", revision + ":" + unquote(source)],
+                # A branch link names the tree being built: a pull request checkout has no local branch of that name.
+                tree = revision if COMMIT.fullmatch(revision) else "HEAD"
+                result = subprocess.run(["git", "cat-file", "-e", tree + ":" + unquote(source)],
                                         cwd=root, capture_output=True)
                 assert result.returncode == 0, (path.name, target, "missing source at revision")
                 checked += 1
