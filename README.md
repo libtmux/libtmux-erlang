@@ -27,28 +27,29 @@
 
 </div>
 
-libtmux for Erlang is a tmux client library. Create
-[sessions](https://libtmux.org/en/erlang/latest/reference/tmux_session/),
-[windows](https://libtmux.org/en/erlang/latest/reference/tmux_window/) and
-[panes](https://libtmux.org/en/erlang/latest/reference/tmux_pane/), capture their
-[object graph](https://libtmux.org/en/erlang/latest/reference/tmux_snapshot/),
-filter it as immutable data, and execute source queries and owned operations
-explicitly.
+Drive tmux from Erlang: create [sessions][tmux-session],
+[windows][tmux-window] and [panes][tmux-pane], capture the
+[object graph][tmux-snapshot] as immutable data, filter it, ask tmux again.
 
+[Install](#install) ·
 [Create, capture and query](#create-capture-and-query) ·
+[Find and filter](#find-and-filter) ·
+[Own a server](#own-a-server-and-wait-for-work) ·
 [Packages](#packages) ·
 [Core package](apps/libtmux_erlang/README.md) ·
+[Support](#support-and-status) ·
 [Changelog](CHANGELOG.md)
 
 ## Install
 
-Use Erlang/OTP **29.1.2**, Rebar3 **3.28.0**, Linux, tmux **3.3a–3.8**, and
-`make` with a C11 compiler. Native records are experimental in OTP 29. The core
-uses OTP libraries and a compiled external helper, with no NIF or third-party
-runtime packages.
+It needs:
 
-Add the published core application from [Hex](https://hex.pm/packages/libtmux_erlang)
-to your `rebar.config`:
+- Erlang/OTP 29 and Rebar3.
+- tmux 3.3a or newer, on Linux (including WSL).
+- `make` and a C11 compiler, to build the bundled helper.
+
+Add the core from [Hex](https://hex.pm/packages/libtmux_erlang) to your
+`rebar.config`:
 
 <!-- erlang-term -->
 
@@ -56,41 +57,36 @@ to your `rebar.config`:
 {deps, [{libtmux_erlang, "0.0.1"}]}.
 ```
 
-The API is still developing; pin an exact version and commit `rebar.lock`.
-The
-[installation guide](docs/installation.md) covers application startup and
-building a consumer from Hex or a source checkout.
+The API is still developing. Pin an exact version and commit `rebar.lock`.
+
+More: [installation guide](docs/installation.md).
 
 ## Create, capture and query
 
 ### [`tmux_server:with_owned/2`][api-with-owned]: create a private tmux graph
 
-From this checkout, compile with the pinned tools:
+The example below uses four modules:
+
+- [`tmux_server`][tmux-server]: owns the connection and the server's lifetime.
+- [`tmux_snapshot`][tmux-snapshot]: holds captured rows.
+- [`tmux_select`][tmux-select]: filters those rows locally.
+- [`tmux_query`][tmux-query]: asks tmux again when fetched.
+
+From a checkout of this repository, compile it:
 
 ```console
 $ mise exec -- rebar3 compile
 ```
 
-Run the complete program below on a private tmux server:
+Run it on a private tmux server:
 
 ```console
 $ mise exec -- escript tools/run_examples.escript readme
 ```
 
-The program starts an empty daemon on a unique private socket, verifies its
-assertions, and retires the owned server and clients. It leaves your existing
-tmux sessions alone. It uses only public core APIs and OTP runtime libraries;
-the archive check also runs it outside this checkout.
-Save it as `readme_demo.erl` when reusing it in an application.
-
-[`tmux_server`](https://libtmux.org/en/erlang/latest/reference/tmux_server/)
-owns the connection and scoped server lifetime.
-[`tmux_snapshot`](https://libtmux.org/en/erlang/latest/reference/tmux_snapshot/)
-holds captured rows;
-[`tmux_select`](https://libtmux.org/en/erlang/latest/reference/tmux_select/)
-filters those rows locally. A
-[`tmux_query`](https://libtmux.org/en/erlang/latest/reference/tmux_query/)
-executes a new observation when fetched.
+It starts an empty daemon on its own socket, then stops that daemon and its
+clients. Your existing sessions are untouched. To reuse the program, save it as
+`readme_demo.erl`.
 
 <!-- example: examples/readme_demo.erl -->
 
@@ -142,10 +138,7 @@ run(Executable) ->
     Result.
 ```
 
-The result includes this checked output. Captured rows keep their original
-values after a rename; actions and `fetch` perform explicit I/O.
-`tmux_server:with_owned/2` returns success after verified daemon cleanup. If cleanup fails,
-its error preserves the callback outcome and ownership token for recovery.
+It returns:
 
 <!-- example-output: readme_demo -->
 
@@ -160,63 +153,69 @@ its error preserves the callback outcome and ownership token for recovery.
 }
 ```
 
-## Follow the graph
+- Captured rows keep their values after the rename. Actions and `fetch` do I/O.
+- `with_owned/2` returns after verified cleanup. If cleanup fails, the error
+  keeps the callback's outcome and the ownership token.
+
+More: [Daemon ownership](docs/ownership.md).
+
+## Find and filter
 
 ### [`tmux_snapshot:related/3`][api-related]: follow shared windows
 
-A window can have several links in one session and belong to more than one
-session. Physical windows and panes remain unique; window links retain each
-session/index membership.
+A window can be linked more than once in a session, and into several sessions.
+Physical windows and panes stay unique; each link keeps its session and index.
 
-- [Linked windows and relationship queries](docs/graph.md): build two sessions,
-  link a shared window twice, and verify physical and membership counts.
+More: [Linked windows and relationship queries](docs/graph.md).
 
 ### [`tmux_select:where/2`][api-where]: filter captured rows
 
-- [Local filters and source queries](docs/querying.md): Boolean criteria,
-  quantifiers, portable JSON, cardinality, coverage and execution plans.
-- [Fields and operators](docs/fields.md): generated from the runtime schema.
+Filtering runs locally on captured rows and never calls tmux. Criteria are
+maps or Boolean functions, with quantifiers and portable JSON.
 
-### [`tmux_query:fetch/1`][api-fetch]: observe tmux explicitly
+More: [Local filters and source queries](docs/querying.md) ·
+[Fields and operators](docs/fields.md).
 
-The [querying guide](docs/querying.md) follows a source query through planning,
-execution and a new immutable selection. Local filtering preserves its
-captured values; fetching performs I/O.
+### [`tmux_query:fetch/1`][api-fetch]: read tmux again
+
+A query asks tmux when you fetch it and returns a new immutable selection.
+Rows you already hold keep their values.
+
+More: [Local filters and source queries](docs/querying.md).
+
+## Own a server and wait for work
 
 ### [`tmux_server:with_server/2`][api-with-server]: borrow an existing server
 
-- [Daemon ownership](docs/ownership.md): choose private startup or a borrowed
-  socket, keep their lifetimes explicit and handle incomplete cleanup.
-- [Control attachments](docs/control.md): verify connection identity, inspect
-  attachment effects and retire the client explicitly.
+Closing the handle leaves the borrowed server and its sessions alone.
+[`tmux_server:with_owned/2`][api-with-owned] starts a private one instead.
+
+More: [Daemon ownership](docs/ownership.md) ·
+[Control attachments](docs/control.md).
 
 ### [`tmux_operation:await/2`][api-await]: wait for submitted work
 
-- [Run a job and capture its result](docs/jobs.md): wait for a pane's completion
-  event, check its exit status, capture bytes, and cancel a separate operation.
-- [Build command values](docs/commands.md): prepare a rename and resize, submit
-  them explicitly and inspect fresh state without changing captured rows.
+Submit an operation without blocking, then await it, cancel it or hand it to
+another process. Capture a job's exit status and output bytes.
+
+More: [Run a job and capture its result](docs/jobs.md) ·
+[Build command values](docs/commands.md).
 
 ## More examples
 
-- [Scoped options](docs/options.md): local ownership markers, explicit
-  inheritance and sparse arrays, with a source-pinned option catalogue.
-- [Buffers and paste](docs/buffers.md): preserve binary artifacts, inspect
-  names and control terminal delivery.
-- [Rearrange panes](docs/panes.md): isolate a running job in a window and join
-  it back, preserving its process and the original snapshot.
-- [Apply configuration and await a signal](docs/configuration.md): load settings
-  from stdin, observe the event and verify parse-only behavior.
-- [Pipe terminal output](docs/pipe.md): save a job's bytes, await its consumer
-  acknowledgement and verify the resulting log.
-- [Hooks and completion](docs/hooks.md): register a split callback, await its
-  acknowledgement and remove the local hook.
-- [Key tables](docs/keys.md): register application bindings, inspect native
-  listings and remove the owned table.
-- [Native commands](docs/commands-reference.md): source-derived parser metadata
-  and feature minimums, separate from library API and runtime qualification.
-- [API browser and source docs](docs/api.md): build searchable native reference
-  pages with specs, types and links to the exact source revision.
+- [Scoped options](docs/options.md): local, inherited and sparse-array options.
+- [Buffers and paste](docs/buffers.md): binary data and terminal delivery.
+- [Rearrange panes](docs/panes.md): move a running job to its own window and
+  back.
+- [Apply configuration and await a signal](docs/configuration.md): load
+  settings from stdin.
+- [Pipe terminal output](docs/pipe.md): save a job's bytes to a log.
+- [Hooks and completion](docs/hooks.md): register a split hook and remove it.
+- [Key tables](docs/keys.md): add application bindings and remove them.
+- [Native commands](docs/commands-reference.md): parser metadata and feature
+  minimums for each tmux command.
+- [API browser and source docs](docs/api.md): build the reference pages with
+  specs, types and source links.
 
 ## Packages
 
@@ -226,11 +225,8 @@ captured values; fetching performs I/O.
 
 ### [`libtmux_erlang`](https://github.com/libtmux/libtmux-erlang/tree/master/apps/libtmux_erlang): the core application
 
-[`tmux_server`](https://libtmux.org/en/erlang/latest/reference/tmux_server/),
-[`tmux_snapshot`](https://libtmux.org/en/erlang/latest/reference/tmux_snapshot/),
-[`tmux_select`](https://libtmux.org/en/erlang/latest/reference/tmux_select/) and
-[`tmux_query`](https://libtmux.org/en/erlang/latest/reference/tmux_query/), with
-the compiled tmux helper built from packaged source.
+Servers, sessions, windows, panes, snapshots and queries, with a bundled C
+helper for bounded tmux I/O.
 
 [![libtmux_erlang](https://img.shields.io/hexpm/v/libtmux_erlang?label=libtmux_erlang)](https://hex.pm/packages/libtmux_erlang)
 [API reference](https://libtmux.org/en/erlang/latest/reference/) ·
@@ -238,27 +234,33 @@ the compiled tmux helper built from packaged source.
 [Hex.pm](https://hex.pm/packages/libtmux_erlang) ·
 [Changelog](apps/libtmux_erlang/CHANGELOG.md)
 
-The examples above are this package's.
-[Its README](apps/libtmux_erlang/README.md) inspects an existing socket.
+More: [package README](apps/libtmux_erlang/README.md) inspects an existing
+socket.
 
-## Decide whether it fits
+## Support and status
 
-The current path uses bounded one-shot tmux clients. Operations support
-non-blocking submission, explicit waits, cancellation and ownership transfer.
-An await timeout abandons that wait; it does not cancel the operation.
-Cancellation after dispatch can leave the tmux outcome unknown.
+- **Status:** early. Any release may change the API.
+- **Platform:** Linux, including WSL. macOS and native Windows are not
+  advertised.
+- **tmux:** 3.3a or newer.
+- **Erlang/OTP:** 29 only. The application refuses to start on another release.
+  Rows are native records, which OTP 29 marks experimental.
+- **Dependencies:** OTP only. The helper is an external program, not a NIF.
+- **Operations:** an await timeout abandons the wait; it does not cancel the
+  operation. Cancelling after dispatch can leave the tmux outcome unknown.
 
-An explicit control attachment verifies identity on its persistent connection
-and owns its client cleanup. Control command submission and output streams remain
-implementation work. The
-[support and gaps](docs/compatibility.md) page lists
-what is exercised, what remains open, and the required Linux/tmux matrix.
-There is no control-versus-streaming performance claim.
+More: [Support and gaps](docs/compatibility.md) ·
+[Project policy](docs/project-policy.md).
 
-The [project policy](docs/project-policy.md) records the OTP application
-boundary and runtime dependencies.
+## What it leaves out
 
-## Verify and contribute
+- **Control command submission and output streams.** Control attachments
+  verify their connection and clean up their client; commands still run
+  through one-shot clients.
+
+## Contribute
+
+Run `mid` while you work and `outer` before a pull request:
 
 ```console
 $ time python3 tools/check.py mid
@@ -268,14 +270,20 @@ $ time python3 tools/check.py mid
 $ time python3 tools/check.py outer
 ```
 
-The outer check owns its tmux fixtures and tests installed consumers. See
-[contributor setup](.github/CONTRIBUTING.md) for prerequisites and test budgets,
-[CI](https://github.com/libtmux/libtmux-erlang/actions/workflows/ci.yml) for
-individual release/architecture results, and the [MIT license](LICENSE).
-Maintainers can follow the [Hex release instructions](.github/RELEASE.md).
+- [Contributor setup](.github/CONTRIBUTING.md): prerequisites and test budgets.
+- [CI](https://github.com/libtmux/libtmux-erlang/actions/workflows/ci.yml):
+  results per commit.
+- [Hex release instructions](.github/RELEASE.md), for maintainers.
+- [Branding assets](docs/branding.md): logo, icons and social cards.
+- [MIT license](LICENSE).
 
-[Branding assets](docs/branding.md) include the logo, icons, and social cards.
-
+[tmux-session]: https://libtmux.org/en/erlang/latest/reference/tmux_session/
+[tmux-window]: https://libtmux.org/en/erlang/latest/reference/tmux_window/
+[tmux-pane]: https://libtmux.org/en/erlang/latest/reference/tmux_pane/
+[tmux-server]: https://libtmux.org/en/erlang/latest/reference/tmux_server/
+[tmux-snapshot]: https://libtmux.org/en/erlang/latest/reference/tmux_snapshot/
+[tmux-select]: https://libtmux.org/en/erlang/latest/reference/tmux_select/
+[tmux-query]: https://libtmux.org/en/erlang/latest/reference/tmux_query/
 [api-with-owned]: https://libtmux.org/en/erlang/latest/reference/tmux_server-with_owned-2/
 [api-related]: https://libtmux.org/en/erlang/latest/reference/tmux_snapshot-related-3/
 [api-where]: https://libtmux.org/en/erlang/latest/reference/tmux_select-where-2/
