@@ -16,6 +16,11 @@
       "file": "logo-128.png",
       "bytes": 3648,
       "sha256": "7e7a9e5bce15780edc9834c6724b268f1fecd77c248d4144daebf8b6d1fc73a0"
+    },
+    {
+      "file": "logo-512.png",
+      "bytes": 16014,
+      "sha256": "122f5e526ea0759c2c8b9206f2178c0e84d7a0b9e8f7e92251c7e540b1ca694f"
     }
   ]
 }

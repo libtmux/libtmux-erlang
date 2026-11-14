@@ -169,7 +169,9 @@ def main():
         "{source_url_pattern, <<" + json.dumps(source) + ">>}.\n" +
         "{extras, [" + ",".join("<<" + json.dumps(p.as_posix()) + ">>" for p in staged) + "]}.\n"
     )
-    version = "0.0.0+working-tree" if dirty else "0.0.0+" + head[:12]
+    app = Path("apps/libtmux_erlang/src/libtmux_erlang.app.src").read_text()
+    app_version = re.search(r'\{vsn,\s*"([^"\n]+)"\}', app)[1]
+    version = app_version + ("+working-tree" if dirty else "")
     command = ["escript", str(executable), "libtmux for Erlang", version, *map(str, app_ebins),
                "--config", str(config), "--formatter", "html", "--output", str(output),
                "--source-ref", head, "--warnings-as-errors"]

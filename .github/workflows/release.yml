@@ -1,0 +1,199 @@
+name: Hex release
+
+on:
+  push:
+    tags: ['v*']
+  pull_request:
+    paths:
+      - '.github/workflows/release.yml'
+      - '.github/workflows/ci.yml'
+      - '.github/RELEASE.md'
+      - 'rebar.config'
+      - '.tool-versions'
+      - 'apps/libtmux_erlang/**'
+      - 'tools/build_docs.py'
+      - 'tools/docs-tool.json'
+      - 'tools/check_release.py'
+      - 'tools/check_hex_install.py'
+      - 'test/release_tests.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: hex-release-${{ github.event_name == 'push' && 'publish' || github.ref }}
+  cancel-in-progress: false
+
+env:
+  ERL_FLAGS: '+S 4:4'
+
+jobs:
+  candidate:
+    name: Build package and native docs without publishing
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    outputs:
+      version: ${{ steps.metadata.outputs.version }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Validate release source
+        id: metadata
+        env:
+          EVENT: ${{ github.event_name }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          python3 test/release_tests.py
+          if [ "$EVENT" = push ]; then
+            python3 tools/check_release.py --tag "$TAG"
+          else
+            python3 tools/check_release.py
+          fi
+      - name: Read exact tool versions
+        id: tools
+        run: |
+          printf 'otp=%s\nrebar=%s\n' "$(awk '$1 == "erlang" {print $2}' .tool-versions)" "$(awk '$1 == "rebar" {print $2}' .tool-versions)" >> "$GITHUB_OUTPUT"
+      - uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1.24.1
+        with:
+          otp-version: ${{ steps.tools.outputs.otp }}
+          rebar3-version: ${{ steps.tools.outputs.rebar }}
+          version-type: strict
+      - name: Prepare pinned documentation tools
+        run: python3 tools/build_docs.py --prepare
+      - name: Build EEP-48 documentation
+        run: python3 tools/build_docs.py
+      - name: Build source package
+        env:
+          VERSION: ${{ steps.metadata.outputs.version }}
+        run: |
+          rebar3 as release hex build package --app libtmux_erlang
+          cp "_build/release/lib/libtmux_erlang/hex/libtmux_erlang-$VERSION.tar" _build/libtmux_erlang-release.tar
+      - name: Exercise native publisher without credentials or upload
+        run: |
+          rebar3 as release hex publish package --app libtmux_erlang --yes --dry-run
+          rebar3 as release hex publish docs --app libtmux_erlang --yes --dry-run --doc-dir "$PWD/_build/docs/core"
+      - name: Retain candidate package and docs
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: hex-candidate
+          path: |
+            _build/libtmux_erlang-release.tar
+            _build/docs/core
+            _build/checks/docs.json
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 14
+
+  qualify:
+    name: Qualify exact tag on supported endpoints
+    needs: candidate
+    if: github.event_name == 'push' && github.ref_type == 'tag'
+    uses: ./.github/workflows/ci.yml
+
+  publish:
+    name: Publish qualified tag to Hex
+    needs: [candidate, qualify]
+    if: github.event_name == 'push' && github.ref_type == 'tag'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    environment: hexpm
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: hex-candidate
+          path: _build
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: checks-ubuntu-24.04-tmux-3.8
+          path: _build/qualified
+      - name: Bind candidate to exact native source qualification
+        id: release
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          python3 tools/check_release.py \
+            --tag "$TAG" \
+            --artifact _build/libtmux_erlang-release.tar \
+            --qualified-receipt _build/qualified/source-package-check/receipt.json
+      - name: Read exact tool versions
+        id: tools
+        run: |
+          printf 'otp=%s\nrebar=%s\n' "$(awk '$1 == "erlang" {print $2}' .tool-versions)" "$(awk '$1 == "rebar" {print $2}' .tool-versions)" >> "$GITHUB_OUTPUT"
+      - uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1.24.1
+        with:
+          otp-version: ${{ steps.tools.outputs.otp }}
+          rebar3-version: ${{ steps.tools.outputs.rebar }}
+          version-type: strict
+      - name: Verify reproducible publisher input
+        env:
+          VERSION: ${{ steps.release.outputs.version }}
+        run: |
+          rebar3 as release hex build package --app libtmux_erlang
+          cmp _build/libtmux_erlang-release.tar "_build/release/lib/libtmux_erlang/hex/libtmux_erlang-$VERSION.tar"
+      - name: Publish package and prebuilt docs
+        env:
+          HEX_API_KEY: ${{ secrets.HEX_API_KEY }}
+          ALREADY_PUBLISHED: ${{ steps.release.outputs.published }}
+        run: |
+          if [ -z "${HEX_API_KEY:-}" ]; then unset HEX_API_KEY; fi
+          if [ "$ALREADY_PUBLISHED" != true ]; then
+            rebar3 as release hex publish package --app libtmux_erlang --yes --wait
+          fi
+          rebar3 as release hex publish docs --app libtmux_erlang --yes --wait --doc-dir "$PWD/_build/docs/core"
+      - name: Verify public artifact
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          python3 tools/check_release.py \
+            --tag "$TAG" \
+            --artifact _build/libtmux_erlang-release.tar \
+            --require-published
+
+  install:
+    name: Install public Hex package without publisher credentials
+    needs: [candidate, publish]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Read exact tool versions
+        id: tools
+        run: |
+          printf 'otp=%s\nrebar=%s\n' "$(awk '$1 == "erlang" {print $2}' .tool-versions)" "$(awk '$1 == "rebar" {print $2}' .tool-versions)" >> "$GITHUB_OUTPUT"
+      - uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1.24.1
+        with:
+          otp-version: ${{ steps.tools.outputs.otp }}
+          rebar3-version: ${{ steps.tools.outputs.rebar }}
+          version-type: strict
+      - name: Install consumer prerequisites
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends build-essential tmux
+      - name: Install and execute public package
+        env:
+          VERSION: ${{ needs.candidate.outputs.version }}
+        run: python3 tools/check_hex_install.py "$VERSION"
+      - name: Verify HexDocs is public
+        env:
+          VERSION: ${{ needs.candidate.outputs.version }}
+        run: curl --fail --silent --show-error --output /dev/null "https://hexdocs.pm/libtmux_erlang/$VERSION/"
+      - name: Preserve public install receipt
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: hex-public-install
+          path: _build/checks/hex-install.json
+          if-no-files-found: warn
+          retention-days: 14
