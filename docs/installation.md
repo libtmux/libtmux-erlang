@@ -105,6 +105,9 @@ The helper builds from its packaged C source. Installation must fail if that
 build fails; there is no runtime executable download. The helper's original
 license is retained separately from the project's MIT license.
 
-There is no published Hex package or release artifact for this checkout.
-[API docs](api.md) describe the local browser build. [Compatibility](compatibility.md)
-separates current checks from the remaining suite and delivery gates.
+Hex serves the core package; HexDocs is not published. The hosted
+[API reference](https://libtmux.org/en/erlang/latest/reference/) lives on the
+[shared documentation site](https://libtmux.org/en/erlang/), and
+[API docs](api.md) describe the local browser build.
+[Compatibility](compatibility.md) separates current checks from the remaining
+suite and delivery gates.

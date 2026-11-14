@@ -41,7 +41,8 @@ Use Erlang/OTP **29.1.2**, Rebar3 **3.28.0**, Linux, tmux **3.3a–3.8**, and
 uses OTP libraries and a compiled external helper, with no NIF or third-party
 runtime packages.
 
-Add the published core application to your `rebar.config`:
+Add the published core application from [Hex](https://hex.pm/packages/libtmux_erlang)
+to your `rebar.config`:
 
 <!-- erlang-term -->
 
