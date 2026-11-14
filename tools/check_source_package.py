@@ -107,7 +107,8 @@ def check_contents(path: Path, app: str) -> dict:
         if forbidden:
             raise RuntimeError(f"prebuilt files in {app}: {forbidden}")
         required = {"LICENSE", "CHANGELOG.md", "README.md", "rebar.config",
-                    "assets/logo.svg", "assets/logo-128.png", f"src/{app}.app.src"}
+                    "assets/logo.svg", "assets/logo-128.png", "assets/logo-512.png",
+                    f"src/{app}.app.src"}
         required.update({"c_src/owned_io.c", "c_src/Makefile", "c_src/LICENSE",
                          "c_src/provenance.json"})
         if missing := required - set(names):

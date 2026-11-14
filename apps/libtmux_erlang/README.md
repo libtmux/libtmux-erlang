@@ -2,7 +2,7 @@
 <div align="center">
   <picture>
     <source srcset="assets/logo.svg" type="image/svg+xml">
-    <img src="assets/logo-128.png" width="128" height="128" alt="libtmux for Erlang">
+    <img src="assets/logo-512.png" width="128" height="128" alt="libtmux for Erlang">
   </picture>
 </div>
 <!-- /libtmux-logo -->

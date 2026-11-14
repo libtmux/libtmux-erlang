@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Package the existing 512px logo for a sharp 128px README display on Hex.
+
 - Link the live Erlang guides and API reference from both READMEs and Hex
   package metadata, alongside the executed reader examples.
 
