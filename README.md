@@ -58,6 +58,8 @@ building a consumer. No Hex release is advertised.
 
 ## Create, capture and query
 
+### [`tmux_server:with_owned/2`][api-with-owned]: create a private tmux graph
+
 From this checkout, compile with the pinned tools:
 
 ```console
@@ -155,23 +157,43 @@ its error preserves the callback outcome and ownership token for recovery.
 
 ## Follow the graph
 
+### [`tmux_snapshot:related/3`][api-related]: follow shared windows
+
 A window can have several links in one session and belong to more than one
 session. Physical windows and panes remain unique; window links retain each
 session/index membership.
 
 - [Linked windows and relationship queries](docs/graph.md): build two sessions,
   link a shared window twice, and verify physical and membership counts.
-- [Daemon ownership](docs/ownership.md): choose private startup or a borrowed
-  socket, keep their lifetimes explicit and handle incomplete cleanup.
-- [Build command values](docs/commands.md): prepare a rename and resize, submit
-  them explicitly and inspect fresh state without changing captured rows.
-- [Control attachments](docs/control.md): verify connection identity, inspect
-  attachment effects and retire the client explicitly.
-- [Run a job and capture its result](docs/jobs.md): wait for a pane's completion
-  event, check its exit status, capture bytes, and cancel a separate operation.
+
+### [`tmux_select:where/2`][api-where]: filter captured rows
+
 - [Local filters and source queries](docs/querying.md): Boolean criteria,
   quantifiers, portable JSON, cardinality, coverage and execution plans.
 - [Fields and operators](docs/fields.md): generated from the runtime schema.
+
+### [`tmux_query:fetch/1`][api-fetch]: observe tmux explicitly
+
+The [querying guide](docs/querying.md) follows a source query through planning,
+execution and a new immutable selection. Local filtering preserves its
+captured values; fetching performs I/O.
+
+### [`tmux_server:with_server/2`][api-with-server]: borrow an existing server
+
+- [Daemon ownership](docs/ownership.md): choose private startup or a borrowed
+  socket, keep their lifetimes explicit and handle incomplete cleanup.
+- [Control attachments](docs/control.md): verify connection identity, inspect
+  attachment effects and retire the client explicitly.
+
+### [`tmux_operation:await/2`][api-await]: wait for submitted work
+
+- [Run a job and capture its result](docs/jobs.md): wait for a pane's completion
+  event, check its exit status, capture bytes, and cancel a separate operation.
+- [Build command values](docs/commands.md): prepare a rename and resize, submit
+  them explicitly and inspect fresh state without changing captured rows.
+
+## More examples
+
 - [Scoped options](docs/options.md): local ownership markers, explicit
   inheritance and sparse arrays, with a source-pinned option catalogue.
 - [Buffers and paste](docs/buffers.md): preserve binary artifacts, inspect
@@ -225,3 +247,10 @@ individual release/architecture results, and the [MIT license](LICENSE).
 Maintainers can follow the [Hex release instructions](.github/RELEASE.md).
 
 [Branding assets](docs/branding.md) include the logo, icons, and social cards.
+
+[api-with-owned]: https://libtmux.org/en/erlang/latest/reference/tmux_server-with_owned-2/
+[api-related]: https://libtmux.org/en/erlang/latest/reference/tmux_snapshot-related-3/
+[api-where]: https://libtmux.org/en/erlang/latest/reference/tmux_select-where-2/
+[api-fetch]: https://libtmux.org/en/erlang/latest/reference/tmux_query-fetch-1/
+[api-with-server]: https://libtmux.org/en/erlang/latest/reference/tmux_server-with_server-2/
+[api-await]: https://libtmux.org/en/erlang/latest/reference/tmux_operation-await-2/

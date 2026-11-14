@@ -52,6 +52,8 @@ walks through a separate Rebar3 consumer.
 
 ## Inspect a captured graph
 
+### [`tmux_server:with_server/2`][api-with-server]: inspect an existing socket
+
 This complete module counts physical sessions, windows and panes on an
 explicitly selected existing socket. Closing the library endpoint preserves
 the borrowed server and its sessions.
@@ -98,6 +100,8 @@ documents physical rows, session memberships and relationship coverage.
 
 ## Create, query and act
 
+### [`tmux_query:fetch/1`][api-fetch]: observe tmux explicitly
+
 - [Create and query a workspace](../../README.md#create-capture-and-query):
   build three panes, query their windows, rename one and compare captured values.
 - [Traverse linked windows](../../docs/graph.md): distinguish physical objects
@@ -124,3 +128,6 @@ endpoint lifetimes and cleanup evidence.
 The core depends on OTP applications. See
 [project policy](../../docs/project-policy.md),
 [contributor checks](../../.github/CONTRIBUTING.md), and the [MIT license](LICENSE).
+
+[api-with-server]: https://libtmux.org/en/erlang/latest/reference/tmux_server-with_server-2/
+[api-fetch]: https://libtmux.org/en/erlang/latest/reference/tmux_query-fetch-1/

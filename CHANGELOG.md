@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Link example section headings directly to their named Erlang API functions.
+
 - Package the existing 512px logo for a sharp 128px README display on Hex.
 
 - Link the live Erlang guides and API reference from both READMEs and Hex
