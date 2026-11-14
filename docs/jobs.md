@@ -1,23 +1,22 @@
 # Wait for a terminal job, then capture its output
 
-A successful send or command frame does not prove that a terminal program
-processed input. This example runs an owned job that acknowledges terminal
-parsing before it exits, then waits for tmux's `pane-died` event, checks the
-exit status and captures the completed output.
+A successful send does not prove a terminal program processed the input. This
+program runs a job that acknowledges terminal parsing, waits for `pane-died`,
+checks the exit status and captures the output.
 
-The companion [terminal job](../examples/terminal_job.py) writes its result and
-an ANSI device-status request. It exits successfully only after reading tmux's
-reply. tmux generates that reply after parsing the preceding output. The job
-writes no more output afterward. Python 3.12+ is an example dependency only.
+- The [companion job](../examples/terminal_job.py) writes its result and an
+  ANSI device-status request. It exits only after reading tmux's reply, which
+  tmux sends after parsing the output. It writes nothing afterward.
+- The job needs Python 3.12 or newer. The library does not.
+- `pane-died` alone is not an output-drain barrier on tmux 3.3. This protocol
+  covers a cooperating job. It cannot reconstruct output that scrolled out of
+  history.
+- The program changes options and a hook only on its new window:
+  `remain-on-exit` keeps the pane addressable, an empty exit banner keeps the
+  first line, and the hook signals a tmux `wait-for` channel.
+- There are no sleeps or capture retries.
 
-`pane-died` alone is **not** a general output-drain barrier on tmux 3.3. This
-protocol applies to this cooperating job; it does not establish completion for
-an arbitrary program or reconstruct output that scrolled out of history.
-
-The example changes options and a hook only on its new window. `remain-on-exit`
-keeps the pane addressable; an empty exit banner preserves the first line.
-The hook signals a tmux `wait-for` channel. There are no sleeps or capture
-retries. Run from the checkout so the companion job can be located:
+Run it from the checkout so the job script can be found:
 
 ```console
 $ mise exec -- escript tools/run_examples.escript job
@@ -84,60 +83,62 @@ run(Socket, Executable) ->
     end).
 ```
 
-The output is `build complete` followed by a newline, and the exit status is
-zero. The zero-duration await proves that abandoning a wait leaves the
-operation usable. The separate cancelled wait reports an unknown tmux outcome
-and complete client cleanup; cancellation does not undo submitted work.
+- The output is `build complete` and a newline. The exit status is zero.
+- The zero-duration await shows that abandoning a wait leaves the operation
+  usable.
+- The separate cancelled wait reports an unknown tmux outcome and complete
+  client cleanup. Cancellation does not undo submitted work.
 
-The example prepares an empty pane, then starts its job with
-`tmux_pane:respawn/2`. Respawn keeps the pane ID. Its default launch mode,
-`previous`, reuses tmux's saved command; this example supplies new argv instead.
-Running panes require explicit `force => true`. Use a job-specific completion
-condition and fresh observations to check the result.
+## Start a job in a prepared pane
 
-Use an empty shell command to prepare a process-free pane with
-`tmux_pane:split/2`. Session creation on every supported version, and window
-creation before tmux 3.8, can finish that command immediately and remove the
-new object. This example uses `/bin/cat` to keep its parent session and window
-available across versions.
+- The program prepares an empty pane with `tmux_pane:split/2` and an empty
+  shell command, then starts the job with `tmux_pane:respawn/2`. Respawn keeps
+  the pane ID.
+- Respawn's launch mode defaults to `previous`, which reuses tmux's saved
+  command. The program passes new argv instead. A running pane needs
+  `force => true`.
+- Judge the result with a job-specific completion condition and fresh
+  observations.
+- With an empty shell command, a new session (any version) or window (before
+  tmux 3.8) can finish at once and vanish. The program uses `/bin/cat` for its
+  session and window to avoid that.
 
-`await_started/2` returns lifecycle status, including when an operation already
-failed or retired. Use `await/2` for its command result. Successful command
-results preserve separate stdout/stderr binaries, stdin bytes delivered to the
-client pipe, exit status, outcome and cleanup. Validation and wait errors can
-contain only a code; do not assume every error contains output or certainty.
-The native API defines `t:tmux_operation:completed/0`,
-`t:tmux_operation:failure/0` and `t:tmux_operation:state/0`.
+## Read results
 
-Treat a pane's exit_status field independently from its dead flag. tmux exposes
-a numeric status after collecting a normal child exit; signal termination has
-no numeric value in that field. The captured absence value is none, which does
-not mean success. The native pane_dead_signal format can identify a signal
-when diagnosing an unexpected exit. This distinction appears in the
-[tmux 3.3a status callback](https://github.com/tmux/tmux/blob/3.3a/format.c#L1792)
-and the
-[tmux 3.8 status callback](https://github.com/tmux/tmux/blob/3.8/format.c#L2288).
+- `await_started/2` returns lifecycle status, including for an operation that
+  already failed or retired. `await/2` returns the command result.
+- A successful result holds separate stdout and stderr binaries, the stdin
+  bytes delivered to the client pipe, exit status, outcome and cleanup.
+- Validation and wait errors can hold only a code. Do not assume they hold
+  output or certainty.
+- The native API defines `t:tmux_operation:completed/0`,
+  `t:tmux_operation:failure/0` and `t:tmux_operation:state/0`.
+
+## Read a pane's exit status
+
+- `exit_status` and `dead` are separate fields.
+- After a normal exit, tmux gives a numeric status. A signal has no number, so
+  the captured value is `none`, which does not mean success.
+- `pane_dead_signal` names the signal when you diagnose an unexpected exit.
+- The distinction comes from the
+  [tmux 3.3a status callback](https://github.com/tmux/tmux/blob/3.3a/format.c#L1792)
+  and the
+  [tmux 3.8 status callback](https://github.com/tmux/tmux/blob/3.8/format.c#L2288).
 
 ## Operation ownership
 
-The process that starts an operation owns it. Other processes can await its
-handle without becoming owners. The endpoint confirms a transfer after
-monitoring the new owner and releasing the old monitor; the new process does
-not perform a handshake. Owner death and cancellation retire queued or
-possibly-sent clients; they do not replay mutations.
-
-An `await_timeout` from `tmux_operation:transfer/2` leaves the transfer outcome
-uncertain: the endpoint may process the owner change after the caller stops
-waiting. Read `tmux_operation:status/1` to establish the current owner before
-relying on ownership. The timeout does not prove the old owner still owns the
-operation.
-
-Retired results are retained for at most 60 seconds. The endpoint also evicts
-the oldest results when retention exceeds 64 results or 4 MiB of stdout/stderr.
-Use `tmux_operation:status/1` while a handle is valid, and handle
-`operation_expired` after retention. Closing an endpoint retires its library
-clients and preserves the tmux server. [Daemon ownership](ownership.md)
-explains the separate token used to stop an owned daemon.
-
-Current operations use one-shot clients. Persistent control, grouping and
-stream delivery are not yet available; see [support and gaps](compatibility.md).
+- The process that starts an operation owns it. Other processes can await its
+  handle without owning it.
+- A transfer completes once the endpoint monitors the new owner and releases
+  the old monitor. The new process does no handshake.
+- Owner death and cancellation retire queued or possibly-sent clients. They do
+  not replay mutations.
+- An `await_timeout` from `tmux_operation:transfer/2` leaves the outcome
+  uncertain. Read `tmux_operation:status/1` before you rely on ownership.
+- Retired results stay for at most 60 seconds. Past 64 results or 4 MiB of
+  stdout and stderr, the oldest go first. Handle `operation_expired`.
+- Closing an endpoint retires its library clients and preserves the tmux
+  server. [Daemon ownership](ownership.md) covers the token that stops an owned
+  daemon.
+- Operations use one-shot clients. Persistent control, grouping and stream
+  delivery are not built; see [support and gaps](compatibility.md).

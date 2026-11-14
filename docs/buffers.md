@@ -1,10 +1,10 @@
 # Preserve byte buffers and paste deliberately
 
-Store a binary artifact without sending it through a shell, terminal renderer
-or Unicode conversion. Loading uses tmux client stdin; showing a buffer reads
-its exact bytes, including NUL, invalid UTF-8 and protocol-like lines.
+Store a binary artifact without a shell, a terminal renderer or Unicode
+conversion. Loading uses tmux client stdin. Showing a buffer reads its exact
+bytes, including NUL, invalid UTF-8 and protocol-like lines.
 
-Run this complete program against the runner's isolated server:
+Run this program against the runner's isolated server:
 
 ```console
 $ mise exec -- escript tools/run_examples.escript buffers
@@ -58,67 +58,67 @@ run(Socket, Executable) ->
 }
 ```
 
-The program uses a unique name and removes its buffer in cleanup. The runner
-also retires the owned server; the archive check repeats this program outside
-the source checkout against the installed core application.
+The program uses a unique buffer name and deletes the buffer in cleanup.
 
 ## Choose a name or the newest buffer
 
-`tmux_buffer:load/3` accepts a binary name or `automatic`, which lets tmux
-allocate a name. `show/2`, `delete/2` and `paste/3` accept an observed binary
-name or `latest`. `list/1` returns ordinary metadata maps in tmux's newest-first
-insertion order, with name, size in bytes and Unix creation time. It does not
-load payloads. Renaming keeps the order; loading replacement data inserts a
-new buffer.
+- `tmux_buffer:load/3` takes a binary name or `automatic`, which lets tmux pick
+  one.
+- `show/2`, `delete/2` and `paste/3` take an observed binary name or `latest`.
+- `list/1` returns metadata maps, newest first, with name, size in bytes and
+  Unix creation time. It loads no payloads.
+- Renaming keeps the order. Loading replacement data inserts a new buffer.
+- Names are NUL-free bytes. tmux 3.7 and newer clean names themselves, which
+  can reject controls and escape backslashes. Later calls need the stored name
+  from `list/1`.
+- The list codec keeps embedded delimiters, newlines and invalid UTF-8 where a
+  release allows those names. It never treats a newline in a name as a row
+  boundary.
 
-Names are NUL-free bytes. tmux 3.7+ applies its own name cleaning, which can
-reject controls and escape backslashes. Subsequent calls need the actual
-stored name from `list/1`. The list codec preserves embedded delimiters,
-newlines and invalid UTF-8 on releases that allow those names. It never uses
-a newline inside a name as a row boundary.
+## Know the version differences
 
-Empty load input is a native no-op: it neither creates a buffer nor truncates
-an existing one. Delete explicitly when the buffer should disappear. A named
-rename refuses an occupied destination on tmux 3.3/3.3a; 3.4+ replaces it.
-Identical rename inputs fail before dispatch because some legacy versions
-have unsafe handling of that case.
-
-On 3.3/3.3a, native named delete/rename falls back to the newest buffer when
-the requested name is absent. These APIs first perform a targeted existence
-read with zero output allowance and return `buffer_not_found` for a missing
-name. The read retains no payload and is independent of list bounds.
-That preflight is not atomic:
-concurrent removal after the check can still trigger the native fallback.
-Serialize external changes or use tmux 3.4+ when that race is unacceptable.
-Buffer names do not provide stable object identities or transactional updates.
+- An empty load is a native no-op. It creates no buffer and does not truncate
+  an existing one. Delete a buffer to remove it.
+- Renaming onto an occupied name is refused on tmux 3.3 and 3.3a. From 3.4 it
+  replaces. Identical rename inputs fail before dispatch, because some old
+  versions handle them unsafely.
+- On 3.3 and 3.3a, a native delete or rename of a missing name falls back to
+  the newest buffer. These APIs first check that the name exists, with no
+  output allowance, and return `buffer_not_found` if not. The check keeps no
+  payload and ignores list bounds.
+- That check is not atomic. A concurrent removal after it can still trigger the
+  native fallback. Serialize outside changes or use tmux 3.4 or newer.
+- Buffer names are neither stable identities nor transactional.
 
 ## Paste bytes into a registered pane
 
-`tmux_buffer:paste/3` takes a registered pane, a buffer name or `latest`, and
-an options map. Defaults preserve bytes: LF separators, no sanitization, no
-bracketing and no deletion. Set `separator` to replace each LF with a chosen
-NUL-free byte string. It is passed literally, without format expansion.
+- `tmux_buffer:paste/3` takes a registered pane, a buffer name or `latest`, and
+  an options map.
+- Defaults preserve bytes: LF separators, no sanitizing, no bracketing, no
+  deletion.
+- `separator` replaces each LF with a NUL-free byte string. It is passed
+  literally, with no format expansion.
+- `sanitize => true` needs tmux 3.7 or newer. Older releases return
+  `unsupported_capability` before dispatch. The raw path uses `-S` on newer
+  releases.
+- `bracketed => true` adds markers only when the target enabled bracketed
+  paste.
+- `delete => true` removes the buffer after the native paste, including when
+  native input-off handling discards the input.
+- A completed paste is a tmux command result. It does not prove a child consumed
+  the input. See the [job guide](jobs.md) for completion signals and
+  ownership.
 
-`sanitize => true` requires tmux 3.7+; older releases return
-`unsupported_capability` before dispatch. The default raw path uses `-S` on
-newer releases. `bracketed => true` adds markers only when the target has
-enabled bracketed paste. `delete => true` removes the buffer after the native
-paste call, including cases where native input-off handling discards input.
+## Bound reads and keep errors
 
-A completed paste is a tmux command result, not proof that a child consumed
-input. The integration test uses a raw terminal receiver and a separate socket
-acknowledgment to verify all 256 byte values and custom separators. The
-[job guide](jobs.md) explains completion signals and operation ownership.
-
-## Bound reads and preserve errors
-
-Load input shares the endpoint's 256 KiB command admission budget with argv.
-`show/3` accepts `max_bytes` from 0 through 1 MiB and `deadline_ms` from 1 through
-600000. Defaults are 1 MiB and 2500 ms. Overflow returns `output_limit` with
-partial command evidence; it never returns a successful truncated buffer.
-Lists are bounded to 4096 rows and 1 MiB of encoded output.
-
-Missing buffers, gone panes and closed endpoints remain distinct errors.
-Timeouts do not undo a completed load or paste, and mutations are not retried.
-`tmux_buffer:capabilities/1` describes source-defined behavior without I/O;
-the [support page](compatibility.md) separates that metadata from qualification.
+- Load input shares the endpoint's 256 KiB command admission budget with argv.
+- `show/3` takes `max_bytes` from 0 through 1 MiB and `deadline_ms` from 1
+  through 600000. Defaults are 1 MiB and 2500 ms.
+- Overflow returns `output_limit` with partial command evidence. A truncated
+  buffer is never returned as success.
+- Lists are bounded to 4096 rows and 1 MiB of encoded output.
+- Missing buffers, gone panes and closed endpoints stay distinct errors.
+- A timeout does not undo a completed load or paste. Mutations are not retried.
+- `tmux_buffer:capabilities/1` describes source-defined behavior without I/O.
+  The [support page](compatibility.md) separates that metadata from what is
+  tested.

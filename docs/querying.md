@@ -1,30 +1,33 @@
 # Capture locally; fetch explicitly
 
-A snapshot is observed data. A selection is ordered rows plus their captured
-context. A filter is portable predicate data. A query describes a future tmux
-observation. Only `fetch` executes a query.
+- A **snapshot** is observed data.
+- A **selection** is ordered rows plus their captured context.
+- A **filter** is portable predicate data.
+- A **query** describes a future tmux observation. Only `fetch` runs it.
 
-The [README program](../examples/readme_demo.erl) shows both paths against
-real tmux. It retains a captured name after renaming the live window, then
-executes a fresh source query. All ordinary snapshot and selection reads stay
-local, even after the endpoint closes.
+The [README program](../examples/readme_demo.erl) shows both paths on real
+tmux: it keeps a captured name after renaming the live window, then runs a
+fresh query. Snapshot and selection reads stay local, even after close.
 
 ## Criteria
 
-Local criteria use atom-keyed maps and binary text. Bare scalars mean equality;
-fields and operators in one map conjoin. Boolean branches use quoted `'and'`,
-`'or'` and `'not'`. Empty AND is true and empty OR is false. Callbacks belong
-to `tmux_select:filter/2` and must return Booleans; callback failures propagate.
+- Criteria are atom-keyed maps with binary text. A bare scalar means equality;
+  fields and operators in one map conjoin.
+- Boolean branches are the quoted atoms `'and'`, `'or'` and `'not'`. Empty
+  AND is true; empty OR is false.
+- Callbacks go to `tmux_select:filter/2`, must return Booleans, and propagate
+  their failures.
+- To-many relations take `some`, `every`, `none` and `count`. To-one relations
+  take `is` and `is_not`.
+- One `some` with two conditions needs the same related row. Two separate
+  `some` conditions can match different rows.
+- On an empty to-many relation, `some` is false and `every` and `none` are
+  true.
+- Unknown fields, invalid operations, type mismatches and incomplete coverage
+  fail before any row is read. An unloaded relationship is never an empty one.
+- `from_list` keeps order and duplicates but cannot infer relationships.
 
-Relations use `some/every/none/count` for to-many values and `is/is_not` for
-to-one values. One `some` containing two conditions requires the same related
-row. Two separate `some` conditions can match different rows. Empty to-many
-relations make `some` false and `every` and `none` true.
-
-[Fields and operators](fields.md) come from the runtime validator. Unknown
-fields, invalid operations, type mismatches and incomplete coverage fail before
-row traversal. An unloaded relationship never becomes an empty relationship.
-`from_list` keeps supplied order and duplicates but cannot infer relationships.
+[Fields and operators](fields.md) come from the runtime validator.
 
 ## Cardinality
 
@@ -37,19 +40,21 @@ row traversal. An unloaded relationship never becomes an empty relationship.
 | `size` | Cached materialized size |
 | `count` | Current size, or exact count after supplied criteria |
 
-Criteria come first and the selection last. Ambiguity stops after the second
-match once validation is complete. `to_list/1` and `fold/3` keep ordinary Erlang
-list consumers available; a selection is not a list protocol.
+- Criteria come first and the selection last.
+- An ambiguity check stops at the second match, after validation.
+- `to_list/1` and `fold/3` hand rows to list code. A selection is not a list.
 
 ## Portable input
 
-`tmux_filter:decode_json/1` rejects duplicate keys, trailing input and excessive
-size/depth. `from_wire/2` maps generated wire names explicitly; it never creates
-atoms from payload keys. `to_wire/1` exports filter data, not closures or native
-record internals. Integral numbers normalize only within the exact shared JSON
-integer range. Text is case-sensitive and is not implicitly normalized.
+- `tmux_filter:decode_json/1` rejects duplicate keys, trailing input and
+  excess size or depth.
+- `from_wire/2` maps wire names explicitly. It never creates atoms from
+  payload keys.
+- `to_wire/1` exports filter data, not closures or record internals.
+- Integers normalize only inside the shared JSON integer range. Text is
+  case-sensitive.
 
-Run this complete local recipe. It uses captured rows and needs no tmux server:
+Run this local recipe. It uses captured rows and needs no tmux server:
 
 ```console
 $ mise exec -- escript tools/run_examples.escript filter
@@ -96,55 +101,52 @@ run() ->
       wire_round_trip => true, duplicate_keys_rejected => true}.
 ```
 
-It selects `%1`, preserves the meaning of the JSON round trip, and rejects
-ambiguous duplicate keys. The installed-archive check runs the same program.
+It selects `%1`, round-trips the JSON and rejects the duplicate key.
 
 The [restricted ASCII regex guide](../tools/regex-conformance/README.md) gives
-its grammar and resource limits. Non-ASCII subjects and exhausted match limits
-are errors, not nonmatches. Local callbacks provide other regex semantics.
+its grammar and limits. Non-ASCII subjects and exhausted match limits are
+errors, not nonmatches. Local callbacks provide other regex semantics.
 
 ## Source plans
 
-Queries filter the complete captured graph locally by default. Enable native
-candidate exclusion explicitly with `tmux_query:pushdown(true, Query)`. It can add
-a candidate scan and an earlier observation without reducing graph hydration.
-`tmux_query:explain/1` reports the choice in its `pushdown` field.
+- A query filters the whole captured graph locally by default.
+- `tmux_query:pushdown(true, Query)` asks tmux to exclude candidates first. It
+  can add a scan and an earlier observation; hydration is unchanged.
+  `pushdown(false, Query)` turns it off.
+- `tmux_query:explain/1` does no I/O. It reports the `pushdown` choice, command
+  templates, candidate conditions, the full residual filter, hydration, fields,
+  ordering and identity policy.
+- ID, Boolean and qualified unsigned numeric conditions reach tmux's `-f`.
+  Text, nullable fields and relations stay local. Numbers compare with tmux
+  arithmetic, not string order.
+- A candidate can admit extra rows but never excludes a match. Unsupported
+  leaves become true. AND and OR compose conservatively; NOT translates only
+  exact children.
 
-`tmux_query:explain/1` performs no I/O. It reports command templates, native
-candidate conditions, full residual data, complete hydration, required fields,
-ordering, identity policy and temporal assumptions. ID, Boolean and qualified
-unsigned numeric conditions can reach tmux's `-f`. Text, nullable fields and
-relations remain local. Numeric comparisons use tmux arithmetic formats,
-not string ordering.
+### Hydration
 
-Hydration defaults to one framed list scan per nonempty entity collection.
-Each field is expanded once and escaped before row/column framing, preserving
-paths containing tabs, newlines and non-UTF-8 bytes. A successful nonempty
-capture uses nine logical commands, plus an optional candidate scan. Identity
-preflights add one tmux client per command. Linked memberships can increase
-the bytes returned even though physical rows remain unique.
+- Hydration defaults to one framed list scan per nonempty entity collection.
+  Each field is expanded once and escaped, so paths with tabs, newlines and
+  non-UTF-8 bytes survive.
+- An identity preflight adds one tmux client per command. Linked memberships
+  add bytes, not rows.
+- Each command is bounded to 1 MiB of stdout. If an entity exceeds that, pass
+  `hydration => isolated` in the snapshot or fetch options to read one field
+  per physical row. The total bound and deadline still apply.
+- The commands metadata describes default templates under `hydration` and
+  isolated reads under `isolated_hydration`. Snapshot metadata records the
+  strategy used and the actual calls.
 
-Each command remains bounded to 1 MiB of stdout. If a whole entity exceeds
-that bound, use `hydration => isolated` in snapshot or fetch options to read
-one field per physical row. The total capture bound and deadline still apply.
-The hydration entry of the commands metadata describes the default templates;
-its isolated_hydration entry describes isolated reads and unqualified-schema
-fallback. Snapshot metadata records the chosen strategy and actual calls.
-[ADR 0002](adr-0002-batched-hydration.md) records the framing, measurements and
-tradeoffs.
+More: [ADR 0002](adr-0002-batched-hydration.md) has the framing and
+measurements.
 
-A candidate is a necessary condition: it can admit extra rows but must not
-exclude a same-state full-filter match. Unsupported leaves become true;
-AND and OR compose conservatively; NOT translates only exact children.
-Membership trees are balanced to respect tmux's recursion limit.
+### Fetch
 
-Fetch retains a complete captured graph, validates any candidate scalar agreement,
-evaluates the full local filter, and only then applies limits. Physical entities
-deduplicate by ID; window links retain membership identity. `pushdown(false, Q)`
-disables earlier candidate exclusion. Capture options bound rows, output and
-time; `retry => 1` requests at most one inconsistent-capture retry within the
-original capture deadline. The default is no retry.
-
-Captures span several commands and are not atomic. Local re-evaluation cannot
-recover rows excluded before their state changed. Atomic consistency and a
-same-connection identity promise remain unsupported by this one-shot path.
+- Fetch keeps the complete captured graph, checks candidate scalars, evaluates
+  the full local filter, and only then applies limits.
+- Physical entities deduplicate by ID. Window links keep membership identity.
+- Capture options bound rows, output and time. `retry => 1` allows one retry
+  of an inconsistent capture within the original deadline. The default is none.
+- Captures span several commands and are not atomic. Local re-evaluation cannot
+  recover rows excluded before their state changed.
+- This one-shot path offers no atomic consistency or same-connection identity.

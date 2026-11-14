@@ -1,9 +1,13 @@
 # Register a hook and await its effect
 
-Register a split hook, submit a wait without blocking the Erlang caller, then
-split a pane. The hook writes a session option and signals the unique channel.
-The program checks that effect, removes the local hook and verifies cleanup.
-The runner owns the daemon and checks that its sessions and processes exit.
+Register a split hook, submit a wait without blocking the caller, then split a
+pane. The hook writes a session option and signals a unique channel.
+
+- The program checks the option, removes the local hook and verifies cleanup.
+- It cancels and awaits its operation in cleanup, even when registration or
+  the split fails.
+- The runner supplies the daemon.
+
 Compile the project first:
 
 ```console
@@ -84,53 +88,55 @@ run(Socket, Executable) ->
 }
 ```
 
-The archive check repeats this program using the installed core package.
 [Jobs and operations](jobs.md) explains why an await timeout abandons only
-that wait. The program cancels and awaits its operation during cleanup even
-if registration or the split fails.
+that wait.
 
-## Choose the table explicitly
+## Choose the table
 
-`tmux_hook:set/3` requires a `{Name, Index}` key and validated
-`tmux_command` values. It replaces that indexed entry while preserving other
-entries. `append/3` chooses tmux's first vacant local index, which can precede
-existing sparse entries. Commands run in index order. Bodies can be one
-command or a nonempty list; rendering is bounded before dispatch.
+- `tmux_hook:set/3` needs a `{Name, Index}` key and validated `tmux_command`
+  values. It replaces that indexed entry and keeps the others.
+- `append/3` takes tmux's first vacant local index, which can come before
+  existing sparse entries. Commands run in index order.
+- A body is one command or a nonempty list. Rendering is bounded before
+  dispatch.
+- Local tables use registered session, physical window or pane rows. Global
+  tables use `{session_defaults, Server}` or `{window_defaults, Server}`.
+- The [source catalogue](options-reference.md) gives each built-in hook's scope
+  and version.
+- This API rejects prefixes, aliases, ordinary options and custom event or
+  monitor interfaces.
 
-Local tables use registered session, physical window or pane rows. Global
-tables use `{session_defaults, Server}` or `{window_defaults, Server}`.
-The [source catalogue](options-reference.md) defines each builtin hook's
-permitted scope and version. Prefixes, aliases, ordinary options and custom
-event/monitor interfaces are rejected by this API.
+## Read and remove
 
-`get/3` reads local values by default. `inherit => true` follows parent tables.
-An absent local array returns `none`; an empty array returns `{ok, #{}}` and
-masks inheritance. `clear/2` leaves that empty override. `unset/2` removes an
-entry or restores inheritance for the whole array. Unsetting an entry can
-leave its local array empty. Global unset resets the native default.
+- `get/3` reads local values by default. `inherit => true` follows parent
+  tables.
+- An absent local array returns `none`. An empty array returns `{ok, #{}}` and
+  masks inheritance.
+- `clear/2` leaves that empty override. `unset/2` removes an entry, or restores
+  inheritance for the whole array. Unsetting an entry can leave the local array
+  empty. A global unset resets the native default.
+- Read values are tmux's canonical command-list text, with its own quoting and
+  escapes. They are not argument values or the original source. A read never
+  runs them.
 
-Read values are tmux's canonical command-list text, including its own quoting
-and escapes. They are not individual argument values or the original source
-text. A read never executes them.
+## Registration, context and completion
 
-## Separate registration, context and completion
+- Registration confirms that tmux stored the commands. They still interpret
+  their values and formats when they run.
+- Native parsing can fail. A failed first indexed write can already leave an
+  empty local override.
+- There is no rollback and no automatic retry of an uncertain mutation.
+- `tmux_hook:run/2` requests native execution in an explicit context: a session
+  for its current window and pane, a checked window link for one membership, or
+  `{pane, Pane, Link}` for a pane and membership.
+- A physical window alone cannot choose a context, so a link keeps the session
+  and index when a window is linked more than once.
+- Existence and membership checks come before dispatch. If the target vanishes
+  afterward, tmux can still fall back to another context. These observations
+  are not atomic.
+- A command result does not acknowledge background work a hook launched. The
+  program waits for its own signal after the option write.
+- Clearing or unsetting a hook does not cancel effects tmux already queued.
 
-Registration confirms that tmux stored the commands. Those commands still
-interpret their values and formats when they run. Native parsing can fail;
-a failed first indexed write can already leave an empty local override.
-There is no rollback or automatic retry of an uncertain mutation.
-
-`tmux_hook:run/2` requests native execution in an explicit context. Use a
-session for its current window/pane, a checked window link for one membership,
-or `{pane, Pane, Link}` for that pane and membership. This preserves the
-chosen session and index when a physical window is linked more than once. A
-physical window alone cannot choose that execution context. Existence and
-membership checks precede dispatch. If the target disappears after preflight,
-tmux can still fall back to another context. These separate observations do
-not provide atomic compare-and-act.
-
-A native command result does not acknowledge background work launched by a
-hook. The program waits for its own signal after the option write. Clearing
-or unsetting a hook does not cancel effects tmux has already queued.
-[Window memberships](graph.md) and [scoped options](options.md) explain the
-related graph and inheritance rules.
+See [window memberships](graph.md) and [scoped options](options.md) for the
+graph and inheritance rules.

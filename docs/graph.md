@@ -1,17 +1,10 @@
 # Query a shared window without losing its memberships
 
-This program creates two sessions, a shared two-pane window, and two extra
-window links. It then checks the physical object graph and session-relative
-membership counts. `tmux_window_link` acts on a session/index membership and
-checks its expected physical window before dispatch.
+Build two sessions, a shared two-pane window and two extra links to it. Then
+count physical objects and session memberships.
 
-Selecting a window membership changes that session's current window.
-`tmux_session:select/2` switches one explicitly named attached client to a
-session. It never attaches a client or chooses a current client implicitly.
-Its `tmux_session:select/3` variant updates the destination environment only
-when requested. Client names can be reused after disconnection; this call
-does not provide an atomic client-incarnation check. The native API contract
-documents name lookup and environment-removal semantics.
+- A window link is one session and index. A physical window can have many.
+- `tmux_window_link` acts on one link and checks its expected window first.
 
 Run it on a private server after compiling:
 
@@ -84,47 +77,59 @@ run(Socket, Executable) ->
     end).
 ```
 
-There are three physical windows and four physical panes. Five window links
-remain because the shared window occurs at two indexes in `work` and once
-in `mirror`. The windows relationship yields two unique windows for `work`;
-its window_links relationship retains all three memberships. Both traversals
-use `tmux_snapshot:related/3`.
+- The graph has 3 physical windows, 4 physical panes and 5 window links. The
+  shared window sits at two indexes in `work` and one in `mirror`.
+- For `work`, `tmux_snapshot:related/3` returns 2 unique windows through
+  `windows` and all 3 memberships through `window_links`.
 
-A link is identified within a capture by session, index and expected physical
-window. It has no stable tmux link ID. Captured index references cannot promise
-atomic compare-and-act after another client moves a link.
+## Act on a membership
 
-Use `tmux_window_link:get/3` for a fresh membership. `link/3` adds a membership;
-`move/3` moves just the checked membership; `swap/3` exchanges two memberships'
-physical windows. Their input rows must share one registered owner. Actions
-return command results and leave captured values unchanged.
+- `tmux_window_link:get/3` reads a fresh membership.
+- `link/3` adds one. `move/3` moves just the checked membership. `swap/3`
+  exchanges two memberships' physical windows.
+- Input rows must share one registered owner.
+- `select/1` selects the checked window, which changes that session's current
+  window.
+- `unlink/2` removes one membership. tmux's last-link protection stays on
+  unless `force => true`, which can destroy the physical window.
+- `tmux_window:kill/1` destroys the window across all links.
+- Actions return command results and leave captured values unchanged.
 
-`select/1` selects the checked window in its session. `unlink/2` removes one
-membership, retaining tmux's last-link protection by default. Explicit
-`force => true` can destroy the physical window if its final membership goes.
-`tmux_window:kill/1` destroys that window across all links.
+## Expect stale links
 
-If a captured index disappears or names another physical window, actions
-return `stale_link` before dispatch. `tmux_server:bind/2` applies this same
-precondition when rebinding a link to an owner. It does not adopt the new
-occupant of an old index. The one-shot preflight and action are separate;
-another client can still change that membership between them.
+- tmux gives a link no ID. A capture identifies it by session, index and
+  expected physical window.
+- If the index vanished or names another window, an action returns
+  `stale_link` before dispatch. `tmux_server:bind/2` applies the same check;
+  it does not adopt the index's new occupant.
+- The check and the action are separate commands. Another client can still
+  change the link between them.
 
-The relation query checks the full captured graph. Filtering a window selection
-does not replace its panes with only matching panes. `some`, `every`, `none`
-and `count` require complete membership coverage, including empty selections.
-The [query guide](querying.md) explains validation and correlation.
+## Switch a client
+
+- `tmux_session:select/2` switches one named, attached client to a session. It
+  never attaches a client or picks one for you.
+- `tmux_session:select/3` updates the destination environment only on request.
+- Client names can be reused after a disconnect, and the call does not check
+  the client's incarnation.
+
+## Filter by relation
+
+- A relation query checks the full captured graph. Filtering windows does not
+  trim their panes to the matching ones.
+- `some`, `every`, `none` and `count` need complete membership coverage,
+  including empty selections.
+
+More: [query guide](querying.md).
 
 ## Compare captured server incarnations
 
-Live `tmux_snapshot:metadata/1` includes an opaque server_instance value.
-`tmux_identity:fingerprint/1` derives a versioned binary comparison key from
-that captured identity without I/O. The key survives reconnecting through
-another endpoint handle and changes when the observed process incarnation
-changes. The installed consumer checks its JSON round trip.
-
-An endpoint's generation identifies that handle's lifetime; it changes when
-the handle is reopened. A persisted incarnation key serves a different
-purpose: comparing the server observed by those handles. It cannot make a
-stale row actionable, establish current liveness or authorize an action.
-Use `tmux_server:bind/2` to obtain a fresh actionable row.
+- Live `tmux_snapshot:metadata/1` holds an opaque `server_instance` value.
+  `tmux_identity:fingerprint/1` turns it into a versioned binary key without
+  I/O.
+- The key survives reconnecting through another endpoint handle and changes
+  when the observed process changes.
+- An endpoint generation identifies one handle's lifetime. The key compares
+  the servers those handles observed.
+- A key cannot make a stale row actionable, show liveness or authorize an
+  action. Use `tmux_server:bind/2` for a fresh actionable row.

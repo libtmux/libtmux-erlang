@@ -3,12 +3,12 @@
 The core OTP application is
 [`libtmux_erlang`](https://hex.pm/packages/libtmux_erlang) on Hex.
 
-The [README](../README.md#install) contains the dependency declaration tested
-in an isolated Rebar3 consumer. Pin an exact version while the API develops
-and commit `rebar.lock` to retain the resolved package checksum.
+The [README](../README.md#install) has the dependency declaration. Pin an exact
+version while the API develops, and commit `rebar.lock` to keep the resolved
+package checksum.
 
 Add `libtmux_erlang` to your application's `applications` list in its
-`.app.src`. For an interactive consumer, compile and start the Rebar3 shell:
+`.app.src`. To try it interactively, compile and start the Rebar3 shell:
 
 ```console
 $ rebar3 compile
@@ -20,8 +20,8 @@ $ rebar3 shell
 
 ## Install a source checkout
 
-The repository is an umbrella. For development from source, use `git_subdir`
-to select `apps/libtmux_erlang`:
+The repository is an umbrella. Use `git_subdir` to select
+`apps/libtmux_erlang`:
 
 <!-- erlang-term -->
 
@@ -33,13 +33,15 @@ to select `apps/libtmux_erlang`:
 ]}.
 ```
 
-Rebar3 records the branch's resolved commit in `rebar.lock`. To select a
-reviewed commit directly, use `{ref, Commit}` instead of `{branch, "master"}`.
+- Rebar3 records the branch's resolved commit in `rebar.lock`.
+- To pin a reviewed commit, use `{ref, Commit}` instead of
+  `{branch, "master"}`.
 
 ## Inspect an existing server
 
-`open/1` borrows an existing daemon. It does not start tmux or create a session.
-From a shell attached to the server you intend to inspect, obtain its socket:
+`open/1` borrows an existing daemon. It starts no tmux and creates no session.
+The library needs the socket's absolute path. From a shell attached to the
+server you want to inspect, get it:
 
 ```console
 $ export LIBTMUX_SOCKET="$(tmux display-message -p '#{socket_path}')"
@@ -67,8 +69,8 @@ run(Socket, Executable) ->
     Result.
 ```
 
-Run it through the consumer's Rebar shell. The executable path comes from PATH;
-the socket must be the absolute path selected above:
+Run it through the consumer's Rebar shell. The tmux executable comes from
+`PATH`. The socket must be the absolute path above:
 
 ```console
 $ rebar3 shell \
@@ -79,35 +81,34 @@ $ rebar3 shell \
         halt().'
 ```
 
-The returned map counts physical objects in one captured view. Closing the
-library handle preserves the borrowed daemon and its sessions. This module
-also runs against the installed archive in the outer check. The private-server
-[README program](../README.md#create-capture-and-query) adds creation, native
-record patterns, graph traversal and a fresh query.
-
-Direct native-record construction needs `tmux_model` loaded first; its
-constructors load normally and validate observations. Do not distribute record
-headers or serialize record internals as a wire format.
+- The returned map counts physical objects in one captured view.
+- Closing the library handle leaves the borrowed daemon and its sessions.
+- The [README program](../README.md#create-capture-and-query) starts its own
+  private server. It adds creation, native record patterns, graph traversal
+  and a fresh query.
+- To build a native record yourself, load `tmux_model` first. Its constructors
+  load normally and validate observations.
+- Do not distribute record headers or serialize record internals as a wire
+  format.
 
 ## Requirements
 
-| Component | Current requirement |
+| Component | Requirement |
 | --- | --- |
-| Erlang/OTP | Exactly the qualified latest-stable baseline, 29.1.2 |
-| Build tool | Rebar3 3.28.0 |
-| tmux | 3.3a–3.8, including intermediate releases; CI tests both endpoints |
-| Runtime platform | Linux x86_64 and arm64 qualification cells |
+| Erlang/OTP | 29 |
+| Build tool | Rebar3 |
+| tmux | 3.3a or newer |
+| Platform | Linux, including WSL |
 | Native build | C11 compiler, libc headers and make |
 | Core dependencies | OTP kernel, stdlib and crypto; no JSON package or NIF |
-| Checkout example runner | Python 3.12+ for owned-server readiness observation |
+| Checkout example runner | Python 3.12 or newer |
 
-The helper builds from its packaged C source. Installation must fail if that
-build fails; there is no runtime executable download. The helper's original
-license is retained separately from the project's MIT license.
+- The helper builds from its packaged C source. Installation fails if that
+  build fails. Nothing is downloaded at runtime.
+- The helper's original license is kept apart from the project's MIT license.
+- Hex serves the core. HexDocs is not published. The
+  [API reference](https://libtmux.org/en/erlang/latest/reference/) lives on the
+  [shared documentation site](https://libtmux.org/en/erlang/), and
+  [API docs](api.md) describe the local build.
 
-Hex serves the core package; HexDocs is not published. The hosted
-[API reference](https://libtmux.org/en/erlang/latest/reference/) lives on the
-[shared documentation site](https://libtmux.org/en/erlang/), and
-[API docs](api.md) describe the local browser build.
-[Compatibility](compatibility.md) separates current checks from the remaining
-suite and delivery gates.
+[Compatibility](compatibility.md) lists the tested cells and the open gaps.

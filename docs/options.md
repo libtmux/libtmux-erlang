@@ -1,14 +1,16 @@
 # Read and change scoped options
 
 Use a local user option to record which workspace created a session. Read it
-without inheritance when deciding whether the session belongs to that workspace.
-`only_if_unset` refuses an existing local value; it does not compare an expected
-owner or provide a workspace transaction.
+without inheritance to decide whether the session belongs to that workspace.
 
-The complete example also sets and removes a window override, checks that the
-inherited value is restored, and preserves an empty sparse array entry. It
-opens the supplied endpoint and creates/removes its own session. The repository
-runner supplies an isolated server and verifies cleanup:
+- `only_if_unset` refuses an existing local value. It does not compare an
+  expected owner and is not a workspace transaction.
+- The program also sets and removes a window override, checks that inheritance
+  returns, and keeps an empty sparse array entry.
+- It opens the supplied endpoint and creates and removes its own session. The
+  runner supplies an isolated server.
+
+Run it:
 
 ```console
 $ mise exec -- escript tools/run_examples.escript options
@@ -85,67 +87,65 @@ run(Socket, Executable) ->
 | `{session_defaults, Server}` | Global session defaults |
 | `{window_defaults, Server}` | Global window defaults |
 
-A physical window has no universal parent session. Session options require a
-session record; passing a pane to a session option fails rather than choosing
-an incidental session. Built-in names can override tmux's native scope flags;
-the wrapper checks their source metadata before dispatch to prevent that.
+- A physical window has no universal parent session. Session options need a
+  session record; a pane passed to one fails instead of picking a session.
+- Built-in names can override tmux's native scope flags. The wrapper checks
+  their source metadata before dispatch to prevent that.
+- `get/3` reads local values only with `#{}`.
+- `#{inherit => true}` follows the table's parents: session defaults, or window
+  defaults for a pane. User options follow the same ancestry. Server options
+  have no parent. A session table never passes values to a window table.
 
-`get/3` uses local-only reads with `#{}`. `#{inherit => true}` follows the
-selected table's parents: session defaults, or window/window defaults for a
-pane. User options follow the same table ancestry. Server options have no
-parent. There is no inheritance from a session table to a window table.
+## Read many rows at once
 
-`tmux_option:get_many/3` reads one scalar key from one to seven local rows on
-the same registered endpoint. Results preserve input order, including `none`
-for absent values. The example checks session ownership and the window's
-independent local table together. Arrays, indexed entries, command options,
-global tables and names outside the batch API's ASCII grammar use `get/3`.
-
-Each batch uses one native command sequence plus the normal identity-preflight
-client, with native ID observations around every row's read. Aggregate stdout
-is limited to 1 MiB and stderr to 64 KiB, with a
-2500 ms command deadline. Command or decoding failures reject the entire
-batch. These are interval observations: a queued reference may outlive a
-removed window, and target checks do not establish atomic topology or stronger
-server-incarnation identity. See [ADR 0003](adr-0003-scoped-option-batches.md).
+- `tmux_option:get_many/3` reads one scalar key from one to seven local rows on
+  one registered endpoint. Results keep input order, with `none` for absent
+  values.
+- The program reads the session's ownership and the window's own local table
+  together.
+- Arrays, indexed entries, command options, global tables and names outside the
+  batch grammar use `get/3`.
+- A batch is one native command sequence plus the normal identity-preflight
+  client, with native ID observations around each row's read.
+- Output is capped at 1 MiB of stdout and 64 KiB of stderr, with a 2500 ms
+  deadline. A command or decoding failure rejects the whole batch.
+- These are interval observations. A queued reference can outlive a removed
+  window, and the target checks are not atomic. See
+  [ADR 0003](adr-0003-scoped-option-batches.md).
 
 ## Preserve absence and bytes
 
-`none` means the selected local option or requested array entry is absent.
-`{ok, <<>>}` means a known empty value. A whole array returns `{ok, Entries}`
-with numeric indexes as map keys; an empty local array returns `{ok, #{}}`.
-An unloaded graph field is unrelated to these live reads.
-
-Set array entries with `{Name, Index}`. The API deliberately avoids whole-array
-assignment and its separator grammar. `unset/2` removes an entry or local option;
-removing a local option restores inheritance. Unsetting a global built-in resets
-its tmux default. Non-numeric array keys are outside this API; an observed array
-with such keys fails decoding instead of silently dropping entries.
-
-Values are NUL-free binaries, including arbitrary bytes. Names are literal;
-`#{...}` in a user-option name does not expand. Prefixes, aliases and bracket
-syntax in names are rejected. A scalar value is passed without `-F`, although
-tmux may interpret a stored format or executable option later. Use this API
-only with trusted option names and values; it is not an external write policy.
-
-`append` uses tmux's `-a` behavior for the selected type. `only_if_unset` uses
-`-o` and reports already-set as an error. Empty flag values retain tmux's toggle
-behavior; use explicit `<<"on">>` or `<<"off">>` when state must be predictable.
-Mutations are not retried after a timeout or unknown outcome.
+- `none` means the selected local option or array entry is absent.
+  `{ok, <<>>}` means a known empty value.
+- A whole array returns `{ok, Entries}` with numeric indexes as keys. An empty
+  local array returns `{ok, #{}}`.
+- Set an entry with `{Name, Index}`. There is no whole-array assignment.
+- `unset/2` removes an entry or local option. Removing a local option restores
+  inheritance. Unsetting a global built-in resets its tmux default.
+- Non-numeric array keys are outside this API. An observed array with such keys
+  fails decoding instead of dropping entries.
+- Values are NUL-free binaries and may hold any other byte.
+- Names are literal. `#{...}` in a user-option name does not expand. Prefixes,
+  aliases and bracket syntax are rejected.
+- A scalar value goes out without `-F`, but tmux may later interpret a stored
+  format or command option. Use this API only with trusted names and values.
+- `append` uses tmux's `-a` for the option's type. `only_if_unset` uses `-o`
+  and reports an already-set option as an error.
+- An empty flag value keeps tmux's toggle behavior. Use `<<"on">>` or
+  `<<"off">>` when the state must be predictable.
+- A mutation is not retried after a timeout or unknown outcome.
 
 ## Discover version support
 
-The [generated catalogue](options-reference.md) lists canonical names, scopes,
-parser types, arrays and hooks from pinned release commits.
-`tmux_option:describe/2` and `catalogue/1` read that metadata without I/O.
-Built-ins have exact source catalogues for every release from 3.3a through
-3.8, including intermediate patch releases. Tracking builds and unknown
-versions return `unsupported_option_catalogue`; unavailable built-ins return
-`unsupported_tmux_option`. User options do not depend on a built-in catalogue.
-
-Hooks are executable commands and are rejected by this API, including hook
-names discovered in the catalogue. Use `tmux_hook:get/3` to read hooks and
-`tmux_hook:set/3` for registration; the [hook guide](hooks.md) covers their
-scope, execution and cleanup.
-Raw commands are also available for deliberate newer-version integration.
-A missing target remains an operational error, never a missing option.
+- The [generated catalogue](options-reference.md) lists canonical names, scopes,
+  parser types, arrays and hooks from pinned release commits.
+- `tmux_option:describe/2` and `catalogue/1` read it without I/O.
+- Built-ins have exact catalogues for every release from 3.3a through 3.8,
+  including patch releases. A tracking build or unknown version returns
+  `unsupported_option_catalogue`. An unavailable built-in returns
+  `unsupported_tmux_option`. User options need no catalogue.
+- This API rejects hooks, including names found in the catalogue. Use
+  `tmux_hook:get/3` and `tmux_hook:set/3`; the [hook guide](hooks.md) covers
+  scope, execution and cleanup.
+- Raw commands remain available for deliberate newer-version work.
+- A missing target is an operational error, never a missing option.

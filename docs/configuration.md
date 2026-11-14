@@ -1,10 +1,14 @@
 # Apply configuration and await its completion signal
 
-Submit a wait without blocking the Erlang caller, then load configuration that
-sets an owned session option and signals the channel. The signal works whether
-the waiter arrives before or after it. The program verifies the stored value
-and checks that parse-only loading leaves it unchanged. The runner owns the
-daemon and verifies session and process cleanup. Compile the project first:
+Submit a wait without blocking the caller, then load configuration that sets
+an owned session option and signals the channel.
+
+- The signal works whether the waiter arrives before or after it.
+- The program checks the stored value, then checks that parse-only loading
+  leaves it unchanged.
+- The runner supplies the daemon.
+
+Compile the project first:
 
 ```console
 $ mise exec -- rebar3 compile
@@ -76,57 +80,63 @@ run(Socket, Executable) ->
 }
 ```
 
-The archive check repeats this program using the installed core package.
 [Jobs and operations](jobs.md) covers operation ownership, cancellation and
 application-level completion events.
 
-## Choose input and execution separately
+## Render configuration
 
-`tmux_command:to_config/1` renders one validated command value or a nonempty
-flat list as native configuration text. Lists contain at most 256 commands and
-share the 32 KiB rendered limit, including native separators. Rendering a list
-does not provide atomic execution or rollback. Argument quoting preserves
-literal bytes through the lexer, including variables, semicolons, newline
-indentation and non-UTF-8 byte values. It returns ASCII text without
-performing I/O. Escaping growth is bounded by a 32 KiB rendered limit. This
-covers one lexer pass; native commands that accept command strings can parse
-those strings again. Render each inner command separately for its own
-boundary. Native commands still interpret their arguments and formats
-normally; this renderer does not quote shell code.
+- `tmux_command:to_config/1` renders one validated command, or a nonempty flat
+  list, as native configuration text. It does no I/O.
+- A list holds at most 256 commands and shares the 32 KiB rendered limit,
+  including native separators. Rendering a list gives no atomic execution or
+  rollback.
+- Quoting keeps literal bytes through the lexer: variables, semicolons,
+  newline indentation and non-UTF-8 bytes. The result is ASCII text.
+- That covers one lexer pass. Native commands that take command strings can
+  parse those strings again, so render each inner command separately for its
+  own boundary.
+- Native commands still interpret their arguments and formats. The renderer
+  does not quote shell code.
 
-`tmux_command:source_file/2` builds a command value without I/O. The source is
-`stdin` or one absolute POSIX byte path. Path glob characters and backslashes
-are quoted for tmux's glob parser; hash formats are not expanded. The builder
-never opens the file. Reading and parsing occur when the command executes.
-The file's size is not bounded by the command builder.
+## Source a file or stdin
 
-For stdin, pass bytes through the execution options of
-`tmux_server:command/3` or `tmux_operation:start/3`. The transport bounds stdin
-and rendered arguments together to 256 KiB. `parse_only` requests native
-`-n`: parse the input without executing its command list. `quiet` requests
-native missing-file suppression; syntax and execution errors remain errors.
-Both options default to false.
+- `tmux_command:source_file/2` builds a command value without I/O. The source
+  is `stdin` or one absolute POSIX byte path.
+- Glob characters and backslashes in a path are quoted for tmux's glob parser.
+  Hash formats are not expanded.
+- The builder never opens the file. Reading and parsing happen when the command
+  runs, and the file size is not bounded by the builder.
+- For stdin, pass bytes in the execution options of `tmux_server:command/3` or
+  `tmux_operation:start/3`. The transport bounds stdin and rendered arguments
+  together to 256 KiB.
+- `parse_only` requests native `-n`: parse without executing. `quiet` requests
+  native missing-file suppression. Syntax and execution errors stay errors.
+  Both default to false.
 
 Configuration is trusted tmux code, with native directives and variable
-expansion. Parse-only is not a sandbox. Execution can change state before
-reporting an error, and cancellation cannot roll back those effects. A
-successful source command does not establish that background work launched
-by that configuration has finished. Check its actual completion event.
+expansion.
 
-## Coordinate channels explicitly
+- Parse-only is not a sandbox.
+- Execution can change state before it reports an error. Cancellation cannot
+  roll that back.
+- A successful source command does not mean background work it launched has
+  finished. Check that work's own completion event.
 
-`tmux_command:wait_for/2` accepts a binary channel name and one action: `wait`,
-`signal`, `lock` or `unlock`. Submit its result through the same execution
-APIs. Native channel names are server-wide; use a name unique to the operation
-when other clients share the server.
+## Coordinate channels
 
-A signal wakes current waiters. On an unlocked channel with no waiters or
-pending wakeup, it retains one wakeup for a later wait. Signaling again before
-a wait can clear that pending state. Send once per expected wait; repeated
-signals are neither counted nor reliably coalesced. Use separate names for
-signaling and locking. `lock` and `unlock` expose native advisory channel
-locks. A lock remains held after the acquiring command
-client exits, until an explicit unlock. They are not library-owned leases.
-Cancelling a command does not undo a signal or release a possibly acquired
-lock. An uncertain lock outcome requires application coordination before
-unlocking; blindly unlocking can release another client's lock.
+- `tmux_command:wait_for/2` takes a binary channel name and one action: `wait`,
+  `signal`, `lock` or `unlock`. Submit the result through the same execution
+  APIs.
+- Channel names are server-wide. Use a name unique to the operation when other
+  clients share the server.
+- A signal wakes current waiters. On an unlocked channel with no waiters or
+  pending wakeup, it keeps one wakeup for a later wait. Signalling again before
+  a wait can clear that state.
+- Send one signal per expected wait. Repeated signals are not counted or
+  reliably coalesced. Use separate names for signalling and locking.
+- `lock` and `unlock` are native advisory locks, not library-owned leases. A
+  lock stays held after the acquiring client exits, until an explicit unlock.
+- Cancelling a command does not undo a signal or release a lock it may have
+  taken.
+- After an uncertain lock outcome, coordinate in your application before you
+  unlock. A blind unlock can release another client's lock.

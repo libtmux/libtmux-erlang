@@ -1,9 +1,8 @@
 # Install application keybindings
 
-Use a separate key table when an application needs its own bindings. This
-program binds `z` to zoom and show a status message, and `s` to show the
-workspace name. It reads the native listing and removes its table. It does not
-attach a client or press a key.
+Use a separate key table for application bindings. This program binds `z` to
+zoom with a status message and `s` to show the workspace name, reads the native
+listing and removes its table. It attaches no client and presses no key.
 
 From the checkout, after [building the core](installation.md), run:
 
@@ -57,55 +56,44 @@ run(Socket, Executable) ->
 }
 ```
 
-The runner owns an isolated server. The program uses the public core API, and
-the installed-archive check repeats it outside the source checkout. Common
-Test separately drives a real terminal client's key input, verifies the bound
-command's bytes and acknowledgement, and proves client retirement on success,
-failure and cancellation.
+## Register a binding
 
-## Registration and execution are separate
+- `tmux_key:bind/3` registers in the native prefix table.
+- `tmux_key:bind/4` takes an explicit `table`, a Boolean `repeat` and a byte
+  `note`.
+- A body is one command or a flat nonempty list, within the limits of
+  `tmux_command:to_config/1`: 256 commands and 32 KiB of rendered text.
+- tmux parses the body before it replaces an existing binding. Replacement
+  resets the old commands, repeat flag and note.
+- Tables belong to the server. Creating one selects it for no client. Choose a
+  session's default with the `key-table` option in [`tmux_option`](options.md).
+  Native prefix, repeat and table-switching rules still apply.
+- Registration quotes arguments for the stored command parser. A command can
+  still expand formats when a client runs it: the program's `#{session_name}`
+  expands then. See [configuration](configuration.md) before you store nested
+  command strings or shell commands.
+- An accepted registration does not prove future execution. When you need proof,
+  arrange a completion signal as in the [hook example](hooks.md).
 
-`tmux_key:bind/3` registers in the native prefix table.
-`tmux_key:bind/4` accepts an explicit `table`, Boolean `repeat` and byte `note`.
-It accepts one command or a flat nonempty command list, with the bounds of
-`tmux_command:to_config/1`: at most 256 commands and 32 KiB of rendered text.
-tmux parses the body before replacing an existing binding. Replacement resets
-the previous commands, repeat flag and note.
+## Read listings and remove bindings
 
-Tables belong to the server. Creating one does not select it for any client.
-Choose a session's default through the `key-table` option in
-[`tmux_option`](options.md); native prefix, repeat and client table-switching
-rules still apply. The example leaves client selection to the application.
-
-Registration quotes arguments for the stored command parser. A command can
-still interpret formats when a client executes it: the example's
-`#{session_name}` is evaluated then. See
-[configuration boundaries](configuration.md) before storing nested command
-strings or explicit shell commands. An accepted registration does not prove
-future execution; arrange a completion signal when an application needs one,
-as in the [hook example](hooks.md).
-
-## Read listings and remove owned bindings
-
-`tmux_key:listing/1` and `tmux_key:listing/2` return native bytes unchanged.
-Options can restrict `table` and `key`. Spacing, quoting and included metadata
-follow the daemon release. This is a presentation view: retain original command
-values for reinstalling bindings. tmux 3.4 may escape dollar signs in this
-view. On tmux 3.7c, a single matching entry can go to the native status-message
-path and produce empty stdout when no target client is attached. Empty output
-does not prove a binding is absent. The example lists multiple bindings to
-avoid that path. The tmux 3.3 baseline has no custom listing format option.
-Explicit newer-server options remain available through
-`tmux_command:raw/2`.
-
-`tmux_key:unbind/2` and `tmux_key:unbind/3` remove one binding; an absent key in
-an existing table is a native no-op. Removing the final custom binding may
-remove its table.
-Missing explicitly named tables and invalid native key names remain errors.
-`tmux_key:clear_table/2` requires an explicit name and removes the entire
-table. It can affect attached clients and does not restore default bindings
-or cancel commands already queued by a client.
-
-Calls use the registered endpoint identity and preserve backend diagnostics.
-They do not start a missing server or retry uncertain mutations. The native
-[`tmux_key` API browser](api.md) documents input bounds, results and errors.
+- `tmux_key:listing/1` and `listing/2` return native bytes unchanged. Options
+  can restrict `table` and `key`.
+- The layout follows the daemon release. It is a display view: keep the
+  original command values to reinstall bindings.
+- tmux 3.4 may escape dollar signs in this view.
+- On tmux 3.7c, one matching entry can take the native status-message path and
+  give empty stdout when no client is attached. Empty output does not prove a
+  binding is absent. The program lists several bindings to avoid that path.
+- tmux 3.3 has no custom listing format option. Newer-server options stay
+  available through `tmux_command:raw/2`.
+- `tmux_key:unbind/2` and `unbind/3` remove one binding. An absent key in an
+  existing table is a native no-op. Removing the last custom binding can remove
+  its table.
+- A missing named table and an invalid key name stay errors.
+- `tmux_key:clear_table/2` needs an explicit name and removes the whole table.
+  It can affect attached clients. It does not restore default bindings or
+  cancel commands a client already queued.
+- Calls use the registered endpoint identity and keep backend diagnostics. They
+  never start a missing server or retry an uncertain mutation.
+- The [API browser](api.md) documents input bounds, results and errors.

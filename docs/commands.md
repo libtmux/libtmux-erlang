@@ -1,13 +1,12 @@
 # Build commands before running them
 
-Prepare a literal session rename and a pane resize, then submit the values
-explicitly. Building validates their captured target and arguments without
-contacting tmux. Execution checks the endpoint origin and returns the native
-one-shot result. The resize uses an operation handle so waiting is explicit.
+Prepare a session rename and a pane resize, then submit them explicitly.
+Building validates the captured target and arguments without contacting tmux.
+Execution checks the endpoint origin and returns the native one-shot result.
 
-This complete program checks the name before execution, awaits the resize,
-reads fresh dimensions and verifies that earlier rows keep their values. The
-runner owns the private fixture and verifies cleanup:
+The program checks the name before execution, awaits the resize through an
+operation handle, reads fresh dimensions and verifies that earlier rows keep
+their values. The runner supplies the private server:
 
 ```console
 $ mise exec -- escript tools/run_examples.escript commands
@@ -83,23 +82,27 @@ run(Socket, Executable) ->
 }
 ```
 
-The archive check runs this program through the installed public package.
-`tmux_session:rename/2` and `tmux_pane:resize/2` perform their operations
-immediately; their command builders return reusable values. Reusing a value
-requires explicit intent each time. An uncertain mutation result must not
-trigger an automatic retry.
+- `tmux_session:rename/2` and `tmux_pane:resize/2` act at once. Their
+  `_command` builders return reusable values.
+- Reusing a value needs explicit intent each time.
+- Never retry an uncertain mutation automatically.
 
-A command keeps the originating row's endpoint token. Submitting it through
-another endpoint returns `different_owner` with `submitted = false`, even if
-both servers happen to use the same pane or session ID. Building alone does
-not establish endpoint liveness. The example rejects a second endpoint handle
-to the same daemon too. To act through another endpoint, bind the row there
-and build a new command. Bind detached rows with
-`tmux_server:bind/2` before building their commands.
+## Keep the endpoint
 
-`tmux_command:to_config/1` renders command syntax without
-executing it. Serialized configuration carries no origin token; the caller
-must choose and validate that destination explicitly. See
-[jobs and operations](jobs.md) for wait timeouts, ownership and cancellation,
-the [configuration guide](configuration.md) for rendering, and
-[current support](compatibility.md) for transport qualification.
+- A command keeps its row's endpoint token. Submitting it through another
+  endpoint returns `different_owner` with `submitted = false`, even when both
+  endpoints use the same pane or session ID. The program checks this with a
+  second handle to the same daemon.
+- To act through another endpoint, bind the row there and build a new command.
+  Bind a detached row with `tmux_server:bind/2` first.
+- Building does not check that the endpoint is alive.
+
+## Render without running
+
+- `tmux_command:to_config/1` renders command syntax without executing it.
+- Rendered configuration carries no origin token. Choose and validate the
+  destination yourself.
+
+See [jobs and operations](jobs.md) for wait timeouts, ownership and
+cancellation, the [configuration guide](configuration.md) for rendering, and
+[current support](compatibility.md) for transport limits.

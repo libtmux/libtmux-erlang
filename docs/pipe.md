@@ -1,9 +1,8 @@
 # Save a job's output and verify the consumer received it
 
 This program opens a pane pipe before releasing the producer. A shell consumer
-reads the expected bytes into a log and signals completion only after that
-write succeeds. The Erlang caller verifies the file contents before stopping
-the pipe. It does not infer delivery from pipe creation or command completion.
+logs the expected bytes and signals after the write succeeds. The caller checks
+the file before stopping the pipe. It never infers delivery from the command.
 
 Compile the project:
 
@@ -11,7 +10,7 @@ Compile the project:
 $ mise exec -- rebar3 compile
 ```
 
-Run on an owned server. The runner verifies session and process cleanup:
+Run it on an owned server:
 
 ```console
 $ mise exec -- escript tools/run_examples.escript pipe
@@ -89,23 +88,23 @@ quote(Value) ->
 }
 ```
 
-The example uses Linux shell utilities `stty`, `/usr/bin/head` and `/bin/cat`.
-It disables newline translation on the producer's terminal, so the expected
-log contains LF bytes. The temporary log is removed after verification. The
-archive check repeats the program with the installed core package.
+- The program uses the Linux utilities `stty`, `/usr/bin/head` and `/bin/cat`.
+- It turns off newline translation on the producer's terminal, so the log holds
+  LF bytes.
+- It removes the temporary log after checking it.
 
-## Choose direction and replacement behavior
+## Choose direction and replacement
 
-`tmux_pane:pipe/3` requires an explicit shell-command map and a registered
-physical pane. It escapes hash and strftime directives before tmux expands
-that text. The shell still interprets the command; the example's `quote/1`
-handles values inserted into its shell code. This native operation takes shell
-code rather than executable argv.
-
-`tmux_command:literal_format/2` documents the encoding limits. Percent-bearing
-commands above tmux's 8191-byte intermediate time-format limit return
-`format_limit` before dispatch. That check preserves an existing pipe when a
-replacement cannot be represented safely.
+- `tmux_pane:pipe/3` takes an explicit shell-command map and a registered
+  physical pane. It escapes hash and strftime directives before tmux expands
+  the text.
+- The shell still interprets the command. The program's `quote/1` handles
+  values it inserts into shell code. This operation takes shell code, not
+  executable argv.
+- `tmux_command:literal_format/2` documents the encoding limits. A command with
+  percent signs above tmux's 8191-byte time-format limit returns
+  `format_limit` before dispatch, so an existing pipe survives a replacement
+  that cannot be represented.
 
 | Direction | Connection |
 | --- | --- |
@@ -113,28 +112,26 @@ replacement cannot be represented safely.
 | `input` | Child stdout to pane input |
 | `both` | Both connections |
 
-Terminal modes affect these bytes. This is neither rendered screen capture
-nor a replay of prior terminal history. It is not an Erlang subscription with
-library flow control. Child stderr is discarded; unused directions use tmux's
-native null-device routing. The API does not copy the pane's cwd or environment
-into the child process.
+- Terminal modes affect these bytes.
+- This is not rendered screen capture and not a replay of earlier history. It
+  is not an Erlang subscription with library flow control.
+- Child stderr is discarded. Unused directions go to the null device.
+- The API does not copy the pane's working directory or environment into the
+  child.
+- Starting a pipe normally replaces an existing one. `toggle => true` maps to
+  native `-o`: an open pipe closes without starting another, and a closed pipe
+  opens. It does not keep an open pipe.
 
-Starting a pipe normally replaces an existing one. `toggle => true` maps to
-native `-o`: an open pipe is closed without starting another, while a closed
-pipe is opened. It does not mean preserve an already open pipe.
+## Tell the pipe from its process
 
-## Distinguish the pipe from its process
+- A successful action proves command completion. It does not prove the shell
+  ran, the consumer was ready, bytes arrived or the process exited. The program
+  watches the consumer's own file write.
+- `tmux_pane:stop_pipe/1` closes the native connection and can discard pending
+  bytes. Wait for the consumer's acknowledgement first when delivery matters.
+- Closing does not kill or wait for a shell process. A consumer that does not
+  finish at EOF needs application-level coordination.
+- `tmux_server:close/1` leaves the borrowed pane and its tmux-owned pipe alone.
 
-A successful action proves command completion, not shell execution success,
-consumer readiness, delivered bytes or process exit. The example observes the
-consumer's actual file write. Native integration tests independently verify
-all 256 byte values in both directions, literal hash/percent shell text,
-replacement, toggle and process retirement.
-
-`tmux_pane:stop_pipe/1` closes the native connection and can discard pending
-bytes. Wait for the consumer's acknowledgement before closing when delivery
-matters. Closing does not kill or wait for an arbitrary shell process; a
-consumer that does not finish on EOF needs application-level coordination.
-`tmux_server:close/1` preserves the borrowed pane and its tmux-owned pipe.
-[Jobs and operations](jobs.md) covers library-owned command clients;
-[configuration and signals](configuration.md) explains native wait channels.
+See [jobs and operations](jobs.md) for library-owned command clients and
+[configuration and signals](configuration.md) for native wait channels.

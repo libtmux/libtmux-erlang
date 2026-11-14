@@ -1,10 +1,12 @@
 # Build and browse the native API
 
-Core contracts live in Erlang `-moduledoc`, `-doc` and specs.
-OTP's compiler stores EEP-48 documentation chunks; ExDoc renders searchable module,
-function and type pages. Source links open captured files with line anchors
-and content digests. An unchanged file also links to its exact Git commit;
-changed files are labelled as working-tree previews.
+Contracts live in Erlang `-moduledoc`, `-doc` and specs. ExDoc renders them
+from the compiler's EEP-48 chunks as searchable module, function and type
+pages.
+
+- Source links open captured files with line anchors and content digests.
+- An unchanged file also links to its exact Git commit. A changed file is
+  labelled a working-tree preview.
 
 Compile the project:
 
@@ -24,11 +26,12 @@ Build the browser without fetching dependencies:
 $ mise exec -- python3 tools/build_docs.py
 ```
 
-Open `_build/docs/core/index.html`. This is a local build, not a published
-HexDocs URL. The build refreshes compiled modules before rendering. The
-renderer treats warnings as failures and uses the OTP 29
-build of ExDoc. It consumes compiler chunks directly because the older EDoc
-source-extraction path rejects native-record attributes.
+Open `_build/docs/core/index.html`.
+
+- This is a local build, not a published HexDocs page.
+- The build refreshes compiled modules first, and warnings fail it.
+- It uses the OTP 29 build of ExDoc. It reads compiler chunks directly because
+  the older EDoc source path rejects native-record attributes.
 
 ## Read by task
 
@@ -55,31 +58,26 @@ source-extraction path rejects native-record attributes.
 | Explain local library exceptions in the shell | `m:tmux_error` |
 | Inspect observed process identities | `m:tmux_identity` |
 
-The [field reference](fields.md) is generated from the same registry and
-operator validator used by filtering. [Contributor checks](../.github/CONTRIBUTING.md)
-execute native shell examples and complete programs; compilation alone is
-not the example gate.
+- The [field reference](fields.md) is generated from the registry and operator
+  validator that filtering uses.
+- [Contributor checks](../.github/CONTRIBUTING.md) run the native shell
+  examples and the complete programs. Compiling is not the example gate.
 
 ## Types at application boundaries
 
-Entity constructors accept generated maps such as
-`t:tmux_model:pane_input/0`. Required fields and scalar categories are visible
-to Dialyzer. Optional observations retain `not_loaded` and `unavailable`;
-nullable fields also accept `none`. Numeric fields accept integral floats,
-which normalize to integers. Runtime validation checks bounds, ID syntax,
-UTF-8 and derived values. Use `tmux_model:new/2` when validating dynamic maps
-and handle its `t:tmux_schema:error_detail/0` result.
-
-`t:tmux_select:t/1` describes the intended row type. Dialyzer in OTP 29.1.2
-does not always substitute actual argument types into generic return
-variables. For example, a selection passed through `tmux_select:one/1` can
-lose its specific entity type during analysis. A successful analysis does
-not prove every pane/window relationship. Keep native patterns and runtime
-action validation at those boundaries. The
-[OTP contract solver](https://github.com/erlang/otp/blob/OTP-29.1.2/lib/dialyzer/src/dialyzer_contracts.erl#L477-L502)
-records this generic constraint limitation.
-
-The installed-consumer outer check executes valid constructor calls and
-requires Dialyzer to reject wrong Boolean/numeric fields and missing session
-identity or window-link index. It analyzes the installed core outside the
-umbrella; a green library analysis alone does not establish those diagnostics.
+- Entity constructors take generated maps such as `t:tmux_model:pane_input/0`.
+  Dialyzer sees the required fields and scalar categories.
+- Optional observations keep `not_loaded` and `unavailable`. Nullable fields
+  also accept `none`.
+- Numeric fields accept integral floats, which normalize to integers.
+- Runtime validation checks bounds, ID syntax, UTF-8 and derived values. Use
+  `tmux_model:new/2` for dynamic maps and handle its
+  `t:tmux_schema:error_detail/0` result.
+- `t:tmux_select:t/1` describes the intended row type. Dialyzer in OTP 29 does
+  not always substitute actual argument types into generic return variables. A
+  selection passed through `tmux_select:one/1` can lose its entity type.
+- A clean analysis does not prove every pane and window relationship. Keep
+  native patterns and runtime action validation at those boundaries.
+- The
+  [OTP contract solver](https://github.com/erlang/otp/blob/OTP-29.1.2/lib/dialyzer/src/dialyzer_contracts.erl#L477-L502)
+  records this generic constraint limitation.

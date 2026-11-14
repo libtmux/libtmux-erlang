@@ -1,12 +1,13 @@
 # Own a control attachment
 
 Attach to an existing session, verify identity on that persistent connection,
-inspect its attachment effects and close the client. This currently qualifies
-connection lifetime only. Commands still execute through the one-shot APIs;
-control submission and groups remain implementation work.
+inspect its attachment effects and close the client.
 
-The example owns its session. The runner provides a private tmux fixture and
-verifies final cleanup:
+- This covers the connection's lifetime only. Commands still run through the
+  one-shot APIs.
+- Control command submission and groups are not built.
+
+The program owns its session. The runner supplies a private tmux server:
 
 ```console
 $ mise exec -- escript tools/run_examples.escript control
@@ -74,42 +75,44 @@ run(Socket, Executable) ->
 }
 ```
 
-The archive check repeats this complete program through the installed core
-package. The initial session record keeps its captured count of zero; fresh
-reads observe one attachment and later detachment. ignore-size preserves the
-120-by-30 window. In this isolated fixture without mutating hooks, closing the
-client preserves the session and daemon.
+- The session record you captured first keeps its attached count of zero.
+  Fresh reads show one attachment, then none after detach.
+- `ignore-size` keeps the window at 120 by 30.
+- With no mutating hooks, closing the client leaves the session and daemon.
 
-An attachment requires a session captured or bound through the same endpoint.
-A second endpoint handle returns different_owner even for the same socket.
-The library uses attach-session with no-output, ignore-size and `-E`. It
-issues no session-creation or session-option write commands. `-E` skips the
-native attachment environment update. Configured attachment/detachment hooks
-can still change state, create or destroy resources. Native policies such as
-destroy-unattached can remove a session when its last client detaches. Failure
-and cleanup do not roll back those effects. Other clients may also change
-state concurrently. Close retires its client/helper without issuing session
-or daemon destruction commands.
-Attachment changes attached_count. On tmux 3.6 and newer it also uses
-no-detach-on-destroy; earlier versions retain native destruction behavior.
+## What attaching does
 
-The caller owns the control lifetime. Caller death, parent closing or parent
-invalidation requests retirement. Close the control handle before closing
-its parent endpoint when cleanup proof matters. Parent close proves its
-one-shot clients' cleanup; it does not wait for separate control clients.
+- The session must be captured or bound through the same endpoint. A second
+  handle to the same socket returns `different_owner`.
+- The library runs `attach-session` with no-output, ignore-size and `-E`. It
+  issues no session-creation or session-option writes.
+- `-E` skips the native environment update. Attaching changes `attached_count`.
+- On tmux 3.6 and newer it also uses no-detach-on-destroy. Earlier versions
+  keep native destruction behavior.
+- Configured attach or detach hooks can still change state, create or destroy
+  resources. A destroy-unattached policy can remove the session when its last
+  client detaches. Failure and cleanup do not roll these effects back.
+- Other clients can change state at the same time.
 
-`tmux_control:close/1` returns ok only after native client/helper retirement.
-cleanup_incomplete preserves a supervised owner: retain the handle and retry
-close after repairing the cleanup problem. status distinguishes closing from
-closed and reports cleanup explicitly. Successfully closed handles remain
-usable for status and idempotent close for 60 seconds. Application shutdown
-alone does not prove cleanup.
+## Lifetime and cleanup
 
-Unexpected hook output or reply blocks reject attachment and retire the client.
-The library does not disable borrowed hooks. Bounded startup includes parent
-registration, native exec and the identity probe. An incomplete error carries
-its control handle for explicit cleanup recovery.
+- The caller owns the control lifetime. Caller death, closing the parent or
+  invalidating it requests retirement.
+- Close the control handle before its parent endpoint when cleanup proof
+  matters. Closing the parent proves its one-shot clients' cleanup. It does not
+  wait for control clients.
+- `tmux_control:close/1` returns `ok` only after the native client and helper
+  retire. Close issues no session or daemon destruction commands.
+- On `cleanup_incomplete`, a supervised owner stays. Keep the handle, fix the
+  problem and retry `close/1`.
+- `status/1` tells `closing` from `closed` and reports cleanup. A closed handle
+  answers `status/1` and a repeated `close/1` for 60 seconds.
+- Stopping the application alone does not prove cleanup.
+- Unexpected hook output or reply blocks reject the attachment and retire the
+  client. The library does not disable borrowed hooks.
+- Startup is bounded across parent registration, native exec and the identity
+  probe. An incomplete error carries the control handle for recovery.
 
 See [daemon ownership](ownership.md) for private versus borrowed lifetimes,
-[jobs](jobs.md) for one-shot operation waits and cancellation, and
-[support and gaps](compatibility.md) for matrix and delivery evidence.
+[jobs](jobs.md) for one-shot waits and cancellation, and
+[support and gaps](compatibility.md) for what is exercised.
