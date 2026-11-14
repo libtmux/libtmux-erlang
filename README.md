@@ -531,7 +531,8 @@ socket.
 - **Status:** early. Any release may change the API.
 - **Platform:** Linux, including WSL. macOS and native Windows are not
   advertised.
-- **tmux:** 3.3a or newer.
+- **tmux:** 3.3a or newer. A release newer than the tested ones returns
+  `unsupported_option_catalogue` for built-in options and hooks.
 - **Erlang/OTP:** 29 only. The application refuses to start on another release.
   Rows are native records, which OTP 29 marks experimental.
 - **Dependencies:** OTP only. The helper is an external program, not a NIF.

@@ -121,7 +121,9 @@ It returns a map with the `sessions`, `windows` and `panes` counts.
 ## Support and status
 
 - **Status:** early. Any release may change the API; pin an exact version.
-- **Platform:** Linux, including WSL. tmux 3.3a or newer. Erlang/OTP 29 only.
+- **Platform:** Linux, including WSL. Erlang/OTP 29 only.
+- **tmux:** 3.3a or newer. A release newer than the tested ones returns
+  `unsupported_option_catalogue` for built-in options and hooks.
 - **Dependencies:** OTP only. The helper is an external program, not a NIF.
 - **Stored results:** a selection keeps its captured graph. Convert to plain
   rows to store only the data.
