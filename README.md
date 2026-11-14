@@ -161,6 +161,67 @@ It returns:
 
 More: [Daemon ownership](docs/ownership.md).
 
+### [`tmux_pane:send_text/2`][api-send-text] and [`tmux_pane:capture/2`][api-capture]: type into a pane and read it back
+
+[`tmux_pane:send_keys/2`][api-send-keys] sends named keys such as Enter. A send
+returns before the program reads it, so the shell signals a tmux channel and
+the program awaits that signal before it captures:
+
+```console
+$ mise exec -- escript tools/run_examples.escript typing
+```
+
+<!-- example: examples/typing_demo.erl -->
+
+```erlang
+-module(typing_demo).
+-moduledoc "Type a command into a shell pane, wait for it, read the screen.".
+-export([run/1]).
+
+-spec run(binary()) -> map().
+run(Executable) ->
+    {ok, Result} = tmux_server:with_owned(#{executable => Executable},
+        fun(Server) ->
+            Shell = #{argv => [<<"/bin/sh">>]},
+            {ok, _} = tmux_session:create(Server, #{name => <<"typing">>,
+                width => 120, height => 30, launch => Shell}),
+            {ok, Snapshot} = tmux_server:snapshot(Server),
+            [Pane] = tmux_snapshot:panes(Snapshot),
+            % The shell signals a tmux channel once it has printed.
+            {ok, Wait} = tmux_command:wait_for(<<"typed">>, wait),
+            {ok, Operation} = tmux_operation:start(Server, Wait, #{}),
+            Signal = <<"'", Executable/binary, "' wait-for -S typed">>,
+            Line = <<"echo hello; ", Signal/binary>>,
+            {ok, _} = tmux_pane:send_text(Pane, Line),
+            {ok, _} = tmux_pane:send_keys(Pane, [enter]),
+            {ok, _} = tmux_operation:await(Operation, 2000),
+            {ok, Screen} = tmux_pane:capture(Pane, #{}),
+            Rows = binary:split(Screen, <<"\n">>, [global]),
+            true = lists:member(<<"hello">>, Rows),
+            #{typed => <<"echo hello">>, screen_row => <<"hello">>}
+        end),
+    Result.
+```
+
+It returns:
+
+<!-- example-output: typing_demo -->
+
+```json
+{
+  "typed": "echo hello",
+  "screen_row": "hello"
+}
+```
+
+- [`tmux_pane:kill/1`][api-kill-pane], [`tmux_window:kill/1`][api-kill-window]
+  and [`tmux_session:kill/1`][api-kill-session] remove one target.
+- [`tmux_option:set/3`][api-option-set] and [`tmux_option:get/3`][api-option-get]
+  write and read options; [`tmux_hook:set/3`][api-hook-set] and
+  [`tmux_hook:get/3`][api-hook-get] do the same for hooks.
+
+More: [Wait for a terminal job, then capture its output](docs/jobs.md).
+
 ## Find and filter
 
 ### [`tmux_snapshot:related/3`][api-related]: follow shared windows
@@ -586,3 +647,13 @@ $ time python3 tools/check.py outer
 [api-sequence]: https://libtmux.org/en/erlang/latest/reference/tmux_command-sequence-1/
 [api-get-many]: https://libtmux.org/en/erlang/latest/reference/tmux_option-get_many-3/
 [api-attach]: https://libtmux.org/en/erlang/latest/reference/tmux_control-attach-3/
+[api-send-text]: https://libtmux.org/en/erlang/latest/reference/tmux_pane-send_text-2/
+[api-send-keys]: https://libtmux.org/en/erlang/latest/reference/tmux_pane-send_keys-2/
+[api-capture]: https://libtmux.org/en/erlang/latest/reference/tmux_pane-capture-2/
+[api-kill-pane]: https://libtmux.org/en/erlang/latest/reference/tmux_pane-kill-1/
+[api-kill-window]: https://libtmux.org/en/erlang/latest/reference/tmux_window-kill-1/
+[api-kill-session]: https://libtmux.org/en/erlang/latest/reference/tmux_session-kill-1/
+[api-option-set]: https://libtmux.org/en/erlang/latest/reference/tmux_option-set-3/
+[api-option-get]: https://libtmux.org/en/erlang/latest/reference/tmux_option-get-3/
+[api-hook-set]: https://libtmux.org/en/erlang/latest/reference/tmux_hook-set-3/
+[api-hook-get]: https://libtmux.org/en/erlang/latest/reference/tmux_hook-get-3/
