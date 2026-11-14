@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Link the live Erlang guides and API reference from both READMEs and Hex
+  package metadata, alongside the executed reader examples.
+
 - Prepare the 0.0.1 core candidate and tag-based Hex publication, with
   native source qualification, executable docs and OIDC after bootstrap.
 

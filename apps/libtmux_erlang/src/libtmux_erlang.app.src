@@ -1,8 +1,11 @@
 {application, libtmux_erlang, [
-    {description, "Native Erlang values and explicit tmux operations"},
+    {description, "Erlang tmux client library with native values and explicit operations"},
     {vsn, "0.0.1"},
     {licenses, ["MIT"]},
-    {links, #{"GitHub" => "https://github.com/libtmux/libtmux-erlang"}},
+    {links, #{"GitHub" => "https://github.com/libtmux/libtmux-erlang",
+              "Documentation" => "https://libtmux.org/en/erlang/",
+              "API reference" => "https://libtmux.org/en/erlang/latest/reference/",
+              "Examples" => "https://github.com/libtmux/libtmux-erlang/tree/master/examples"}},
     {files, ["src", "c_src", "rebar.config", "LICENSE", "CHANGELOG.md",
              "README.md", "assets"]},
     {registered, [tmux_sup]},

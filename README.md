@@ -11,13 +11,25 @@
 
 # libtmux for Erlang
 
+<p>
+  <a href="https://libtmux.org/en/erlang/">Documentation</a> ·
+  <a href="https://libtmux.org/en/erlang/latest/reference/">API reference</a> ·
+  <a href="https://github.com/libtmux/libtmux-erlang/tree/master/examples">Examples</a>
+</p>
+
+[![Erlang checks](https://github.com/libtmux/libtmux-erlang/actions/workflows/ci.yml/badge.svg)](https://github.com/libtmux/libtmux-erlang/actions/workflows/ci.yml)
+
 </div>
 
-libtmux for Erlang is a tmux client library. Create sessions, windows and panes,
-capture their object graph, filter it as immutable data, and execute source
-queries and owned operations explicitly.
+libtmux for Erlang is a tmux client library. Create
+[sessions](https://libtmux.org/en/erlang/latest/reference/tmux_session/),
+[windows](https://libtmux.org/en/erlang/latest/reference/tmux_window/) and
+[panes](https://libtmux.org/en/erlang/latest/reference/tmux_pane/), capture their
+[object graph](https://libtmux.org/en/erlang/latest/reference/tmux_snapshot/),
+filter it as immutable data, and execute source queries and owned operations
+explicitly.
 
-[Documentation](https://libtmux.org/en/erlang/latest/) ·
+[Create, capture and query](#create-capture-and-query) ·
 [Core package](apps/libtmux_erlang/README.md) ·
 [Changelog](CHANGELOG.md)
 
@@ -63,6 +75,15 @@ assertions, and retires the owned server and clients. It leaves your existing
 tmux sessions alone. It uses only public core APIs and OTP runtime libraries;
 the archive check also runs it outside this checkout.
 Save it as `readme_demo.erl` when reusing it in an application.
+
+[`tmux_server`](https://libtmux.org/en/erlang/latest/reference/tmux_server/)
+owns the connection and scoped server lifetime.
+[`tmux_snapshot`](https://libtmux.org/en/erlang/latest/reference/tmux_snapshot/)
+holds captured rows;
+[`tmux_select`](https://libtmux.org/en/erlang/latest/reference/tmux_select/)
+filters those rows locally. A
+[`tmux_query`](https://libtmux.org/en/erlang/latest/reference/tmux_query/)
+executes a new observation when fetched.
 
 <!-- example: examples/readme_demo.erl -->
 

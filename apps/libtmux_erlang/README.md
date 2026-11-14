@@ -11,13 +11,20 @@
 
 # libtmux for Erlang
 
+<p>
+  <a href="https://libtmux.org/en/erlang/">Documentation</a> ·
+  <a href="https://libtmux.org/en/erlang/latest/reference/">API reference</a> ·
+  <a href="https://github.com/libtmux/libtmux-erlang/tree/master/examples">Examples</a>
+</p>
+
 </div>
 
 `libtmux_erlang` is an Erlang tmux client library. Create sessions, windows and
 panes, capture their relationships, and filter the captured values locally.
 Source queries and mutations execute explicitly through owned operations.
 
-[API reference](https://libtmux.org/en/erlang/latest/reference/) ·
+[Inspect a captured graph](#inspect-a-captured-graph) ·
+[Server API](https://libtmux.org/en/erlang/latest/reference/tmux_server/) ·
 [Changelog](CHANGELOG.md)
 
 ## Add the core application
@@ -83,6 +90,11 @@ $ mise exec -- escript tools/run_examples.escript inspect
 
 The runner checks its result and retires its server and clients. The installed
 consumer check repeats the same program outside the umbrella.
+
+The [server API](https://libtmux.org/en/erlang/latest/reference/tmux_server/)
+documents endpoint ownership and observation. The
+[snapshot API](https://libtmux.org/en/erlang/latest/reference/tmux_snapshot/)
+documents physical rows, session memberships and relationship coverage.
 
 ## Create, query and act
 
