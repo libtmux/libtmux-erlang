@@ -31,6 +31,122 @@ escaping still applies to raw command output.
 Use `snapshot/1` to capture a graph for `m:tmux_snapshot` and
 `m:tmux_select`. Use `m:tmux_operation` for non-blocking submission and
 explicit waits; the [job guide](jobs.md) explains ownership and cleanup.
+
+## What is on here
+
+This module holds the endpoint handle that tasks on a tmux server start from.
+Most of those tasks are calls in sibling modules, so each group below lists its
+calls wherever they live.
+
+**Connecting.** `open/1` binds a handle to a daemon that is already running,
+named by an absolute socket path, and never starts one. `start_owned/1` starts
+an empty private daemon and returns a separate `t:ownership/0` token with the
+handle. `status/1`, `version/1` and `origin/1` read the handle's own state
+without contacting tmux. `tmux_control:attach/3` attaches a control client to
+one captured session; it does not yet submit commands or stream output.
+
+`open/1`, `start_owned/1`, `status/1`, `version/1`, `origin/1`,
+`tmux_control:attach/3`, `t:t/0`, `t:open_options/0`, `t:owned_options/0` and
+`t:state/0`
+
+**Closing and scopes.** `close/1` retires a handle's queued work and one-shot
+clients and leaves a borrowed daemon running; `stop_owned/1` stops an owned
+daemon and returns ok only once its cleanup is proved. `with_server/2` and
+`with_owned/2` run a callback between opening and closing a borrowed endpoint,
+or between starting and stopping an owned one. A failed cleanup there returns
+`t:scope_failure/0` with the handles needed to retry. `tmux_scope:run/2` pairs
+work with cleanup for any other resource, and control attachments close with
+`tmux_control:close/1` before the endpoint does.
+
+`close/1`, `stop_owned/1`, `with_server/2`, `with_owned/2`,
+`t:ownership/0`, `t:scope_failure/0`, `tmux_scope:run/2` and
+`tmux_control:close/1`
+
+**Listing everything.** `snapshot/1` captures sessions, physical windows,
+window links and panes as one immutable graph, and `snapshot/2` adds capture
+bounds and a `t:hydration/0` strategy. The capture spans several tmux commands
+and is not atomic: it reports the disagreements it detects as
+`inconsistent_capture`. Reading the snapshot afterwards performs no I/O.
+
+- Capture: `snapshot/1`, `snapshot/2`, `t:capture_options/0`, `t:hydration/0`
+  and `t:tmux_snapshot:t/0`
+- Read: `tmux_snapshot:sessions/1`, `tmux_snapshot:windows/1`,
+  `tmux_snapshot:window_links/1`, `tmux_snapshot:panes/1`,
+  `tmux_snapshot:related/3`, `tmux_snapshot:metadata/1` and
+  `tmux_snapshot:coverage/1`
+
+**Querying and finding.** `tmux_query:panes/1` and its siblings describe a read
+of this endpoint without performing it. `tmux_query:where/2` narrows the read,
+`tmux_query:explain/1` shows its plan without contacting tmux and
+`tmux_query:fetch/1` runs it. On a snapshot already in hand,
+`tmux_select:where/2` narrows a selection in memory and `tmux_select:one/1`
+returns the sole row or reports no match or several as errors. `bind/2` re-reads
+a row's fields from this server and registers the fresh value, which is how a
+detached row built with `m:tmux_model` becomes actionable.
+
+- Query: `tmux_query:panes/1`, `tmux_query:windows/1`,
+  `tmux_query:window_links/1`, `tmux_query:sessions/1`, `tmux_query:where/2`,
+  `tmux_query:limit/2`, `tmux_query:pushdown/2`, `tmux_query:explain/1`,
+  `tmux_query:fetch/1` and `tmux_query:fetch/2`
+- Select: `tmux_select:panes/1`, `tmux_select:windows/1`,
+  `tmux_select:window_links/1`, `tmux_select:sessions/1`,
+  `tmux_select:where/2`, `tmux_select:filter/2`, `tmux_select:one/1`,
+  `tmux_select:one_or_none/1`, `tmux_select:first/1`, `tmux_select:exists/1`
+  and `tmux_select:count/1`
+- Bind: `bind/2`
+
+**Changing things.** `tmux_session:create/2` creates a session on this
+endpoint, detached by default, and returns its row. `tmux_window:create/2` adds
+a window to a session row and `tmux_pane:split/2` splits a pane or window row.
+`tmux_session:select/3` switches one explicitly named attached client to a
+session. Renaming, killing, resizing, sending input and rearranging act on rows
+through the session, window, pane and window-link modules.
+
+`tmux_session:create/2`, `tmux_window:create/2`, `tmux_pane:split/2`,
+`tmux_session:select/2`, `tmux_session:select/3`, `m:tmux_session`,
+`m:tmux_window`, `m:tmux_pane` and `m:tmux_window_link`
+
+**Options and hooks.** `tmux_option:get/3` reads, and `tmux_option:set/3` and
+`tmux_option:unset/2` change, one option in an explicit table. A session,
+window or pane row selects its local table; `{server, Server}`,
+`{session_defaults, Server}` and `{window_defaults, Server}` select this
+server's own table and the two global defaults. `tmux_hook:set/3`,
+`tmux_hook:append/3` and `tmux_hook:clear/2` store hook commands in a local
+table or a global defaults table, and `tmux_hook:run/2` runs them in an
+explicit context.
+
+- Options: `tmux_option:get/3`, `tmux_option:get_many/3`,
+  `tmux_option:set/3`, `tmux_option:set/4`, `tmux_option:unset/2`,
+  `tmux_option:describe/2` and `tmux_option:catalogue/1`
+- Hooks: `tmux_hook:get/3`, `tmux_hook:set/3`, `tmux_hook:append/3`,
+  `tmux_hook:clear/2`, `tmux_hook:unset/2` and `tmux_hook:run/2`
+
+**Running commands.** `command/3` runs one validated command value and waits
+for its result; `t:command_options/0` sets its deadline, output limits and
+stdin. `tmux_command:raw/2` builds a command from a name and arguments, and
+`tmux_command:sequence/1` combines several into one execution that is not
+atomic. `tmux_operation:start/3` submits a command without waiting,
+`tmux_operation:await/2` collects its result and `tmux_operation:cancel/1`
+cancels it, though cancellation cannot undo effects already sent to tmux.
+
+`command/3`, `t:command_options/0`, `tmux_command:raw/2`,
+`tmux_command:sequence/1`, `tmux_operation:start/3`, `tmux_operation:await/2`,
+`tmux_operation:status/1` and `tmux_operation:cancel/1`
+
+**Everything else tmux keeps.** `m:tmux_buffer` loads, reads, lists, renames,
+deletes and pastes named byte buffers. `m:tmux_key` binds and unbinds keys in
+explicit server key tables. `tmux_command:source_file/2` and
+`tmux_command:wait_for/2` build the commands that load a configuration file and
+that signal, wait on or lock a wait-for channel; submit them with `command/3`.
+
+- Buffers: `tmux_buffer:load/3`, `tmux_buffer:show/2`, `tmux_buffer:show/3`,
+  `tmux_buffer:list/1`, `tmux_buffer:delete/2`, `tmux_buffer:rename/3` and
+  `tmux_buffer:paste/3`
+- Key bindings: `tmux_key:bind/3`, `tmux_key:bind/4`, `tmux_key:unbind/2`,
+  `tmux_key:unbind/3`, `tmux_key:clear_table/2`, `tmux_key:listing/1` and
+  `tmux_key:listing/2`
+- Configuration and waits: `tmux_command:source_file/2` and
+  `tmux_command:wait_for/2`
 """.
 -behaviour(gen_server).
 -export([open/1, command/3, close/1, status/1, origin/1, version/1, from_origin/1, bind/2,
