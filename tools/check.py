@@ -26,16 +26,16 @@ def main() -> None:
     commands = {
         "inner": [["rebar3", "eunit", "--module", args.module]],
         "mid": [
+            ["rebar3", "compile"],
             ["escript", "tools/generate_schema.escript", "--check"],
-            ["python3", "tools/generate_options.py", "--check"],
+            ["escript", "scripts/generate/generate_options.erl", "--check"],
             ["escript", "scripts/regex/generate_fixture.erl", "--check"],
             ["rebar3", "eunit"],
             ["escript", "tools/generate_reference.escript", "--test", "--check"],
             ["escript", "tools/check_api_docs.escript", "--test"],
             ["python3", "tools/check_docs.py"],
             ["python3", "tools/check_example_width.py"],
-            ["python3", "tools/generate_commands.py", "--check"],
-            ["python3", "test/command_catalogue_tests.py"],
+            ["escript", "scripts/generate/generate_commands.erl", "--check"],
             ["git", "diff", "--check"],
         ],
         "outer": [
