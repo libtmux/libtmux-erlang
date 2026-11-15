@@ -116,7 +116,7 @@ class ExampleReceipts(unittest.TestCase):
         self.assertEqual(json.loads(self.receipt.read_text())["result"], "FAIL")
 
     def prepare_filter(self, body):
-        for name in ("tmux_test_fixture.erl", "tmux_fixture_watch.py"):
+        for name in ("tmux_test_fixture.erl",):
             shutil.copyfile(self.root / "test" / name, self.project / "test" / name)
         (self.project / "examples/filter_demo.erl").write_text(
             '-module(filter_demo).\n-export([run/0]).\n'

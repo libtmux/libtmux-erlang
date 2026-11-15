@@ -1,10 +1,11 @@
 -module(tmux_fixture_SUITE).
 -compile(nowarn_missing_spec).
 -export([all/0, init_per_suite/1, end_per_suite/1,
-         command_failure_and_cleanup/1, owner_death/1, cancelled_client/1]).
+         command_failure_and_cleanup/1, owner_death/1, cancelled_client/1,
+         startup_failure/1]).
 
-%% Outer: owned foreground tmux, pane descendants, and cancellation aftereffects.
-all() -> [command_failure_and_cleanup, owner_death, cancelled_client].
+%% Outer: owned tmux daemon, pane descendants, and cancellation aftereffects.
+all() -> [command_failure_and_cleanup, owner_death, cancelled_client, startup_failure].
 
 init_per_suite(Config) ->
     {ok, _} = application:ensure_all_started(libtmux_erlang),
@@ -80,6 +81,10 @@ cancelled_client(Config) ->
     after
         tmux_test_fixture:ensure_closed(Fixture)
     end.
+
+%% A client that exits without the readiness line fails on its EOF, not the deadline.
+startup_failure(_) ->
+    {error, {{server_exited, <<>>}, _}} = tmux_test_fixture:start(<<"/bin/true">>).
 
 track_pane(Fixture) ->
     {ok, #{stdout := Text, exit_status := 0}} = tmux_test_fixture:command(Fixture,

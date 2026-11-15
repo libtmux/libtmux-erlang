@@ -6,9 +6,11 @@
          with_client/4, client_session/1]).
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2]).
 
+-define(READY_MS, 2500).
+
 start(Executable) -> gen_server:start(?MODULE, {self(), Executable}, []).
 info(Fixture) -> gen_server:call(Fixture, info, 900).
-replace(Fixture) -> gen_server:call(Fixture, replace, 1000).
+replace(Fixture) -> gen_server:call(Fixture, replace, 5000).
 close(Fixture) -> gen_server:call(Fixture, close, 1000).
 track_process(Fixture, Pid) -> gen_server:call(Fixture, {track_process, Pid}, 900).
 
@@ -151,47 +153,50 @@ init({Owner, Executable}) ->
         erlang:raise(Class, Reason, Stack)
     end.
 
+%% The client starts the daemon, prints its pid and version, then blocks on a
+%% channel nobody signals. That line proves the server accepted a command, and
+%% closing the channel retires the client, helper and daemon together.
 create(Executable, Directory) ->
     Socket = list_to_binary(filename:join(Directory, "s")),
-    Script = filename:join(filename:dirname(code:which(?MODULE)), "tmux_fixture_watch.py"),
-    Watcher = open_port({spawn_executable, "/usr/bin/python3"},
-        [binary, {line, 64}, exit_status, use_stdio, {args, [Script, Socket]}]),
+    Arguments = [<<"-u">>, <<"-S">>, Socket, <<"-f">>, <<"/dev/null">>,
+                 <<"start-server">>, <<";">>,
+                 <<"set-option">>, <<"-s">>, <<"exit-empty">>, <<"off">>, <<";">>,
+                 <<"display-message">>, <<"-p">>, <<"#{pid}\t#{version}">>, <<";">>,
+                 <<"wait-for">>, <<"fixture-lifetime">>],
+    Deadline = erlang:monotonic_time(millisecond) + ?READY_MS,
+    {ok, Handle} = tmux_transport:start_channel(Executable, Arguments,
+                                               #{startup_timeout_ms => ?READY_MS}),
     try
-        watch_line(Watcher, <<"armed">>),
-        {ok, Handle} = tmux_transport:start(Executable,
-            [<<"-D">>, <<"-S">>, Socket, <<"-f">>, <<"/dev/null">>],
-            #{timeout_ms => 30000, max_stdout => 0}),
-        try
-            {ok, #{child_pid := Pid, helper_pid := HelperPid}} =
-                tmux_transport:await_started(Handle, 900),
-            watch_line(Watcher, <<"ready">>),
-            receive {Watcher, {exit_status, 0}} -> ok
-            after 900 -> error(watcher_exit_timeout)
-            end,
-            #{executable => Executable, socket => Socket, directory => Directory,
-              transport => Handle, server_pid => Pid, server_identity => process_identity(Pid),
-              helper_pid => HelperPid, helper_identity => process_identity(HelperPid)}
-        catch Class:Reason:Stack ->
-            _ = tmux_transport:close(Handle),
-            erlang:raise(Class, Reason, Stack)
-        end
-    after
-        case erlang:port_info(Watcher) of
-            undefined -> ok;
-            _ ->
-                true = erlang:port_command(Watcher, <<"Q">>),
-                receive {Watcher, {exit_status, _}} -> ok
-                after 900 -> error(watcher_exit_timeout)
-                end
-        end
+        {ok, #{helper_pid := HelperPid}} = tmux_transport:await_started(Handle, ?READY_MS),
+        Pid = server_pid(ready_line(Handle, Deadline, <<>>)),
+        #{executable => Executable, socket => Socket, directory => Directory,
+          transport => Handle, server_pid => Pid, server_identity => process_identity(Pid),
+          helper_pid => HelperPid, helper_identity => process_identity(HelperPid)}
+    catch Class:Reason:Stack ->
+        _ = tmux_transport:close(Handle),
+        erlang:raise(Class, Reason, Stack)
     end.
 
-watch_line(Watcher, Line) ->
+ready_line(Handle, Deadline, Seen) ->
+    Remaining = max(0, Deadline - erlang:monotonic_time(millisecond)),
     receive
-        {Watcher, {data, {eol, Line}}} -> ok;
-        {Watcher, {exit_status, Status}} -> error({watcher_exit, Status})
-    after 900 -> error(watcher_event_timeout)
+        {tmux_transport, Handle, {data, stdout, Sequence, Bytes}} ->
+            Joined = <<Seen/binary, Bytes/binary>>,
+            case binary:split(Joined, <<"\n">>) of
+                [Line, <<>>] -> Line;
+                [_] when byte_size(Joined) =< 128 ->
+                    ok = tmux_transport:ack(Handle, stdout, Sequence),
+                    ready_line(Handle, Deadline, Joined);
+                _ -> error({server_readiness, Joined})
+            end;
+        {tmux_transport, Handle, {data, stderr, _, Bytes}} -> error({server_stderr, Bytes});
+        {tmux_transport, Handle, {eof, stdout}} -> error({server_exited, Seen})
+    after Remaining -> error(server_readiness_timeout)
     end.
+
+server_pid(Line) ->
+    [Pid, _Version] = binary:split(Line, <<"\t">>),
+    binary_to_integer(Pid).
 
 handle_call(info, _From, State) -> {reply, maps:without([transport, owner_monitor], State), State};
 handle_call(replace, _From, #{executable := Executable, directory := Directory,

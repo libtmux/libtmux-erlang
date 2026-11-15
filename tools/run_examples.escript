@@ -70,7 +70,6 @@ run(Arguments) ->
     ok = file:make_dir(Scratch),
     ok = file:change_mode(Scratch, 8#700),
     try
-        {ok, _} = file:copy("test/tmux_fixture_watch.py", filename:join(Scratch,"tmux_fixture_watch.py")),
         true = code:add_patha(Scratch),
         lists:foreach(fun(Source) ->
             case compile:file(Source, [debug_info, warnings_as_errors, return_errors,

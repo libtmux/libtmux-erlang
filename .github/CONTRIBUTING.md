@@ -189,9 +189,11 @@ with tmux 3.3a and 3.8. Registry publication remains a separate gate.
 
 Common Test selects tmux from LIBTMUX_TEST_TMUX, or PATH when unset. Set that
 variable to an absolute executable path to qualify a particular release.
-The fixture owns a foreground server on a private socket. A test-only Linux
-inotify watcher waits for its post-listen permission event; startup never
-polls a borrowed server. The watcher uses the host's /usr/bin/python3.
+The fixture owns a daemon on a private socket. Like
+`tmux_server:start_owned/1`, it runs one client that starts the server, prints
+the server's pid and version, then waits on a channel nobody signals. That
+output line proves the server listens, so startup never polls a socket or a
+borrowed server. Closing the fixture retires the client, helper and daemon.
 Passing this local suite does not establish the complete CI version matrix.
 
 Dialyzer includes Common Test in its analysis table because the external
