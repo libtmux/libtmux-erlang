@@ -2,7 +2,7 @@
 -compile(nowarn_missing_spec).
 -include_lib("eunit/include/eunit.hrl").
 
-%% Reference values from the Python generator this script replaced.
+%% The seed corpus is pinned by its size and the digest of its sorted contents.
 seed_corpus_matches_the_reference_test() ->
     Seeds = check_helper_native:seeds(),
     ?assertEqual(176, length(Seeds)),
