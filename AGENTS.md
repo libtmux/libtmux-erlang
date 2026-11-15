@@ -13,6 +13,8 @@ runtime qualification. Check current code and evidence before claiming support.
 - Documentation, comments, commits, and review text:
   [.github/WRITING.md](.github/WRITING.md), including
   [Examples](.github/WRITING.md#examples) for all reader-facing code.
+- Support scripts: what may stay, their language, layout and checks:
+  [.github/SCRIPTS.md](.github/SCRIPTS.md).
 
 Each guide owns its subject. `CLAUDE.md` is a relative symlink to this file.
 
