@@ -169,13 +169,13 @@ checks. This downloads verified tool archives and compiles the registry helper;
 it does not publish packages or change the user's Rebar3 configuration:
 
 ```console
-$ mise exec -- python3 tools/check_source_package.py --prepare
+$ mise exec -- escript scripts/package/check_source_package.erl --prepare
 ```
 
 Run the source-installation outer check with the selected supported tmux:
 
 ```console
-$ time mise exec -- python3 tools/check_source_package.py
+$ time mise exec -- escript scripts/package/check_source_package.erl
 ```
 
 It builds the core with `rebar3 hex build package`, then serves that exact

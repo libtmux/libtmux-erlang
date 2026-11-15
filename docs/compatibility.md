@@ -105,10 +105,10 @@ Storing rows:
 
 ## Source installation
 
-- The [source-package check](../tools/check_source_package.py) builds the core
-  with pinned `rebar3_hex` tooling, serves the tarball through a signed local
-  registry, and builds a fresh Rebar3 consumer whose only dependency is the
-  core.
+- The [source-package check](../scripts/package/check_source_package.erl)
+  builds the core with pinned `rebar3_hex` tooling, serves the tarball through
+  a signed local registry, and builds a fresh Rebar3 consumer whose only
+  dependency is the core.
 - The core must compile its helper from packaged C source. Missing compiler
   support fails installation.
 - CI runs the check on both architectures with tmux 3.3a and 3.8. Read its

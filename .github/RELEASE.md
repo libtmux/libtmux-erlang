@@ -213,9 +213,9 @@ The native source-package check remains available without any Hex account:
 it builds the real tarball and installs it through a signed local registry.
 
 ```console
-$ mise exec -- python3 tools/check_source_package.py --prepare
+$ mise exec -- escript scripts/package/check_source_package.erl --prepare
 ```
 
 ```console
-$ mise exec -- python3 tools/check_source_package.py
+$ mise exec -- escript scripts/package/check_source_package.erl
 ```

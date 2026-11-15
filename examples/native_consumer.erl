@@ -2,8 +2,8 @@
 -moduledoc """
 Construct native values and exercise a borrowed endpoint through public APIs.
 
-Run through tools/check_package.py to compile this module against an unpacked
-OTP application archive outside the library checkout.
+Run through scripts/package/check_package.erl to compile this module against
+an unpacked OTP application archive outside the library checkout.
 """.
 -export([run/0, pane_ids/1, run_endpoint/2]).
 -import_record(tmux_model, [pane]).
