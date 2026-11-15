@@ -26,6 +26,32 @@ perform I/O after validation.
 `select/2` switches one explicitly named attached client to a session. It
 never attaches a client or infers the current client. Use
 `tmux_window_link:select/1` to select a session's window membership instead.
+
+## What is on here
+
+No call here refreshes the row you pass in; read the session again to see a
+change.
+
+**Creating and reading.** `create/2` starts a session, detached by default, and
+returns the new session's row. `get/2` reads a session's fresh fields by its
+stable ID. `tmux_server:bind/2` re-reads a detached row and registers it so
+that actions accept it. `tmux_snapshot:sessions/1` lists the sessions of a
+captured graph.
+
+`create/2`, `get/2`, `t:create_options/0`, `tmux_server:bind/2` and
+`tmux_snapshot:sessions/1`
+
+**Renaming and removing.** `rename/2` sets a literal name, and
+`rename_command/2` builds the same command without contacting tmux, so you can
+submit it later. `kill/1` destroys the session; it is not endpoint cleanup.
+
+`rename/2`, `rename_command/2` and `kill/1`
+
+**Switching a client.** `select/2` and `select/3` switch one named attached
+client to the session. They never attach a client and have no default client.
+`tmux_window_link:select/1` selects a window instead.
+
+`select/2`, `select/3`, `t:select_options/0` and `tmux_window_link:select/1`
 """.
 -export([create/2, get/2, rename/2, rename_command/2, select/2, select/3, kill/1]).
 
