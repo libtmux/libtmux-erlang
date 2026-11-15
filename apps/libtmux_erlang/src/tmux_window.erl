@@ -17,6 +17,31 @@ fails.
 perform I/O after validating their inputs. `select_layout/2`
 changes the physical window's layout across all its session links; previously
 observed pane geometry remains unchanged in captured values.
+
+## What is on here
+
+No call here refreshes the row you pass in; read the window again to see a
+change. A change to an existing window shows in every session that links it.
+
+**Creating and reading.** `create/2` adds a window at the session's next free
+index, detached by default, and returns the new window's row. `get/2` reads a
+window's fresh fields by its stable ID. `tmux_snapshot:windows/1` lists the
+windows of a captured graph.
+
+`create/2`, `get/2`, `t:create_options/0` and `tmux_snapshot:windows/1`
+
+**Renaming and arranging.** `rename/2` sets a literal name. `select_layout/2`
+applies a built-in arrangement or restores a serialized layout, and unzooms the
+window. To add a pane, use `tmux_pane:split/2`.
+
+`rename/2`, `select_layout/2`, `t:layout/0` and `tmux_pane:split/2`
+
+**Restarting and removing.** `respawn/2` rebuilds the window around its first
+pane, which keeps its ID, and a running pane needs `force`. `kill/1` destroys
+the physical window and all its links. `tmux_window_link:unlink/2` removes one
+session's membership instead.
+
+`respawn/2`, `t:respawn_options/0`, `kill/1` and `tmux_window_link:unlink/2`
 """.
 -export([create/2, get/2, rename/2, kill/1, respawn/2, select_layout/2]).
 
