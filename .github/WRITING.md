@@ -94,15 +94,16 @@ Change it in all of them together.
   record declarations. See the [formatting policy](CONTRIBUTING.md#formatting).
 - **Not formatted:** example programs and Markdown fences are maintained at
   80 columns by hand. Native EEP-48 code blocks use the same limit, checked
-  by `tools/check_docs.py` using the shared column measure. Expected shell
-  replies are compared output; numbered input prompts are checked code.
+  by `scripts/docs/check_docs.erl` with the same column measure. Expected
+  shell replies are compared output; numbered input prompts are checked code.
 - **Runs, compiles, exempt:** `ct_doctest` executes native shell transcripts.
   `tools/run_examples.escript` executes the complete reader programs;
   the outer archive check repeats them as an installed consumer.
 - **Compared output and copied blocks:** output assertions stay intact.
   Edit programs in examples/, then refresh their `<!-- example: ... -->`
-  excerpts; `tools/check_docs.py` rejects drift. Prose policy counterexamples
-  below demonstrate formatting and are not executable product examples.
+  excerpts; `scripts/docs/check_docs.erl` rejects drift. Prose policy
+  counterexamples below demonstrate formatting and are not executable product
+  examples.
 
 Bad, over 80:
 

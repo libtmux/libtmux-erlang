@@ -17,13 +17,13 @@ $ mise exec -- rebar3 compile
 Prepare the checksum-pinned ExDoc tool. This step uses the network:
 
 ```console
-$ python3 tools/build_docs.py --prepare
+$ mise exec -- escript scripts/docs/build_docs.erl --prepare
 ```
 
 Build the browser without fetching dependencies:
 
 ```console
-$ mise exec -- python3 tools/build_docs.py
+$ mise exec -- escript scripts/docs/build_docs.erl
 ```
 
 Open `_build/docs/core/index.html`.

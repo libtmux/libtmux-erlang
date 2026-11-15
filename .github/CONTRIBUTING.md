@@ -63,6 +63,13 @@ callbacks. Use `ct_doctest` shell transcripts for
 native code blocks. Prose-only contracts need no artificial example; every
 advertised Erlang block must execute without skips.
 
+Run the guide and example checks alone after compiling:
+
+```console
+$ mise exec -- escript scripts/docs/check_docs.erl
+```
+
+The [documentation scripts](../scripts/docs/README.md) list what they check.
 [Building the API browser](../docs/api.md) explains the pinned ExDoc tool,
 captured source links and working-tree provenance. The HTML build treats
 warnings and broken local links/anchors as failures. Add complete runnable

@@ -66,13 +66,13 @@ $ mise exec -- rebar3 as release hex user auth
 Prepare the pinned native documentation renderer.
 
 ```console
-$ mise exec -- python3 tools/build_docs.py --prepare
+$ mise exec -- escript scripts/docs/build_docs.erl --prepare
 ```
 
 Build the compiler documentation chunks and validate the rendered links.
 
 ```console
-$ mise exec -- python3 tools/build_docs.py
+$ mise exec -- escript scripts/docs/build_docs.erl
 ```
 
 Build and inspect the source package, including the C helper source and its
