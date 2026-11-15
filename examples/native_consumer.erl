@@ -224,7 +224,7 @@ run_endpoint(Socket, Executable) ->
             case Exit of
                 {status, 0} -> ok;
                 _ -> error({unexpected_pane_exit,
-                            #{expected => {status, 0}, observed => Exit}})
+                            exit_report(Server, InputPane, Exit)})
             end,
             {ok, _} = tmux_pane:kill(CompletedInput),
             {error, #{code := target_gone}} = tmux_pane:get(
@@ -254,3 +254,29 @@ run_endpoint(Socket, Executable) ->
     end, fun() ->
         ok = tmux_server:close(Server)
     end).
+
+%% What finding the sender of an unexpected signal needs: the pane process,
+%% tmux's own view of the exit, the clients on the server and the verbose log.
+exit_report(Server, Pane, Exit) ->
+    {ok, Probe} = tmux_command:raw(<<"display-message">>,
+        [<<"-p">>, <<"-t">>, tmux_model:get(id, Pane),
+         <<"#{pane_id}|#{pane_dead}|#{pane_dead_status}|",
+           "#{pane_dead_signal}">>]),
+    {ok, Clients} = tmux_command:raw(<<"list-clients">>,
+        [<<"-F">>, <<"#{client_pid} #{client_name} #{client_flags}">>]),
+    #{expected => {status, 0}, observed => Exit,
+      pane => tmux_model:get(id, Pane),
+      pane_pid => tmux_model:get(pid, Pane),
+      native => command_text(Server, Probe),
+      clients => command_text(Server, Clients),
+      tmux_log => case os:getenv("LIBTMUX_TEST_TMUX_LOG") of
+          false -> none;
+          Directory -> list_to_binary(Directory)
+      end}.
+
+command_text(Server, Command) ->
+    case tmux_server:command(Server, Command, #{}) of
+        {ok, #{stdout := Text}} -> Text;
+        {error, Failure} ->
+            maps:with([code, outcome, phase, cleanup], Failure)
+    end.

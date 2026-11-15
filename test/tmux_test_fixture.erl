@@ -158,14 +158,15 @@ init({Owner, Executable}) ->
 %% closing the channel retires the client, helper and daemon together.
 create(Executable, Directory) ->
     Socket = list_to_binary(filename:join(Directory, "s")),
-    Arguments = [<<"-u">>, <<"-S">>, Socket, <<"-f">>, <<"/dev/null">>,
+    {Verbose, Where} = verbose_log(),
+    Arguments = [<<"-u">> | Verbose] ++ [<<"-S">>, Socket, <<"-f">>, <<"/dev/null">>,
                  <<"start-server">>, <<";">>,
                  <<"set-option">>, <<"-s">>, <<"exit-empty">>, <<"off">>, <<";">>,
                  <<"display-message">>, <<"-p">>, <<"#{pid}\t#{version}">>, <<";">>,
                  <<"wait-for">>, <<"fixture-lifetime">>],
     Deadline = erlang:monotonic_time(millisecond) + ?READY_MS,
     {ok, Handle} = tmux_transport:start_channel(Executable, Arguments,
-                                               #{startup_timeout_ms => ?READY_MS}),
+        Where#{startup_timeout_ms => ?READY_MS}),
     try
         {ok, #{helper_pid := HelperPid}} = tmux_transport:await_started(Handle, ?READY_MS),
         Pid = server_pid(ready_line(Handle, Deadline, <<>>)),
@@ -175,6 +176,17 @@ create(Executable, Directory) ->
     catch Class:Reason:Stack ->
         _ = tmux_transport:close(Handle),
         erlang:raise(Class, Reason, Stack)
+    end.
+
+%% LIBTMUX_TEST_TMUX_LOG names a directory that receives tmux's -vv client and
+%% server logs, which CI keeps when a job fails.
+verbose_log() ->
+    case os:getenv("LIBTMUX_TEST_TMUX_LOG") of
+        false -> {[], #{}};
+        Directory ->
+            Absolute = filename:absname(Directory),
+            ok = filelib:ensure_path(Absolute),
+            {[<<"-vv">>], #{cwd => unicode:characters_to_binary(Absolute)}}
     end.
 
 ready_line(Handle, Deadline, Seen) ->

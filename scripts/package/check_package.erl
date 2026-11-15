@@ -157,7 +157,8 @@ exercise_consumer(Root, Temp, InstalledEbin, Options) ->
         false -> none
     end,
     ok = stage_consumer(Root, Temp),
-    Env = consumer_env(Temp, tmux_executable()),
+    Env = (consumer_env(Temp, tmux_executable()))#{
+        <<"LIBTMUX_ENDPOINT_TMUX_LOG">> => bin(filename:join(Root, "_build/tmux-log"))},
     Run = fun({Kind, Command}) ->
         run_command(Root, Temp, Command, #{env => Env, json => Kind =:= json})
     end,
@@ -282,6 +283,8 @@ transport_eval() ->
 endpoint_eval() ->
     eval(~"""
     Executable = unicode:characters_to_binary(os:getenv("LIBTMUX_TEST_TMUX")),
+    case os:getenv("LIBTMUX_ENDPOINT_TMUX_LOG") of
+    false -> ok; Log -> true = os:putenv("LIBTMUX_TEST_TMUX_LOG", Log) end,
     {ok, _} = application:ensure_all_started(libtmux_erlang),
     {ok, Fixture} = tmux_test_fixture:start(Executable),
     try #{socket := Socket} = tmux_test_fixture:info(Fixture),
