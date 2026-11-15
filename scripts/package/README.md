@@ -36,7 +36,41 @@ $ mise exec -- escript scripts/package/check_package.erl --dialyzer
 ```
 
 `check_package:exercise_consumer/4` is the one function that runs the
-installed consumers. The two scripts below call it too.
+installed consumers. The scripts below call it too.
+
+## check_source_package
+
+Builds the Hex source artifact for `libtmux_erlang` and installs it the way a
+user would, without publishing anything. It serves the artifact from a private,
+signed registry on a loopback socket, builds a consumer whose only dependency
+is the core, proves that a missing C compiler fails before the helper is
+installed, and runs the same installed consumers as `check_package`.
+
+Two commands run it. CI runs both on every matrix cell, and the release
+workflow reads the receipt's `result`, `source.head`, `source.status` and
+`packages.libtmux_erlang.sha256` to bind the published tarball to a passing
+run. `--prepare` downloads the pinned `rebar3_hex`, `hex_core` and `verl`
+archives from `tools/package-tool.json`, checks their digests and compiles
+`hex_core` under `_build/source-package-tools`. It needs the network and runs
+once, outside any timed check.
+
+```console
+$ mise exec -- escript scripts/package/check_source_package.erl --prepare
+```
+
+The run itself needs no network. The registry is a small `gen_tcp` file server
+that adds an `ETag` header, records every request path, answers `429` after 256
+requests and shuts down before the script exits. `tools/source_package_registry.escript`
+signs the registry files.
+
+```console
+$ mise exec -- escript scripts/package/check_source_package.erl
+```
+
+The receipt is `_build/source-package-check/receipt.json`. Each run also keeps
+its logs, the Hex tarball and the consumer's `rebar.lock` in
+`_build/source-package-check/run-<time>/`. The receipt records `registry_retired`,
+which is `true` only when the listening socket and every registry process are gone.
 
 ## Tests
 

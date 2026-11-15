@@ -20,9 +20,9 @@ run the same commands against a Hex source installation.
 -include_lib("kernel/include/file.hrl").
 -export([main/1, assemble_archive/3, archive_members/2, extract_archive/2,
          exercise_consumer/4, stage_consumer/2, consumer_files/0, consumer_commands/2,
-         dialyzer_commands/3, consumer_env/2, rebar_env/2, select_tmux/2, run_command/4,
-         execute/3, receipt/3, run_script/1, write_json/2, encode_json/1, fail/2, bin/1,
-         printable/1, round6/1, delete_file/1]).
+         dialyzer_commands/3, consumer_env/2, base_env/0, rebar_env/2, rebar_dirs/2,
+         select_tmux/2, run_command/4, execute/3, receipt/3, run_script/1, write_json/2,
+         encode_json/1, fail/2, bin/1, printable/1, round6/1, delete_file/1]).
 -export_type([command/0, env/0]).
 
 -define(APP, "libtmux_erlang").
@@ -312,21 +312,28 @@ consumer_env(Temp, Tmux) ->
                  <<"ERL_CRASH_DUMP">> => bin(filename:join(Temp, "erl_crash.dump"))}).
 
 -doc """
-Environment overrides for Rebar3 consumer builds: build, Hex and tmux variables
-are removed, `ERL_FLAGS` defaults to `+S 4:4` and the Rebar3 configuration and
-caches move to `ConfigDir` and `CacheDir`.
+Environment overrides every Rebar3 build command starts from: build, Hex and tmux
+variables are removed and `ERL_FLAGS` defaults to `+S 4:4`.
 """.
--spec rebar_env(file:filename(), file:filename()) -> env().
-rebar_env(ConfigDir, CacheDir) ->
+-spec base_env() -> env().
+base_env() ->
     Flags = case os:getenv("ERL_FLAGS") of
         false -> "+S 4:4";
         Value -> Value
     end,
-    maps:merge(scrub(?REBAR_SCRUBBED),
-               #{<<"ERL_FLAGS">> => bin(Flags),
-                 <<"REBAR_GLOBAL_CONFIG_DIR">> => bin(ConfigDir),
-                 <<"REBAR_CACHE_DIR">> => bin(CacheDir),
-                 <<"REBAR_GLOBAL_CACHE_DIR">> => bin(CacheDir)}).
+    maps:put(<<"ERL_FLAGS">>, bin(Flags), scrub(?REBAR_SCRUBBED)).
+
+-doc "`base_env/0` with the Rebar3 configuration and caches moved to `ConfigDir` and `CacheDir`.".
+-spec rebar_env(file:filename(), file:filename()) -> env().
+rebar_env(ConfigDir, CacheDir) ->
+    maps:merge(base_env(), rebar_dirs(ConfigDir, CacheDir)).
+
+-doc "The variables that point Rebar3 at a private configuration directory and cache.".
+-spec rebar_dirs(file:filename(), file:filename()) -> env().
+rebar_dirs(ConfigDir, CacheDir) ->
+    #{<<"REBAR_GLOBAL_CONFIG_DIR">> => bin(ConfigDir),
+      <<"REBAR_CACHE_DIR">> => bin(CacheDir),
+      <<"REBAR_GLOBAL_CACHE_DIR">> => bin(CacheDir)}.
 
 scrub(Names) ->
     #{bin(Name) => false || Name <- Names}.
