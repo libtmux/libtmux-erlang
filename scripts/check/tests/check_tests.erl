@@ -27,6 +27,11 @@ outer_runs_the_integration_suites_test() ->
                   [["rebar3", "dialyzer"], ["rebar3", "ct"],
                    ["escript", "tools/run_examples.escript"]]).
 
+a_loop_passes_only_when_nothing_failed_inside_the_budget_test() ->
+    ?assert(check:passed(false, 4.9, inner)),
+    ?assertNot(check:passed(true, 1.0, inner)),
+    ?assertNot(check:passed(false, 5.0, inner)).
+
 passing_commands_all_run_test() ->
     {Failed, Results} = check:run([["a"], ["b"]], 10, fun(_, _) -> outcome(0, false) end),
     ?assertNot(Failed),

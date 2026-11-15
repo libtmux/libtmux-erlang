@@ -10,7 +10,7 @@
 %% helper modules.
 -module(check).
 -mode(compile).
--export([main/1, plan/2, budget/1, run/3, runner/2]).
+-export([main/1, plan/2, budget/1, run/3, runner/2, passed/3]).
 -export_type([command/0, outcome/0, tier/0]).
 
 -type tier() :: inner | mid | outer.
@@ -38,15 +38,19 @@ main(Arguments) ->
     {Failed, Results} = run(plan(Tier, Module), budget(Tier), Runner),
     Seconds = (erlang:monotonic_time(millisecond) - Started) / 1000,
     Written = [record(Tier, Output, Prefix, N, R) || {N, R} <- lists:enumerate(Results)],
-    Over = Failed orelse Seconds >= budget(Tier),
-    Receipt = #{tier => atom_to_binary(Tier), result => verdict(Over),
+    Passed = passed(Failed, Seconds, Tier),
+    Receipt = #{tier => atom_to_binary(Tier), result => verdict(Passed),
                 budget_seconds => budget(Tier), dispatch_seconds => Seconds,
                 runtime_flags => list_to_binary(proplists:get_value("ERL_FLAGS", Environment)),
                 commands => Written,
                 scope => <<"Currently implemented checks; not the complete epic matrix">>},
     ok = file:write_file(filename:join(Output, atom_to_list(Tier) ++ ".json"),
                          [json:format(Receipt), $\n]),
-    halt(case Over of true -> 1; false -> 0 end).
+    halt(case Passed of true -> 0; false -> 1 end).
+
+%% A loop passes when no command failed and it finished inside its budget.
+-spec passed(boolean(), number(), tier()) -> boolean().
+passed(Failed, Seconds, Tier) -> not Failed andalso Seconds < budget(Tier).
 
 parse(["inner", "--module", Module]) -> {inner, Module};
 parse(["inner" | _]) -> usage("inner requires --module; use mid for the full unit suite");
