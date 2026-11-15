@@ -153,7 +153,7 @@ $ git pull --ff-only origin master
 Validate the candidate metadata and clean source tree.
 
 ```console
-$ python3 tools/check_release.py
+$ mise exec -- escript scripts/release/check_release.erl
 ```
 
 For the initial candidate, create the annotated tag locally. Later releases
@@ -166,7 +166,7 @@ $ git tag -a v0.0.1 -m 'Release 0.0.1'
 Check that the tag resolves to this commit and matches the package version.
 
 ```console
-$ python3 tools/check_release.py --tag v0.0.1
+$ mise exec -- escript scripts/release/check_release.erl --tag v0.0.1
 ```
 
 The next command starts the publishing workflow and is the release action.

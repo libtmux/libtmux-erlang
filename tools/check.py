@@ -40,7 +40,6 @@ def main() -> None:
         ],
         "outer": [
             ["rebar3", "compile"],
-            ["python3", "test/helper_protocol.py"],
             ["python3", "test/example_protocol_tests.py"],
             ["rebar3", "dialyzer"],
             ["rebar3", "ct"],

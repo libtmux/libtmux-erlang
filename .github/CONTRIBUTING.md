@@ -138,8 +138,9 @@ complete argument validation or runtime qualification.
 
 The core application builds its Linux helper with make and a C11 compiler.
 The pinned source and its license live under apps/libtmux_erlang/c_src/.
-The helper checks use events and PID descriptors to verify owned retirement;
-the Erlang adapter checks require retirement proof and actual helper exit.
+The helper checks drive its framed protocol from Common Test and verify owned
+retirement from procfs; the Erlang adapter checks require retirement proof and
+actual helper exit.
 Output limits reserve one additional byte per stream to distinguish EOF from
 overflow. Completed results release the accumulator's chunk references.
 
@@ -147,11 +148,12 @@ With Clang 18 and its sanitizer runtime installed, run the additional native
 outer check:
 
 ```console
-$ time python3 tools/check_helper_native.py
+$ time mise exec -- escript scripts/helper/check_helper_native.erl
 ```
 
 This compiles the helper with AddressSanitizer and UndefinedBehaviorSanitizer
-and runs its existing lifecycle/protocol suite. A separate libFuzzer harness
+and runs the [protocol suite](../scripts/helper/tests/helper_protocol_SUITE.erl)
+against it. A separate libFuzzer harness
 executes 10,000 parser inputs with fragmented reads, partial frames and EOF.
 Its fork stub prevents fuzz bytes from executing a child; the protocol suite
 exercises real owned children. The check records compiler/source identities,
