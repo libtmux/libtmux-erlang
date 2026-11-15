@@ -65,6 +65,8 @@ jobs:
           sha256sum "$LIBTMUX_TEST_TMUX"
       - name: Prepare test dependencies
         run: rebar3 as test compile
+      - name: Check example width
+        uses: libtmux/.github/actions/check-example-width@bd3bae79572512da032287202d74c8da03b5967b
       - name: Unit, generated-source and whitespace checks
         run: escript scripts/check/check.erl mid
       - name: Compile, helper, Dialyzer, owned integration and archive consumer

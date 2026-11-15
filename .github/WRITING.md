@@ -89,7 +89,8 @@ Change it in all of them together.
 ### In this repository
 
 - **Hard limit:** examples use 80 columns, enforced by
-  `tools/check_example_width.py` and `.github/example-width.toml`.
+  the `check-example-width` action of libtmux/.github and
+  `.github/example-width.toml`.
   Formatter enforcement is deferred because erlfmt 1.8.0 does not parse native
   record declarations. See the [formatting policy](CONTRIBUTING.md#formatting).
 - **Not formatted:** example programs and Markdown fences are maintained at

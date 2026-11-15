@@ -11,7 +11,7 @@ budgets_follow_the_loop_table_test() ->
 
 every_script_a_plan_runs_exists_test() ->
     Scripts = [Path || Tier <- [mid, outer], [Program, Path | _] <- check:plan(Tier, none),
-                       Program =:= "escript" orelse Program =:= "python3"],
+                       Program =:= "escript"],
     ?assertNotEqual([], Scripts),
     lists:foreach(fun(Path) -> ?assert(filelib:is_regular(Path), Path) end, Scripts).
 

@@ -77,7 +77,6 @@ plan(mid, _) ->
      ["escript", "tools/generate_reference.escript", "--test", "--check"],
      ["escript", "tools/check_api_docs.escript", "--test"],
      ["escript", "scripts/docs/check_docs.erl"],
-     ["python3", "tools/check_example_width.py"],
      ["escript", "scripts/generate/generate_commands.erl", "--check"],
      ["git", "diff", "--check"]];
 plan(outer, _) ->

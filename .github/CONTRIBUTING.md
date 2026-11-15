@@ -90,10 +90,18 @@ $ time escript scripts/check/check.erl outer
 ```
 
 These commands retain command output and timing under _build/checks/.
-The runner is an escript, so it runs before the library compiles. The
-example-width check still runs the shared Python checker, which needs Python
-3.11 or newer; the other checks need none.
-It times each complete child command, including mise and VM startup; the
+The runner is an escript, so it runs before the library compiles and needs no
+other language. CI checks example width in its own step with the shared
+[check-example-width](https://github.com/libtmux/.github/blob/bd3bae79572512da032287202d74c8da03b5967b/actions/check-example-width/README.md)
+action of libtmux/.github, which is not part of these loops. Run its helper with
+uv, at the same commit, from the repository root:
+
+```console
+$ uv run \
+    https://raw.githubusercontent.com/libtmux/.github/bd3bae79572512da032287202d74c8da03b5967b/actions/check-example-width/check_example_width.py
+```
+
+The runner times each complete child command, including mise and VM startup; the
 shell time command measures the complete loop invocation.
 The runner defaults to four Erlang schedulers to bound its share of a busy
 development host. An explicit ERL_FLAGS overrides that test profile; receipts

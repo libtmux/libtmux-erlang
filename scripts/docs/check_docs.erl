@@ -193,7 +193,7 @@ numbered(_, _) -> false.
 -doc """
 Number of terminal columns `Text` occupies: East Asian Wide and Fullwidth
 code points take two and every other code point one. This is the measure of
-`tools/check_example_width.py`.
+the `check-example-width` action of libtmux/.github.
 """.
 -spec columns(unicode:unicode_binary()) -> non_neg_integer().
 columns(Text) -> columns(Text, 0).
