@@ -28,7 +28,7 @@ def main() -> None:
         "mid": [
             ["escript", "tools/generate_schema.escript", "--check"],
             ["python3", "tools/generate_options.py", "--check"],
-            ["python3", "tools/regex-conformance/generate_fixture.py", "--check"],
+            ["escript", "scripts/regex/generate_fixture.erl", "--check"],
             ["rebar3", "eunit"],
             ["escript", "tools/generate_reference.escript", "--test", "--check"],
             ["escript", "tools/check_api_docs.escript", "--test"],

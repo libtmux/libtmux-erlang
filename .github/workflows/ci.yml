@@ -174,8 +174,8 @@ jobs:
           rebar3 compile
       - name: Check fixture drift and differential matches
         run: |
-          time python3 tools/regex-conformance/generate_fixture.py --check
-          time python3 tools/check_regex.py
+          time escript scripts/regex/generate_fixture.erl --check
+          time escript scripts/regex/check_regex.erl
       - name: Preserve reference engine receipt
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

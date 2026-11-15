@@ -66,7 +66,7 @@ $ mise exec -- rebar3 compile
 Run all reference cases with Node and Rust available on PATH:
 
 ```console
-$ time mise exec -- python3 tools/check_regex.py
+$ time mise exec -- escript scripts/regex/check_regex.erl
 ```
 
 The receipt in `_build/checks/regex.json` records engine versions, the fixture
@@ -76,5 +76,5 @@ regex job. The normal mid loop checks fixture drift without these runtimes.
 Regenerate the fixture after an intentional grammar or oracle change:
 
 ```console
-$ python3 tools/regex-conformance/generate_fixture.py
+$ mise exec -- escript scripts/regex/generate_fixture.erl
 ```
