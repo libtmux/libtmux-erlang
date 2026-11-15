@@ -59,9 +59,9 @@ $ mise exec -- escript scripts/package/check_source_package.erl --prepare
 ```
 
 The run itself needs no network. The registry is a small `gen_tcp` file server
-that adds an `ETag` header, records every request path, answers `429` after 256
-requests and shuts down before the script exits. `tools/source_package_registry.escript`
-signs the registry files.
+that adds an `ETag` header, records every request path, answers `429` after
+256 requests and shuts down before the script exits.
+`tools/source_package_registry.escript` signs the registry files.
 
 ```console
 $ mise exec -- escript scripts/package/check_source_package.erl
@@ -69,15 +69,33 @@ $ mise exec -- escript scripts/package/check_source_package.erl
 
 The receipt is `_build/source-package-check/receipt.json`. Each run also keeps
 its logs, the Hex tarball and the consumer's `rebar.lock` in
-`_build/source-package-check/run-<time>/`. The receipt records `registry_retired`,
-which is `true` only when the listening socket and every registry process are gone.
+`_build/source-package-check/run-<time>/`. The receipt records
+`registry_retired`, which is `true` only when the listening socket and every
+registry process are gone.
+
+## check_hex_install
+
+Installs the public Hex release in a clean consumer and runs the same installed
+consumers against it. The release workflow runs it after publishing, with the
+released version. It writes `_build/checks/hex-install.json`; the file says
+`UNVERIFIED` until the install finishes, so a failed run never leaves a `PASS`.
+
+```console
+$ mise exec -- escript scripts/package/check_hex_install.erl 0.1.0
+```
 
 ## Tests
 
-The EUnit modules in [tests](tests) run in the mid loop. They check the
-archive bytes, members and modes, the consumer file list, the environment
-scrubbing and the receipt shape without network or tmux.
+The EUnit modules in [tests](tests) run in the mid loop without network or
+tmux. They check the archive bytes, members and modes, the consumer file list,
+the environment scrubbing, contents validation, tool digests, the local
+registry server, the version check and the receipts, each with cases that must
+fail.
 
 ```console
 $ mise exec -- rebar3 eunit --module check_package_tests
 ```
+
+The `check_source_package_tests` and `check_hex_install_tests` modules take
+the same command. The full flows need the network, a C compiler and tmux, so
+run them by hand or in CI.
