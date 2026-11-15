@@ -18,10 +18,10 @@ end_per_suite(_Config) ->
     ok = application:stop(libtmux_erlang).
 
 separate_output(_Config) ->
+    {Child, Arguments} = tmux_test_child:command(<<"write">>,
+                                                 [<<"%begin\nraw">>, <<"warning">>, <<"7">>]),
     {ok, #{stdout := <<"%begin\nraw">>, stderr := <<"warning">>,
-           exit_status := 7, cleanup := complete}} = tmux_transport:run(
-        <<"/bin/sh">>, [<<"-c">>, <<"printf '%s' '%begin
-raw'; printf warning >&2; exit 7">>], #{}).
+           exit_status := 7, cleanup := complete}} = tmux_transport:run(Child, Arguments, #{}).
 
 input_and_arguments(_Config) ->
     Bytes = binary:copy(<<0, 255, 10, 65>>, 2300),

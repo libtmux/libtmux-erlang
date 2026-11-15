@@ -55,8 +55,8 @@ missing_children_rejects_before_fork(Config) ->
 independent_credits(Config) ->
     Payload = <<0, 6, "E", 0, 0, 0, 0, 0, "%end\n">>,
     with_helper(proplists:get_value(helper, Config), fun(Helper0) ->
-        {Started, Helper1} = shell(Helper0,
-            "printf '\\000\\006E\\000\\000\\000\\000\\000%%end\\n'; printf ready >&2; exec sleep 3600"),
+        {Started, Helper1} = child(Helper0, <<"write-then-wait">>,
+                                   [binary:encode_hex(Payload), <<"ready">>]),
         <<"S", _:32>> = Started,
         Helper2 = credit(Helper1, 2, 5),
         {<<"D", 2, "ready">>, Helper3} = frame(Helper2),
@@ -70,8 +70,8 @@ independent_credits(Config) ->
 
 stdout_stderr_and_exit_status(Config) ->
     with_helper(proplists:get_value(helper, Config), fun(Helper0) ->
-        {<<"S", _:32>>, Helper1} = configure(Helper0,
-            [<<"/bin/sh">>, <<"-c">>, <<"printf output; printf diagnostic >&2; exit 7">>], 0),
+        {<<"S", _:32>>, Helper1} = child(Helper0, <<"write">>,
+                                         [<<"output">>, <<"diagnostic">>, <<"7">>]),
         Helper2 = credit(credit(Helper1, 1, 8192), 2, 8192),
         {Streams, Closed, Terminal, Helper3} = collect(Helper2, #{1 => <<>>, 2 => <<>>}, []),
         #{1 := <<"output">>, 2 := <<"diagnostic">>} = Streams,
@@ -95,7 +95,9 @@ partial_write_is_accounted(Config) ->
 
 reaps_a_descendant_outside_the_group(Config) ->
     with_helper(proplists:get_value(helper, Config), fun(Helper0) ->
-        {<<"S", _:32>>, Helper1} = shell(Helper0, "setsid sleep 3600 & echo $!; wait"),
+        {<<"S", _:32>>, Helper1} = child(Helper0, <<"session-child">>,
+                                         [list_to_binary(os:find_executable("setsid")),
+                                          list_to_binary(os:find_executable("sleep"))]),
         Helper2 = credit(Helper1, 1, 8192),
         {<<"D", 1, Pid/binary>>, Helper3} = frame(Helper2),
         Helper4 = track(Helper3, binary_to_integer(string:trim(Pid))),
@@ -178,8 +180,9 @@ configure(Helper, Arguments, Timeout) ->
         _ -> {Packet, Final}
     end.
 
-shell(Helper, Script) ->
-    configure(Helper, [<<"/bin/sh">>, <<"-c">>, list_to_binary(Script)], 0).
+child(Helper, Mode, Arguments) ->
+    {Erl, Rest} = tmux_test_child:command(Mode, Arguments),
+    configure(Helper, [Erl | Rest], 0).
 
 string(Value) -> <<(byte_size(Value)):16, Value/binary>>.
 

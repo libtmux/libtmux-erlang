@@ -21,15 +21,16 @@ end_per_suite(_) -> ok = application:stop(libtmux_erlang).
 
 exit_status(Config) ->
     with_window(Config, true, fun(_Server, Window, Fixture) ->
+        {Child, Arguments} = tmux_test_child:command(<<"write">>, [<<>>, <<>>, <<"7">>]),
         lists:foreach(fun({Argv, Expected}) ->
-            Pane = job(Window, Fixture, Argv),
+            Pane = job(Window, Fixture, Argv, false),
             {ok, #{exit := Expected, pane := Dead}} =
                 tmux_pane:wait_exit(Pane, #{deadline_ms => 5000}),
             true = tmux_model:get(dead, Dead),
             {ok, _} = tmux_pane:kill(Dead)
         end, [{[<<"/bin/true">>], {status, 0}},
               {[<<"/bin/false">>], {status, 1}},
-              {[<<"/bin/sh">>, <<"-c">>, <<"exit 7">>], {status, 7}}])
+              {[Child | Arguments], {status, 7}}])
     end).
 
 waits_for_a_running_pane(Config) ->
@@ -113,7 +114,6 @@ hook_removed(Config) ->
 %% Jobs that end by themselves may be gone before the fixture can read them.
 job(Window, Fixture, [<<"/bin/true">>] = Argv) -> job(Window, Fixture, Argv, false);
 job(Window, Fixture, [<<"/bin/false">>] = Argv) -> job(Window, Fixture, Argv, false);
-job(Window, Fixture, [<<"/bin/sh">> | _] = Argv) -> job(Window, Fixture, Argv, false);
 job(Window, Fixture, Argv) -> job(Window, Fixture, Argv, true).
 
 job(Window, Fixture, Argv, Track) ->

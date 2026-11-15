@@ -14,7 +14,9 @@ run_test_() ->
 
 captures_streams_and_status() ->
     ?assertMatch(#{status := 7, stdout := <<"out">>, stderr := <<"err">>},
-        script_util:run("/bin/sh", ["-c", "printf out; printf err >&2; exit 7"], #{})),
+        script_util:run(os:find_executable("erl"),
+            ["-noshell", "-eval",
+             "io:put_chars(\"out\"), io:put_chars(standard_error, \"err\"), halt(7)."], #{})),
     ?assertEqual(<<"x">>, script_util:run_ok("printf", ["x"], #{})).
 
 kills_a_command_past_its_deadline() ->

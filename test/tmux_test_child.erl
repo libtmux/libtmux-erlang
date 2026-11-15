@@ -41,6 +41,26 @@ run("echo-marked", []) ->
     ok = emit(Out, <<"ready\n">>),
     ok = emit(Err, <<"notice">>),
     echo(In, Out, Err);
+%% Write the text to standard output and standard error, then exit with the
+%% status.
+run("write", [Stdout, Stderr, Status]) ->
+    ok = emit(output(), list_to_binary(Stdout)),
+    ok = emit(stream_error(), list_to_binary(Stderr)),
+    halt(list_to_integer(Status));
+%% Write hex-encoded bytes to standard output and the text to standard error,
+%% then wait.
+run("write-then-wait", [StdoutHex, Stderr]) ->
+    ok = emit(output(), binary:decode_hex(list_to_binary(StdoutHex))),
+    ok = emit(stream_error(), list_to_binary(Stderr)),
+    forever();
+%% Start `Setsid Sleep 3600`, a sleeping process in a session of its own, print
+%% its OS process ID and wait. The helper gives its child no PATH, so the
+%% caller names both programs.
+run("session-child", [Setsid, Sleep]) ->
+    Port = open_port({spawn_executable, Setsid}, [binary, {args, [Sleep, "3600"]}]),
+    {os_pid, Pid} = erlang:port_info(Port, os_pid),
+    ok = emit(output(), integer_to_binary(Pid)),
+    forever();
 %% Fill the output pipe, then wait.
 run("blocked", []) ->
     ok = emit(output(), binary:copy(<<"x">>, 65536)),
