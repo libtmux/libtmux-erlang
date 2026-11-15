@@ -1,9 +1,9 @@
 # Option catalogue
 
 Generated from pinned tmux `options-table.c` files by
-`tools/generate_options.py`. [Scoped options](options.md) defines the
-public API. Types describe tmux's parser; values use binary text.
-Hooks appear for discovery and are rejected by the option API.
+`scripts/generate/generate_options.erl`. [Scoped options](options.md)
+defines the public API. Types describe tmux's parser; values use binary
+text. Hooks appear for discovery and are rejected by the option API.
 
 ## Sources
 
