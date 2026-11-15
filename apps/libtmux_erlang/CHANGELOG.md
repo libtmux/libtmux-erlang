@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Add `tmux_pane:wait_exit/2`, which waits for a pane's process to exit and
+  returns `{status, Code}` or `{signal, Signal}` with the dead pane freshly
+  observed, so a death by signal is no longer read as a missing exit status.
+  The pane must keep its dead state through `remain-on-exit`.
+
 ## 0.0.1 - 2026-11-13
 
 - Publish the initial core application on Hex with its helper source,
