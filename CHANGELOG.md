@@ -2,6 +2,24 @@
 
 ## Unreleased
 
+- Run the support scripts as Erlang modules that `escript` runs and Rebar3
+  compiles, type checks and tests with the library, and remove their Python
+  versions. Only the shared example-width checker still runs under Python.
+
+- Build tmux and install CI packages with the shared libtmux/.github actions.
+
+- Run the test suites' child programs and the terminal job example as Erlang
+  programs instead of Python ones.
+
+- Record the archive consumer's input pane pid, exit signal, clients and a
+  verbose tmux server log when that pane does not exit with status 0.
+
+- Add a capability directory to the `tmux_server` module docs.
+
+- Add the typing, query planner and command batching programs to the README and
+  rewrite the README and guides around tasks, linked APIs and executed
+  examples.
+
 - Link example section headings directly to their named Erlang API functions.
 
 - Install the published core from Hex in both README examples and the
