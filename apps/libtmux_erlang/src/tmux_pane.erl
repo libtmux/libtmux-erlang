@@ -47,14 +47,33 @@ remains the caller's responsibility. `stop_pipe/1` closes that native pipe.
 These actions do not create an Erlang output subscription or transfer process
 ownership to the endpoint. Use an application acknowledgement for consumer
 readiness, delivered bytes and job completion.
+
+`wait_exit/2` waits for a pane's process to exit and reports an exit status or
+the signal that ended it, as two distinct values. The pane must retain its dead
+state through `remain-on-exit`; the [job guide](jobs.md) shows it with a job
+that also acknowledges its output.
 """.
 -export([split/2, get/2, kill/1, resize/2, respawn/2, send_text/2, send_keys/2,
-         capture/2, break/4, join/3, move/3, swap/3, pipe/3, stop_pipe/1]).
+         capture/2, break/4, join/3, move/3, swap/3, pipe/3, stop_pipe/1, wait_exit/2]).
 -export([resize_command/2]).
 
 -export_type([split_options/0, capture_options/0, resize_options/0, respawn_options/0,
               coordinate/0, key/0, break_options/0, join_options/0, swap_options/0,
-              pipe_command/0, pipe_options/0]).
+              pipe_command/0, pipe_options/0, wait_exit_options/0, exit/0,
+              wait_exit_result/0]).
+-doc """
+Wait options: `deadline_ms` (1 to 600000, default 30000) bounds the whole wait,
+including the final observation.
+""".
+-type wait_exit_options() :: #{deadline_ms => 1..600000}.
+-doc """
+How a pane's process ended: `{status, Code}` for a normal exit, or
+`{signal, Signal}` for a death by signal. tmux prints a signal as its number on
+Linux and as a lowercase name on systems with `sys_signame`.
+""".
+-type exit() :: {status, 0..255} | {signal, pos_integer() | binary()}.
+-doc "The outcome and the dead pane freshly observed after it.".
+-type wait_exit_result() :: #{exit := exit(), pane := tmux_model:pane()}.
 -doc "Explicit shell code: a nonempty NUL-free binary, with no tmux format or strftime expansion.".
 -type pipe_command() :: #{shell := binary()}.
 -doc "Pipe direction defaults to output. toggle defaults false; true closes an existing pipe instead of replacing it.".
@@ -186,6 +205,137 @@ process completion themselves. The endpoint does not own that shell process.
 """.
 -spec stop_pipe(tmux_model:pane()) -> {ok, map()} | {error, map()}.
 stop_pipe(Pane) -> tmux_target:act(pane, Pane, <<"pipe-pane">>, []).
+
+-doc """
+Wait until this registered pane's process exits and report how it ended.
+Performs I/O. The result carries `exit` (`t:exit/0`: an exit status or a
+signal) and the dead `pane`, freshly observed. A pane that is already dead
+returns at once.
+
+tmux keeps a dead pane's status only when `remain-on-exit` is `on` for it, set
+on the pane or inherited from its window, before the process exits. Any other
+value returns `remain_on_exit_required` for a live pane. The call changes no
+option. While it waits it registers one `pane-died` hook entry at a private
+index and a private `wait-for` channel, and it removes the hook whatever the
+outcome. The hook is registered and the pane checked in one tmux command
+sequence, so an exit cannot fall between them.
+
+`deadline_ms` bounds the wait; an expired wait returns the operation's
+`deadline` error and the pane stays usable for another call. A pane killed or
+destroyed meanwhile returns `target_gone`. A dead pane without a published
+status returns `exit_status_unavailable`.
+
+A returned exit does not prove that the program's output reached the pane;
+a job that needs its output captured acknowledges terminal parsing first, as
+the [job guide](jobs.md) shows. Calling this on an invalid option fails before
+any I/O:
+
+```erlang
+1> tmux_pane:wait_exit(invalid_row, #{deadline_ms => 0}).
+{error,#{code => invalid_option,path => [deadline_ms]}}
+```
+""".
+-spec wait_exit(tmux_model:pane(), wait_exit_options()) ->
+    {ok, wait_exit_result()} | {error, map()}.
+wait_exit(Pane, Options) ->
+    maybe
+        {ok, Deadline} ?= exit_deadline(Options),
+        {ok, Server, Target} ?= tmux_target:resolve(pane, Pane),
+        {ok, State} ?= exit_state(Server, Target),
+        {ok, Outcome} ?= case State of
+            {exited, Ended} -> {ok, Ended};
+            running -> await_exit(Server, Target, Deadline)
+        end,
+        {ok, Current} ?= get(Server, tmux_model:get(id, Pane)),
+        {ok, #{exit => Outcome, pane => Current}}
+    end.
+
+exit_deadline(Options) when is_map(Options) ->
+    case maps:keys(maps:without([deadline_ms], Options)) of
+        [] ->
+            case maps:get(deadline_ms, Options, 30000) of
+                Milliseconds when is_integer(Milliseconds, 1, 600000) -> {ok, Milliseconds};
+                _ -> {error, #{code => invalid_option, path => [deadline_ms]}}
+            end;
+        Unknown -> {error, #{code => unknown_option, path => [hd(lists:sort(Unknown))]}}
+    end;
+exit_deadline(_) -> {error, #{code => invalid_options, path => []}}.
+
+exit_state(Server, Target) ->
+    Format = <<"#{pane_id}\t#{pane_dead}\t#{remain-on-exit}\t",
+               "#{pane_dead_status}\t#{pane_dead_signal}">>,
+    maybe
+        {ok, #{stdout := Output}} ?= tmux_target:run(Server, <<"display-message">>,
+            [<<"-p">>, <<"-t">>, Target, <<"-F">>, Format], #{max_stdout => 256}),
+        [Line, <<>>] ?= binary:split(Output, <<"\n">>),
+        parse_exit_state(Target, binary:split(Line, <<"\t">>, [global]))
+    else
+        Mismatch when not is_tuple(Mismatch); element(1, Mismatch) =/= error ->
+            {error, #{code => invalid_pane_state}};
+        {error, _} = Error -> Error
+    end.
+
+%% display-message tolerates a missing target and prints empty fields.
+parse_exit_state(_, [<<>>, _, _, _, _]) -> {error, #{code => target_gone}};
+parse_exit_state(Target, [Target, <<"1">>, _, Status, Signal]) -> parse_exit(Status, Signal);
+parse_exit_state(Target, [Target, <<"0">>, <<"on">>, _, _]) -> {ok, running};
+parse_exit_state(Target, [Target, <<"0">>, Retention, _, _]) ->
+    {error, #{code => remain_on_exit_required, remain_on_exit => Retention}};
+parse_exit_state(_, _) -> {error, #{code => invalid_pane_state}}.
+
+parse_exit(<<>>, <<>>) -> {error, #{code => exit_status_unavailable}};
+parse_exit(Status, <<>>) ->
+    try binary_to_integer(Status) of
+        Code when is_integer(Code, 0, 255) -> {ok, {exited, {status, Code}}};
+        _ -> {error, #{code => invalid_pane_state}}
+    catch error:badarg -> {error, #{code => invalid_pane_state}}
+    end;
+parse_exit(<<>>, Signal) ->
+    try binary_to_integer(Signal) of
+        Number when Number > 0 -> {ok, {exited, {signal, Number}}};
+        _ -> {error, #{code => invalid_pane_state}}
+    catch error:badarg -> {ok, {exited, {signal, Signal}}}
+    end;
+parse_exit(_, _) -> {error, #{code => invalid_pane_state}}.
+
+await_exit(Server, Target, Deadline) ->
+    Suffix = binary:encode_hex(crypto:strong_rand_bytes(8), lowercase),
+    Channel = <<"libtmux-exit-", Suffix/binary>>,
+    Hook = <<"pane-died[", (integer_to_binary(1000000000 + rand:uniform(1000000000)))/binary, "]">>,
+    maybe
+        {ok, Wait} ?= tmux_command:wait_for(Channel, wait),
+        {ok, Operation} ?= tmux_operation:start(Server, Wait, #{deadline_ms => Deadline}),
+        try
+            maybe
+                ok ?= signal_on_exit(Server, Target, Channel, Hook),
+                {ok, _} ?= tmux_operation:await(Operation, infinity),
+                {ok, State} ?= exit_state(Server, Target),
+                case State of
+                    {exited, Outcome} -> {ok, Outcome};
+                    running -> {error, #{code => exit_not_observed}}
+                end
+            end
+        after
+            _ = tmux_operation:cancel(Operation),
+            _ = tmux_operation:await(Operation, 900),
+            _ = tmux_target:run(Server, <<"set-hook">>,
+                [<<"-p">>, <<"-u">>, <<"-t">>, Target, <<"--">>, Hook])
+        end
+    end.
+
+%% One command sequence registers the hook and signals at once for a pane that
+%% already died, so no exit can fall between the two.
+signal_on_exit(Server, Target, Channel, Hook) ->
+    Signal = <<"wait-for -S ", Channel/binary>>,
+    maybe
+        {ok, Set} ?= tmux_command:raw(<<"set-hook">>,
+            [<<"-p">>, <<"-t">>, Target, <<"--">>, Hook, Signal]),
+        {ok, Check} ?= tmux_command:raw(<<"if-shell">>,
+            [<<"-F">>, <<"-t">>, Target, <<"--">>, <<"#{pane_dead}">>, Signal]),
+        {ok, Sequence} ?= tmux_command:sequence([Set, Check]),
+        {ok, _} ?= tmux_target:submit(Server, Sequence, #{}),
+        ok
+    end.
 
 -doc """
 Break a physical pane through its explicit source membership into a destination

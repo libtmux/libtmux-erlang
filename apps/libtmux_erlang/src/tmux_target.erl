@@ -1,7 +1,7 @@
 -module(tmux_target).
 -moduledoc false.
 -export([owner/2, same_owner/4, resolve/2, selector/2, run/3, run/4, act/4, linked_pane/3]).
--export([captured_target/2, execute/1]).
+-export([captured_target/2, execute/1, submit/3]).
 
 -spec resolve(atom() | [atom()], term()) ->
     {ok, tmux_server:t(), binary()} | {error, map()}.
@@ -89,6 +89,11 @@ run(Server, Name, Args, Options) ->
         {ok, Command} ?= tmux_command:raw(Name, Args),
         classify(tmux_server:command(Server, Command, Options))
     end.
+
+-spec submit(tmux_server:t(), tmux_command:t(), tmux_server:command_options()) ->
+    {ok, map()} | {error, map()}.
+submit(Server, Command, Options) ->
+    classify(tmux_server:command(Server, Command, Options)).
 
 -spec act(atom(), tmux_model:row(), binary(), [binary()]) -> {ok, map()} | {error, map()}.
 act(Entity, Row, Name, Args) ->
