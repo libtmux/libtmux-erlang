@@ -55,6 +55,7 @@ options(["--runs", Text | Rest], Compiler, _) ->
     options(Rest, Compiler, Runs);
 options(_, _, _) -> usage("usage: check_helper_native.erl [--cc COMPILER] [--runs N]").
 
+-spec usage(string()) -> no_return().
 usage(Message) ->
     io:format(standard_error, "~s~n", [Message]),
     halt(2).
@@ -74,15 +75,15 @@ run(Compiler, Runs, Attempt) ->
     script_util:with_tmp_dir("tmux-erlang-native", fun(Temporary) ->
         Helper = filename:join(Temporary, "helper"),
         Fuzzer = filename:join(Temporary, "fuzz"),
-        command(Compiler, flags() ++ ["apps/libtmux_erlang/c_src/owned_io.c", "-o", Helper],
-                Environment, Attempt, 60),
+        _ = command(Compiler, flags() ++ ["apps/libtmux_erlang/c_src/owned_io.c", "-o", Helper],
+                    Environment, Attempt, 60),
         Suite = Environment#{<<"LIBTMUX_TEST_HELPER">> => list_to_binary(Helper),
                              <<"LIBTMUX_TEST_CC">> => list_to_binary(Compiler),
                              <<"LIBTMUX_TEST_CFLAGS">> => list_to_binary(string:join(flags(), " "))},
-        command("rebar3", ["ct", "--dir", "scripts/helper/tests", "--suite", "helper_protocol_SUITE"],
-                Suite, Attempt, 300),
-        command(Compiler, flags() ++ ["-fsanitize=fuzzer", "test/helper_fuzz.c", "-o", Fuzzer],
-                Environment, Attempt, 60),
+        _ = command("rebar3", ["ct", "--dir", "scripts/helper/tests", "--suite", "helper_protocol_SUITE"],
+                    Suite, Attempt, 300),
+        _ = command(Compiler, flags() ++ ["-fsanitize=fuzzer", "test/helper_fuzz.c", "-o", Fuzzer],
+                    Environment, Attempt, 60),
         Corpus = filename:join(Temporary, "corpus"),
         ok = file:make_dir(Corpus),
         Initial = seeds(),
@@ -135,6 +136,7 @@ status(Code) -> Code.
 tail(Text) when byte_size(Text) > 6000 -> binary:part(Text, byte_size(Text) - 6000, 6000);
 tail(Text) -> Text.
 
+-spec fail(string()) -> no_return().
 fail(Message) -> error({check_failed, Message}).
 
 %% The seed corpus: well-formed frames, truncated openings and hostile headers,

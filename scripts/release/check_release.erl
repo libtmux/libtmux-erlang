@@ -87,6 +87,7 @@ artifact(Path, Version, Head, Options, Base) ->
     end,
     Base#{sha256 => Digest, published => Published}.
 
+-spec fail(term()) -> no_return().
 fail(Message) -> error({release, Message}).
 
 -doc "The literal application version from the app resource template.".

@@ -180,14 +180,7 @@ consumer_files() ->
      {"tools/run_examples.escript", "tools/run_examples.escript"},
      {"test/tmux_test_fixture.erl", "test/tmux_test_fixture.erl"}]
     ++ [{"examples/" ++ Demo ++ ".erl", "examples/" ++ Demo ++ ".erl"} || Demo <- demos()]
-    ++ python_files().
-
-% The Python watcher and job helper that Erlang replacements retire; delete these
-% entries with them.
-python_files() ->
-    [{"test/tmux_fixture_watch.py", "consumer-ebin/tmux_fixture_watch.py"},
-     {"test/tmux_fixture_watch.py", "test/tmux_fixture_watch.py"},
-     {"examples/terminal_job.py", "examples/terminal_job.py"}].
+    ++ [{"examples/terminal_job.erl", "examples/terminal_job.erl"}].
 
 demos() ->
     ["filter_demo", "inspect_demo", "readme_demo", "linked_graph", "job_demo",
