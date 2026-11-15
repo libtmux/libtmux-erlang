@@ -112,11 +112,14 @@ $ mise exec -- escript tools/generate_schema.escript
 The generator uses OTP JSON. Generated files are checked in so package
 consumers do not need the generator. Do not hand-edit generated Erlang.
 
-The option catalogue uses the same pinned tmux source commits as CI. After
-changing those pins, refresh it from a local tmux Git clone:
+The option catalogue uses the tmux source commits pinned in
+[schema/tmux-sources.json](../schema/tmux-sources.json). After changing those
+pins, refresh it from a local tmux Git clone that contains them. The
+[generators](../scripts/generate/README.md) run from the compiled library, so
+run `mise exec -- rebar3 compile` first:
 
 ```console
-$ python3 tools/generate_options.py \
+$ mise exec -- escript scripts/generate/generate_options.erl \
     --refresh-from /path/to/tmux
 ```
 
@@ -128,7 +131,7 @@ The native command catalogue records parser declarations and selected feature
 minimums from those same pins. Refresh its data and reference together:
 
 ```console
-$ python3 tools/generate_commands.py \
+$ mise exec -- escript scripts/generate/generate_commands.erl \
     --refresh-from /path/to/tmux
 ```
 
