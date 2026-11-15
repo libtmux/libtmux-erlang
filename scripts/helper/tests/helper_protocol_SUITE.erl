@@ -181,7 +181,7 @@ configure(Helper, Arguments, Timeout) ->
     end.
 
 child(Helper, Mode, Arguments) ->
-    {Erl, Rest} = tmux_test_child:command(Mode, Arguments),
+    {Erl, Rest} = helper_child:command(Mode, Arguments),
     configure(Helper, [Erl | Rest], 0).
 
 string(Value) -> <<(byte_size(Value)):16, Value/binary>>.
