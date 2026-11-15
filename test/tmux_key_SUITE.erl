@@ -3,17 +3,24 @@
 -export([all/0, init_per_suite/1, end_per_suite/1,
          registration/1, terminal_dispatch/1, terminal_failure/1, terminal_cancel/1]).
 
+%% Bound for each terminal event; every wait ends on its event, not on this bound.
+-define(WAIT_MS, 2000).
+
 %% Outer: real bindings and terminal-client retirement need an isolated daemon.
+%% erlexec, a test-profile dependency, supplies the PTY for the attached client.
 all() -> [registration, terminal_dispatch, terminal_failure, terminal_cancel].
 
 init_per_suite(Config) ->
     {ok, _} = application:ensure_all_started(libtmux_erlang),
+    {ok, _} = application:ensure_all_started(erlexec),
     Path = case os:getenv("LIBTMUX_TEST_TMUX") of
         false -> os:find_executable("tmux"); Value -> Value
     end,
     [{executable, list_to_binary(Path)} | Config].
 
-end_per_suite(_) -> ok = application:stop(libtmux_erlang).
+end_per_suite(_) ->
+    ok = application:stop(erlexec),
+    ok = application:stop(libtmux_erlang).
 
 registration(Config) ->
     with_server(Config, fun(Server, _) ->
@@ -69,9 +76,7 @@ registration(Config) ->
 
 terminal_dispatch(Config) ->
     with_terminal(Config, fun(Server, Session, Driver) ->
-        {ok, #{exit_status := 0, stdout := Output, cleanup := complete}} =
-            run_driver(Driver, <<"78">>),
-        #{<<"binding_signal">> := true, <<"client_exit">> := 0} = json:decode(Output),
+        {ok, #{binding_signal := true, client_exit := 0}} = drive(Driver, <<"x">>),
         {ok, Bytes} = tmux_option:get(Session, <<"@bound">>, #{}),
         Bytes = bound_bytes(),
         {ok, Current} = tmux_session:get(Server, tmux_model:get(id, Session)),
@@ -81,31 +86,32 @@ terminal_dispatch(Config) ->
 terminal_failure(Config) ->
     with_terminal(Config, fun(Server, Session, Driver) ->
         %% An unbound key must fail the completion proof and retire the client.
-        {ok, #{exit_status := 1, cleanup := complete}} = run_driver(Driver, <<"79">>),
+        {error, #{reason := {signal_timeout, done}, terminal_tail := Tail}} =
+            drive(Driver, <<"y">>),
+        true = is_binary(Tail),
         none = tmux_option:get(Session, <<"@bound">>, #{}),
         {ok, Current} = tmux_session:get(Server, tmux_model:get(id, Session)),
         0 = tmux_model:get(attached_count, Current)
     end).
 
 terminal_cancel(Config) ->
-    with_terminal(Config, fun(Server, Session, [Script, Exe, Socket, Id, _, Done]) ->
+    with_terminal(Config, fun(Server, Session, Driver) ->
         {ok, Wait} = tmux_command:wait_for(<<"terminal-ready">>, wait),
         {ok, Attached} = tmux_operation:start(Server, Wait, #{}),
         try
             %% The driver's readiness channel stays unsignalled after attachment.
-            {ok, Handle} = tmux_transport:start(<<"/usr/bin/python3">>,
-                [Script, Exe, Socket, Id, <<"never-signalled">>, Done, <<"78">>],
-                #{timeout_ms => 3000, max_stdout => 4096, max_stderr => 8192}),
-            try
-                {ok, #{cleanup := complete}} = tmux_operation:await(Attached, 900),
-                {ok, _} = tmux_transport:cancel(Handle),
-                {error, #{code := cancelled, cleanup := complete}} =
-                    tmux_transport:await(Handle, 900),
-                none = tmux_option:get(Session, <<"@bound">>, #{}),
-                {ok, Current} = tmux_session:get(Server, tmux_model:get(id, Session)),
-                0 = tmux_model:get(attached_count, Current)
-            after ok = tmux_transport:close(Handle)
-            end
+            {Pid, Monitor} = spawn_monitor(fun() ->
+                exit({driven, drive(Driver#{ready := <<"never-signalled">>}, <<"x">>)})
+            end),
+            {ok, #{cleanup := complete}} = tmux_operation:await(Attached, ?WAIT_MS),
+            Pid ! cancel,
+            receive
+                {'DOWN', Monitor, process, Pid, {driven, {error, #{reason := cancelled}}}} -> ok
+            after ?WAIT_MS -> exit(Pid, kill), ct:fail(driver_cancel_timeout)
+            end,
+            none = tmux_option:get(Session, <<"@bound">>, #{}),
+            {ok, Current} = tmux_session:get(Server, tmux_model:get(id, Session)),
+            0 = tmux_model:get(attached_count, Current)
         after
             {ok, _} = tmux_operation:cancel(Attached),
             {ok, #{cleanup := complete}} = tmux_operation:await(Attached, 900)
@@ -123,9 +129,105 @@ bound_bytes() ->
     <<"$HOME ${USER} ~root #{session_id} #[red];\n  #end\n",
       (list_to_binary(lists:seq(1, 255)))/binary>>.
 
-run_driver(Arguments, HexKeys) ->
-    tmux_transport:run(<<"/usr/bin/python3">>, Arguments ++ [HexKeys],
-        #{timeout_ms => 3000, max_stdout => 4096, max_stderr => 8192}).
+%% Attach one owned client on a 24x80 PTY, press Keys once the attach hook has
+%% signalled, wait for the binding's signal, detach the client and require a
+%% normal exit. Each wait ends on an event or at its deadline. Every process
+%% started here is proven gone before this returns. A failure carries the tail
+%% of the terminal output. A `cancel` message ends a wait for a signal.
+drive(Driver, Keys) when byte_size(Keys) > 0, byte_size(Keys) =< 4096 ->
+    with_os_process(fun() -> signal_wait(Driver, ready) end, fun(Ready) ->
+        with_os_process(fun() -> attach(Driver) end, fun(Client) ->
+            try
+                ok = signalled(Ready, Client, ready),
+                with_os_process(fun() -> signal_wait(Driver, done) end, fun(Done) ->
+                    ok = exec:send(Client, Keys),
+                    ok = signalled(Done, Client, done)
+                end),
+                {ok, #{exit_status := 0}} = detach(Driver, Client),
+                ok = client_exit(Client),
+                true = byte_size(terminal_output(Client)) =< 1048576,
+                {ok, #{key_bytes => byte_size(Keys), client_exit => 0,
+                       binding_signal => true}}
+            catch error:Reason ->
+                Output = terminal_output(Client),
+                Tail = binary:part(Output, max(0, byte_size(Output) - 1024),
+                                   min(1024, byte_size(Output))),
+                {error, #{reason => Reason, terminal_tail => Tail}}
+            end
+        end)
+    end).
+
+with_os_process(Start, Fun) ->
+    {OsPid, Identity} = Start(),
+    try Fun(OsPid)
+    after reap(OsPid, Identity)
+    end.
+
+environment() -> {env, [{"TERM", "xterm-256color"}, {"TMUX", false}, {"TMUX_PANE", false}]}.
+
+base(#{executable := Executable, socket := Socket}) ->
+    [Executable, <<"-N">>, <<"-S">>, Socket].
+
+signal_wait(#{} = Driver, Channel) ->
+    Name = maps:get(Channel, Driver),
+    started(exec:run(base(Driver) ++ [<<"wait-for">>, Name],
+                     [monitor, {kill_timeout, 1}, environment()])).
+
+attach(#{session := Session} = Driver) ->
+    started(exec:run(base(Driver) ++ [<<"-u">>, <<"attach-session">>, <<"-E">>,
+                                      <<"-t">>, Session],
+                     [stdin, stdout, {stderr, stdout}, pty, {winsz, {24, 80}}, monitor,
+                      {kill_timeout, 1}, environment()])).
+
+started({ok, _, OsPid}) -> {OsPid, identity(OsPid)}.
+
+identity(OsPid) ->
+    try tmux_test_fixture:process_identity(OsPid)
+    catch error:{badmatch, {error, enoent}} -> gone
+    end.
+
+%% A signal client exits zero once its channel is signalled.
+signalled(Waiter, Client, What) ->
+    receive
+        {'DOWN', Waiter, process, _, normal} -> ok;
+        {'DOWN', Waiter, process, _, Status} -> error({signal_command_failed, What, Status});
+        {'DOWN', Client, process, _, Status} -> error({client_exited_early, What, Status});
+        cancel -> error(cancelled)
+    after ?WAIT_MS -> error({signal_timeout, What})
+    end.
+
+detach(Driver, Client) ->
+    {ok, #{exit_status := 0, stdout := Listing}} = tmux_transport:run(
+        maps:get(executable, Driver), tl(base(Driver)) ++ [<<"list-clients">>, <<"-F">>,
+            <<"#{client_pid} #{client_name}">>], #{timeout_ms => ?WAIT_MS}),
+    Prefix = <<(integer_to_binary(Client))/binary, " ">>,
+    [Name] = [Rest || <<Head:(byte_size(Prefix))/binary, Rest/binary>> <-
+                          binary:split(Listing, <<"\n">>, [global]), Head =:= Prefix],
+    tmux_transport:run(maps:get(executable, Driver), tl(base(Driver)) ++
+        [<<"detach-client">>, <<"-t">>, Name], #{timeout_ms => ?WAIT_MS, max_stdout => 0}).
+
+client_exit(Client) ->
+    receive {'DOWN', Client, process, _, normal} -> ok
+    after ?WAIT_MS -> error(client_exit_timeout)
+    end.
+
+%% Everything the client wrote to its terminal so far.
+terminal_output(Client) ->
+    receive {stdout, Client, Bytes} -> <<Bytes/binary, (terminal_output(Client))/binary>>
+    after 0 -> <<>>
+    end.
+
+%% Stop the OS process if it still runs, then prove it is gone.
+reap(OsPid, Identity) ->
+    case exec:pid(OsPid) of
+        Pid when is_pid(Pid) ->
+            ok = exec:stop(OsPid),
+            receive {'DOWN', OsPid, process, Pid, _} -> ok
+            after 6000 -> error({os_process_survived, OsPid})
+            end;
+        _ -> ok
+    end,
+    false = tmux_test_fixture:same_process(OsPid, Identity).
 
 with_terminal(Config, Fun) ->
     with_server(Config, fun(Server, Fixture) ->
@@ -146,9 +248,8 @@ with_terminal(Config, Fun) ->
         {ok, _} = tmux_option:set(Session, <<"key-table">>, Table),
         {ok, Table} = tmux_option:get(Session, <<"key-table">>, #{}),
         #{executable := Exe, socket := Socket} = tmux_test_fixture:info(Fixture),
-        Script = list_to_binary(filename:join(proplists:get_value(data_dir, Config),
-            "client.py")),
-        Fun(Server, Session, [Script, Exe, Socket, Id, Ready, Done])
+        Fun(Server, Session, #{executable => Exe, socket => Socket, session => Id,
+                               ready => Ready, done => Done})
     end).
 
 with_server(Config, Fun) ->
