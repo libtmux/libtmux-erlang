@@ -52,6 +52,61 @@ readiness, delivered bytes and job completion.
 the signal that ended it, as two distinct values. The pane must retain its dead
 state through `remain-on-exit`; the [job guide](jobs.md) shows it with a job
 that also acknowledges its output.
+
+## What is on here
+
+No call here refreshes the row you pass in; read the pane again to see a
+change. Each group below lists its calls, including a few that live in sibling
+modules.
+
+**Creating and reading.** `split/2` splits a pane, or a window's active pane,
+and returns the new pane's row. `get/2` reads a pane's fresh fields by its
+stable ID. `tmux_snapshot:panes/1` lists the panes of a captured graph.
+
+`split/2`, `get/2`, `t:split_options/0` and `tmux_snapshot:panes/1`
+
+**Sending input.** `send_text/2` sends literal bytes and adds no Enter key.
+`send_keys/2` sends named keys, single characters, function keys and control
+keys. A successful call does not show that a program processed the input, so
+read the pane afterwards. `tmux_buffer:paste/3` pastes a stored buffer instead.
+
+`send_text/2`, `send_keys/2`, `t:key/0` and `tmux_buffer:paste/3`
+
+**Reading output.** `capture/2` returns the pane's terminal text as bytes,
+keeping the final newline, over the line range you choose. `pipe/3` connects a
+tmux-owned shell process to the pane's live byte stream, and `stop_pipe/1`
+closes that pipe.
+
+- Capture: `capture/2`, `t:capture_options/0` and `t:coordinate/0`
+- Pipe: `pipe/3`, `stop_pipe/1`, `t:pipe_command/0` and `t:pipe_options/0`
+
+**Resizing.** `resize/2` requests an absolute width, height or both, which tmux
+can clamp to fit the layout. `resize_command/2` builds the same command without
+contacting tmux, so you can submit it later.
+
+`resize/2`, `resize_command/2`, `t:resize_options/0`, `tmux_server:command/3`
+and `tmux_operation:start/3`
+
+**Rearranging.** `break/4` breaks a pane out into a new window, or moves the
+window's membership when the pane is its only one. `join/3` and `move/3` place a
+pane beside another, and `swap/3` exchanges two panes' positions. The processes
+and pane IDs survive each of them. `tmux_window:select_layout/2` arranges every
+pane of a window at once.
+
+`break/4`, `join/3`, `move/3`, `swap/3`, `t:break_options/0`,
+`t:join_options/0`, `t:swap_options/0` and `tmux_window:select_layout/2`
+
+**Restarting and removing.** `respawn/2` runs the pane's command again under the
+same pane ID, and a running pane needs `force`. `kill/1` destroys the pane and
+never falls back to a positional target.
+
+`respawn/2`, `t:respawn_options/0` and `kill/1`
+
+**Waiting for exit.** `wait_exit/2` waits for the pane's process to exit and
+reports its exit status or the signal that ended it. The pane must keep its
+dead state through `remain-on-exit`.
+
+`wait_exit/2`, `t:wait_exit_options/0`, `t:wait_exit_result/0` and `t:exit/0`
 """.
 -export([split/2, get/2, kill/1, resize/2, respawn/2, send_text/2, send_keys/2,
          capture/2, break/4, join/3, move/3, swap/3, pipe/3, stop_pipe/1, wait_exit/2]).
