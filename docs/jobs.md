@@ -1,8 +1,8 @@
 # Wait for a terminal job, then capture its output
 
 A successful send does not prove a terminal program processed the input. This
-program runs a job that acknowledges terminal parsing, waits for `pane-died`,
-checks the exit status and captures the output.
+program runs a job that acknowledges terminal parsing, waits for its exit with
+`tmux_pane:wait_exit/2` and captures the output.
 
 - The [companion job](../examples/terminal_job.erl) is an escript. It switches
   the terminal to raw mode with `shell:start_interactive({noshell, raw})`,
@@ -10,12 +10,12 @@ checks the exit status and captures the output.
   reading tmux's reply, which tmux sends after parsing the output. It writes
   nothing afterward.
 - The job needs the Erlang/OTP that runs the example, and nothing else.
-- `pane-died` alone is not an output-drain barrier on tmux 3.3. This protocol
-  covers a cooperating job. It cannot reconstruct output that scrolled out of
-  history.
-- The program changes options and a hook only on its new window:
-  `remain-on-exit` keeps the pane addressable, an empty exit banner keeps the
-  first line, and the hook signals a tmux `wait-for` channel.
+- An exit is not an output-drain barrier on tmux 3.3. This protocol covers a
+  cooperating job. It cannot reconstruct output that scrolled out of history.
+- The program changes two options on its new window only: `remain-on-exit`
+  keeps the dead pane addressable, and an empty exit banner keeps the first
+  line. `tmux_pane:wait_exit/2` then waits for the job and returns its exit
+  status or the signal that ended it.
 - There are no sleeps or capture retries.
 
 Run it from the checkout so the job script can be found:
@@ -42,38 +42,29 @@ run(Socket, Executable) ->
         tmux_scope:run_or_error(fun() ->
             {ok, Window} = tmux_window:create(Session,
                 #{launch => #{argv => [<<"/bin/cat">>]}}),
-            Target = [<<"-w">>, <<"-t">>, tmux_model:get(id, Window)],
-            Deadline = #{deadline_ms => 6000},
             {ok, _} = tmux_option:set(Window, <<"remain-on-exit">>, <<"on">>),
             {ok, _} = tmux_option:set(
                 Window, <<"remain-on-exit-format">>, <<>>),
-            {ok, Hook} = tmux_command:raw(<<"set-hook">>,
-                Target ++ [<<"pane-died">>, <<"wait-for -S job-finished">>]),
-            {ok, _} = tmux_server:command(Server, Hook, #{}),
-            {ok, Wait} = tmux_command:raw(<<"wait-for">>, [<<"job-finished">>]),
-            {ok, Operation} = tmux_operation:start(Server, Wait, Deadline),
-            {error, #{code := await_timeout}} =
-                tmux_operation:await(Operation, 0),
             Escript = os:find_executable("escript"),
             JobFile = filename:absname("examples/terminal_job.erl"),
             Launch = #{argv => [list_to_binary(Escript),
                 list_to_binary(JobFile)]},
-            {ok, Job} = tmux_pane:split(Window, #{launch => #{shell => <<>>}}),
-            {ok, _} = tmux_pane:respawn(Job, #{launch => Launch}),
-            {ok, #{exit_status := 0, cleanup := complete}} =
-                tmux_operation:await(Operation, 5000),
-            {ok, Completed} = tmux_pane:get(Server, tmux_model:get(id, Job)),
+            {ok, Job} = tmux_pane:split(Window, #{launch => Launch}),
+            {ok, #{exit := {status, 0}, pane := Completed}} =
+                tmux_pane:wait_exit(Job, #{deadline_ms => 5000}),
             true = tmux_model:get(dead, Completed),
-            0 = tmux_model:get(exit_status, Completed),
             {ok, <<"build complete\n">>} = tmux_pane:capture(
                 Completed, #{start => 0, 'end' => 0}),
+            Deadline = #{deadline_ms => 6000},
             {ok, Never} = tmux_command:raw(
                 <<"wait-for">>, [<<"not-signalled">>]),
-            {ok, Cancelled} = tmux_operation:start(Server, Never, Deadline),
-            {ok, _} = tmux_operation:await_started(Cancelled, 900),
-            {ok, cancel_requested} = tmux_operation:cancel(Cancelled),
+            {ok, Operation} = tmux_operation:start(Server, Never, Deadline),
+            {error, #{code := await_timeout}} =
+                tmux_operation:await(Operation, 0),
+            {ok, _} = tmux_operation:await_started(Operation, 900),
+            {ok, cancel_requested} = tmux_operation:cancel(Operation),
             {error, #{outcome := unknown, cleanup := complete}} =
-                tmux_operation:await(Cancelled, 900),
+                tmux_operation:await(Operation, 900),
             #{output => <<"build complete\n">>, job_status => 0,
               await_timeout_kept_operation => true,
               cancelled_outcome => unknown}
@@ -87,10 +78,11 @@ run(Socket, Executable) ->
 ```
 
 - The output is `build complete` and a newline. The exit status is zero.
-- The zero-duration await shows that abandoning a wait leaves the operation
-  usable.
-- The separate cancelled wait reports an unknown tmux outcome and complete
-  client cleanup. Cancellation does not undo submitted work.
+- A separate `wait-for` operation that nobody signals shows the operation
+  calls. The zero-duration await shows that abandoning a wait leaves the
+  operation usable.
+- Cancelling that wait reports an unknown tmux outcome and complete client
+  cleanup. Cancellation does not undo submitted work.
 
 ## Start a job in a prepared pane
 
@@ -122,7 +114,9 @@ run(Socket, Executable) ->
 - `exit_status` and `dead` are separate fields.
 - After a normal exit, tmux gives a numeric status. A signal has no number, so
   the captured value is `none`, which does not mean success.
-- `pane_dead_signal` names the signal when you diagnose an unexpected exit.
+- `tmux_pane:wait_exit/2` returns `{status, Code}` or `{signal, Signal}`, so a
+  death by signal never reads as a missing status. On Linux tmux prints the
+  signal as its number.
 - The distinction comes from the
   [tmux 3.3a status callback](https://github.com/tmux/tmux/blob/3.3a/format.c#L1792)
   and the

@@ -215,57 +215,23 @@ run_endpoint(Socket, Executable) ->
                 InputWindow, <<"remain-on-exit">>, <<"on">>),
             {ok, _} = tmux_option:set(
                 InputWindow, <<"remain-on-exit-format">>, <<>>),
-            {ok, DoneSignal} = tmux_command:wait_for(
-                <<"archive-input-complete">>, signal),
-            {ok, _} = tmux_hook:set(InputWindow,
-                {<<"pane-died">>, 0}, DoneSignal),
-            {ok, InputWait} = tmux_command:wait_for(
-                <<"archive-input-complete">>, wait),
-            {ok, InputOperation} = tmux_operation:start(Server, InputWait, #{}),
-            tmux_scope:run_or_error(fun() ->
-                {ok, _} = tmux_pane:send_text(InputPane, <<"archive input">>),
-                {ok, _} = tmux_pane:send_keys(
-                    InputPane, [enter, {control, <<"d">>}]),
-                {ok, #{cleanup := complete}} =
-                    tmux_operation:await(InputOperation, 900),
-                {ok, CompletedInput} = tmux_pane:get(
-                    Server, tmux_model:get(id, InputPane)),
-                true = tmux_model:get(dead, CompletedInput),
-                case tmux_model:get(exit_status, CompletedInput) of
-                    0 -> ok;
-                    ObservedExit ->
-                        {ok, ExitProbe} = tmux_command:raw(
-                            <<"display-message">>, [<<"-p">>, <<"-t">>,
-                                tmux_model:get(id, CompletedInput),
-                                <<"#{pane_id}|#{pane_dead}|",
-                                  "#{pane_dead_status}|#{pane_dead_signal}">>]),
-                        ExitDetails = case tmux_server:command(
-                            Server, ExitProbe, #{}) of
-                            {ok, #{stdout := NativeExit}} -> NativeExit;
-                            {error, ExitFailure} -> maps:with(
-                                [code, outcome, phase, cleanup], ExitFailure)
-                        end,
-                        error({unexpected_pane_exit,
-                            #{expected => 0, observed => ObservedExit,
-                              pane => tmux_model:get(id, CompletedInput),
-                              native => ExitDetails}})
-                end,
-                {ok, _} = tmux_pane:kill(CompletedInput),
-                {error, #{code := target_gone}} = tmux_pane:get(
-                    Server, tmux_model:get(id, InputPane)),
-                {ok, _} = tmux_window:kill(InputWindow),
-                {error, #{code := target_gone}} =
-                    tmux_window:get(Server, InputWindowId)
-            end, fun() ->
-                tmux_scope:run_or_error(fun() ->
-                    {ok, _} = tmux_operation:cancel(InputOperation)
-                end, fun() ->
-                    case tmux_operation:await(InputOperation, 900) of
-                        {ok, #{cleanup := complete}} -> ok;
-                        {error, #{cleanup := complete}} -> ok
-                    end
-                end), ok
-            end),
+            {ok, _} = tmux_pane:send_text(InputPane, <<"archive input">>),
+            {ok, _} = tmux_pane:send_keys(
+                InputPane, [enter, {control, <<"d">>}]),
+            {ok, #{exit := Exit, pane := CompletedInput}} =
+                tmux_pane:wait_exit(InputPane, #{deadline_ms => 5000}),
+            true = tmux_model:get(dead, CompletedInput),
+            case Exit of
+                {status, 0} -> ok;
+                _ -> error({unexpected_pane_exit,
+                            #{expected => {status, 0}, observed => Exit}})
+            end,
+            {ok, _} = tmux_pane:kill(CompletedInput),
+            {error, #{code := target_gone}} = tmux_pane:get(
+                Server, tmux_model:get(id, InputPane)),
+            {ok, _} = tmux_window:kill(InputWindow),
+            {error, #{code := target_gone}} =
+                tmux_window:get(Server, InputWindowId),
             HookName = <<"after-split-window">>,
             {ok, _} = tmux_option:set(Session, <<"@manual-hook">>, <<>>),
             {ok, FirstHook} = tmux_command:raw(<<"set-option">>,

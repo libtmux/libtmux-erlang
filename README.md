@@ -543,6 +543,14 @@ It returns:
 
 More: [Control attachments](docs/control.md).
 
+### [`tmux_pane:wait_exit/2`][api-wait-exit]: wait for a job to exit
+
+Wait for a pane's process and read how it ended: `{status, Code}` for an exit
+status, `{signal, Signal}` for a death by signal. The pane keeps its dead state
+through `remain-on-exit`.
+
+More: [Run a job and capture its result](docs/jobs.md).
+
 ### [`tmux_operation:await/2`][api-await]: wait for submitted work
 
 Submit an operation without blocking, then await it, cancel it or hand it to
@@ -642,6 +650,7 @@ $ time python3 tools/check.py outer
 [api-fetch]: https://libtmux.org/en/erlang/latest/reference/tmux_query-fetch-1/
 [api-with-server]: https://libtmux.org/en/erlang/latest/reference/tmux_server-with_server-2/
 [api-await]: https://libtmux.org/en/erlang/latest/reference/tmux_operation-await-2/
+[api-wait-exit]: https://libtmux.org/en/erlang/latest/reference/tmux_pane-wait_exit-2/
 [api-explain]: https://libtmux.org/en/erlang/latest/reference/tmux_query-explain-1/
 [api-pushdown]: https://libtmux.org/en/erlang/latest/reference/tmux_query-pushdown-2/
 [api-sequence]: https://libtmux.org/en/erlang/latest/reference/tmux_command-sequence-1/
