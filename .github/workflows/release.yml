@@ -11,10 +11,11 @@ on:
       - 'rebar.config'
       - '.tool-versions'
       - 'apps/libtmux_erlang/**'
-      - 'tools/build_docs.py'
+      - 'scripts/docs/**'
+      - 'scripts/lib/**'
       - 'tools/docs-tool.json'
       - 'scripts/release/**'
-      - 'tools/check_hex_install.py'
+      - 'scripts/package/**'
   workflow_dispatch:
 
 permissions:
@@ -64,9 +65,9 @@ jobs:
             escript scripts/release/check_release.erl
           fi
       - name: Prepare pinned documentation tools
-        run: python3 tools/build_docs.py --prepare
+        run: escript scripts/docs/build_docs.erl --prepare
       - name: Build EEP-48 documentation
-        run: python3 tools/build_docs.py
+        run: escript scripts/docs/build_docs.erl
       - name: Build source package
         env:
           VERSION: ${{ steps.metadata.outputs.version }}
@@ -186,10 +187,12 @@ jobs:
         with:
           update: "true"
           args: install --yes --no-install-recommends build-essential tmux
+      - name: Compile the library and scripts
+        run: rebar3 compile
       - name: Install and execute public package
         env:
           VERSION: ${{ needs.candidate.outputs.version }}
-        run: python3 tools/check_hex_install.py "$VERSION"
+        run: escript scripts/package/check_hex_install.erl "$VERSION"
       - name: Verify HexDocs is public
         env:
           VERSION: ${{ needs.candidate.outputs.version }}

@@ -622,11 +622,11 @@ More: [Support and gaps](docs/compatibility.md) ·
 Run `mid` while you work and `outer` before a pull request:
 
 ```console
-$ time python3 tools/check.py mid
+$ time escript scripts/check/check.erl mid
 ```
 
 ```console
-$ time python3 tools/check.py outer
+$ time escript scripts/check/check.erl outer
 ```
 
 - [Contributor setup](.github/CONTRIBUTING.md): prerequisites and test budgets.

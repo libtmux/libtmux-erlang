@@ -63,14 +63,16 @@ jobs:
           rebar3 version
           "$LIBTMUX_TEST_TMUX" -V
           sha256sum "$LIBTMUX_TEST_TMUX"
+      - name: Prepare test dependencies
+        run: rebar3 as test compile
       - name: Unit, generated-source and whitespace checks
-        run: python3 tools/check.py mid
+        run: escript scripts/check/check.erl mid
       - name: Compile, helper, Dialyzer, owned integration and archive consumer
-        run: python3 tools/check.py outer
+        run: escript scripts/check/check.erl outer
       - name: Prepare pinned source-package tools
-        run: python3 tools/check_source_package.py --prepare
+        run: escript scripts/package/check_source_package.erl --prepare
       - name: Build and install exact Hex source artifacts
-        run: python3 tools/check_source_package.py
+        run: escript scripts/package/check_source_package.erl
       - name: Preserve the archive consumer's tmux server log
         if: failure()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -227,17 +229,17 @@ jobs:
         with:
           path: _build/tools/ex_doc
           key: exdoc-${{ hashFiles('tools/docs-tool.json') }}
-      - name: Prepare pinned documentation renderer
-        run: python3 tools/build_docs.py --prepare
       - name: Compile native documentation chunks
         run: rebar3 compile
+      - name: Prepare pinned documentation renderer
+        run: escript scripts/docs/build_docs.erl --prepare
       - name: Verify public contracts and guide corpus
         run: |
           escript tools/check_api_docs.escript > _build/api-docs.json
           escript tools/generate_reference.escript --check
-          python3 tools/check_docs.py
+          escript scripts/docs/check_docs.erl
       - name: Render warnings-free API browser
-        run: python3 tools/build_docs.py
+        run: escript scripts/docs/build_docs.erl
       - name: Preserve browser and documentation receipts
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

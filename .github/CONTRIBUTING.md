@@ -45,14 +45,14 @@ runtime compatibility.
 Run a focused EUnit module after changing its critical behavior:
 
 ```console
-$ time python3 tools/check.py inner \
+$ time escript scripts/check/check.erl inner \
     --module tmux_model_tests
 ```
 
 Run the unit, generated-source and tracked whitespace checks:
 
 ```console
-$ time python3 tools/check.py mid
+$ time escript scripts/check/check.erl mid
 ```
 
 The mid loop also checks public EEP-48 documentation/spec coverage, generated
@@ -86,11 +86,13 @@ Run compilation, native helper qualification, Dialyzer, real subprocess/tmux
 integration, executable docs and the external OTP archive consumer:
 
 ```console
-$ time python3 tools/check.py outer
+$ time escript scripts/check/check.erl outer
 ```
 
 These commands retain command output and timing under _build/checks/.
-The Python runner needs Python 3.12 or newer from the development host.
+The runner is an escript, so it runs before the library compiles. The
+example-width check still runs the shared Python checker, which needs Python
+3.11 or newer; the other checks need none.
 It times each complete child command, including mise and VM startup; the
 shell time command measures the complete loop invocation.
 The runner defaults to four Erlang schedulers to bound its share of a busy
