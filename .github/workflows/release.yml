@@ -178,9 +178,10 @@ jobs:
           rebar3-version: ${{ steps.tools.outputs.rebar }}
           version-type: strict
       - name: Install consumer prerequisites
-        run: |
-          sudo apt-get update
-          sudo apt-get install --yes --no-install-recommends build-essential tmux
+        uses: libtmux/.github/actions/apt-get@30f81842b1e639ea4e25f93f1f2543504178e228
+        with:
+          update: "true"
+          args: install --yes --no-install-recommends build-essential tmux
       - name: Install and execute public package
         env:
           VERSION: ${{ needs.candidate.outputs.version }}

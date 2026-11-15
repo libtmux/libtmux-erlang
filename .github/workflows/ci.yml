@@ -44,26 +44,15 @@ jobs:
           otp-version: ${{ steps.tools.outputs.otp }}
           rebar3-version: ${{ steps.tools.outputs.rebar }}
           version-type: strict
-      - name: Install native dependencies
-        run: |
-          sudo timeout --kill-after=10 180 apt-get -o Acquire::Retries=3 update
-          sudo timeout --kill-after=10 180 apt-get -o Acquire::Retries=3 install --yes --no-install-recommends \
-            build-essential bison libevent-dev libncurses-dev pkg-config
-      - name: Plan exact tmux build
+      - name: Build tmux ${{ matrix.tmux }}
         id: tmux
-        env:
-          TMUX_VERSION: ${{ matrix.tmux }}
-        run: python3 tools/ci/build_tmux.py plan "$TMUX_VERSION"
-      - uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        id: tmux-cache
+        uses: libtmux/.github/actions/build-tmux@30f81842b1e639ea4e25f93f1f2543504178e228
         with:
-          path: ${{ steps.tmux.outputs.prefix }}
-          key: ${{ steps.tmux.outputs.key }}
-      - name: Validate or build tmux
+          ref: ${{ matrix.tmux }}
+      - name: Select the built tmux
         env:
-          TMUX_VERSION: ${{ matrix.tmux }}
-          CACHE_HIT: ${{ steps.tmux-cache.outputs.cache-hit }}
-        run: python3 tools/ci/build_tmux.py prepare "$TMUX_VERSION"
+          TMUX_BINARY: ${{ steps.tmux.outputs.binary }}
+        run: echo "LIBTMUX_TEST_TMUX=$TMUX_BINARY" >> "$GITHUB_ENV"
       - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: _build/default/*_plt
@@ -82,12 +71,6 @@ jobs:
         run: python3 tools/check_source_package.py --prepare
       - name: Build and install exact Hex source artifacts
         run: python3 tools/check_source_package.py
-      - name: Save tmux only after owned runtime qualification
-        if: steps.tmux-cache.outputs.cache-hit != 'true'
-        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: ${{ steps.tmux.outputs.prefix }}
-          key: ${{ steps.tmux.outputs.key }}
       - name: Preserve check receipts and integration logs
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -114,10 +97,10 @@ jobs:
         with:
           persist-credentials: false
       - name: Install instrumented native toolchain
-        run: |
-          sudo timeout --kill-after=10 180 apt-get -o Acquire::Retries=3 update
-          sudo timeout --kill-after=10 180 apt-get -o Acquire::Retries=3 install --yes --no-install-recommends \
-            clang-18 libclang-rt-18-dev
+        uses: libtmux/.github/actions/apt-get@30f81842b1e639ea4e25f93f1f2543504178e228
+        with:
+          update: "true"
+          args: install --yes --no-install-recommends clang-18 libclang-rt-18-dev
       - name: Check helper lifecycle and framed-input parser
         run: python3 tools/check_helper_native.py
       - name: Preserve sanitizer logs and crash inputs

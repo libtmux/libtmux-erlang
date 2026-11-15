@@ -99,8 +99,8 @@ The restricted ASCII regex dialect has a separate
 are test-only tools; the core remains OTP-only. The mid loop checks fixture
 drift, while CI runs matching against PCRE2, JavaScript and Rust regex.
 
-[CI source builds](../tools/ci/README.md) explains the pinned tmux matrix,
-cache validation and separate PropEr profile. CI uses setup-beam's installed
+[CI source builds](../tools/ci/README.md) explains the tmux matrix, the shared
+build action and separate PropEr profile. CI uses setup-beam's installed
 tools directly; the local runner uses mise.
 
 Edit schema/entities.json, then regenerate the native records and registry:
