@@ -332,34 +332,15 @@ startup_errors(Config) ->
     ok = file:make_dir(Directory),
     ok = file:change_mode(Directory, 8#700),
     Fake = <<Directory/binary, "/tmux">>,
-    Script = iolist_to_binary([
-        <<"#!/usr/bin/python3\nimport json,os,pathlib,signal,subprocess,sys\nreal=">>,
-        json:encode(Executable), <<"\nroot=pathlib.Path(__file__).parent\n",
-        "args=sys.argv[1:]\nsock=args[args.index('-S')+1]\n",
-        "(root/'socket').write_text(sock)\n",
-        "if '-N' in args:\n",
-        " result=subprocess.run([real,*args],capture_output=True,check=True)\n",
-        " pid=int(result.stdout.split(bytes([9]))[0])\n",
-        " stat=pathlib.Path('/proc/'+str(pid)+'/stat').read_text()\n",
-        " start=stat.rsplit(') ',1)[1].split()[19]\n",
-        " (root/'probe').write_text(json.dumps({'pid':pid,'start':start}))\n",
-        " if (root/'mode').read_text()=='directory':\n",
-        "  parent=str(pathlib.Path(sock).parent)\n",
-        "  os.rename(parent,parent+'.original')\n  os.symlink(parent+'.original',parent)\n",
-        "  os.write(1,result.stdout)\n",
-        " else: os.write(1,b'0'+bytes([9])+b'3.3'+bytes([10]))\n",
-        "else:\n mode=(root/'mode').read_text()\n",
-        " if mode=='namespace':\n  pathlib.Path(sock).write_bytes(b'preserve')\n",
-        "  os.write(1,b'123'+bytes([9])+b'3.3'+bytes([10]))\n  signal.pause()\n",
-        " if mode=='partial':\n  os.write(1,b'123')\n  sys.exit(0)\n",
-        " if mode=='timeout': signal.pause()\n",
-        " os.execv(real,[real,*args])\n">>]),
+    Script = iolist_to_binary([<<"#!">>, tmux_test_child:escript(), <<"\nmain(Arguments) ->\n">>,
+        io_lib:format("    ok = code:add_pathsa([~w]),~n", [filename:dirname(code:which(tmux_test_child))]),
+        io_lib:format("    tmux_test_child:fake_tmux(~w, Arguments).~n", [binary_to_list(Executable)])]),
     ok = file:write_file(Fake, Script),
     ok = file:change_mode(Fake, 8#700),
     try
         lists:foreach(fun(Mode) ->
             ok = file:write_file(<<Directory/binary, "/mode">>, Mode),
-            Options = #{executable => Fake, startup_timeout_ms => 400},
+            Options = #{executable => Fake, startup_timeout_ms => 6000},
             {error, #{cleanup := complete} = Error} = tmux_server:start_owned(Options),
             case Mode of
                 <<"binding">> -> #{code := startup_binding_changed} = Error;
@@ -373,7 +354,7 @@ startup_errors(Config) ->
         #{<<"pid">> := Pid, <<"start">> := Start} = json:decode(ProbeData),
         false = tmux_test_fixture:same_process(Pid, Start),
         ok = file:write_file(<<Directory/binary, "/mode">>, <<"directory">>),
-        Changed = tmux_server:start_owned(#{executable => Fake}),
+        Changed = tmux_server:start_owned(#{executable => Fake, startup_timeout_ms => 10000}),
         {ok, ChangedSocket} = file:read_file(<<Directory/binary, "/socket">>),
         ChangedDirectory = filename:dirname(ChangedSocket),
         try
@@ -391,7 +372,7 @@ startup_errors(Config) ->
         ok = file:write_file(<<Directory/binary, "/mode">>, <<"namespace">>),
         {error, #{code := cleanup_incomplete, ownership := Token,
                   process_cleanup := complete, resources := #{socket := UnknownSocket}}} =
-            tmux_server:start_owned(#{executable => Fake}),
+            tmux_server:start_owned(#{executable => Fake, startup_timeout_ms => 10000}),
         try
             {ok, <<"preserve">>} = file:read_file(UnknownSocket),
             {error, #{namespace_cleanup := socket_unverified}} = tmux_server:stop_owned(Token),

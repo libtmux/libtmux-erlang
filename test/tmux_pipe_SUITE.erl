@@ -96,29 +96,20 @@ with_probe(Config, Function) ->
         PaneListener = listener(PanePath),
         PipeListener = listener(PipePath),
         try
-            Script = <<"import os,socket,sys,tty\n"
-                "tty.setraw(0)\ns=socket.socket(socket.AF_UNIX)\ns.connect(sys.argv[1])\n"
-                "s.sendall(b'R')\n"
-                "while True:\n c=s.recv(1)\n if not c: break\n"
-                " if c==b'O': os.write(1,bytes(range(256)))\n"
-                " if c==b'I':\n  data=b''\n"
-                "  while len(data)<256:\n   part=os.read(0,256-len(data))\n"
-                "   assert part\n   data+=part\n"
-                "  s.sendall(len(data).to_bytes(4,'big')+data)\n  os.write(1,data)\n">>,
-            {ok, Session} = tmux_session:create(Server, #{launch => #{argv =>
-                [<<"/usr/bin/python3">>, <<"-c">>, Script, list_to_binary(PanePath)]}}),
-            {ok, PanePeer} = gen_tcp:accept(PaneListener, 900),
+            {Child, ChildArguments} = tmux_test_child:command(<<"pane-probe">>,
+                [list_to_binary(PanePath)]),
+            {ok, Session} = tmux_session:create(Server,
+                #{launch => #{argv => [Child | ChildArguments]}}),
+            {ok, PanePeer} = gen_tcp:accept(PaneListener, 10000),
             try
-                {ok, <<"R">>} = gen_tcp:recv(PanePeer, 1, 900),
+                {ok, <<"R">>} = gen_tcp:recv(PanePeer, 1, 10000),
                 {ok, Snapshot} = tmux_server:snapshot(Server),
                 [Pane] = tmux_snapshot:panes(Snapshot),
                 ok = tmux_test_fixture:track_process(Fixture, tmux_model:get(pid, Pane)),
-                File = filename:join(Directory, "consumer.py"),
-                ok = file:write_file(File, consumer_script()),
                 Spec = fun(Mode) ->
-                    Words = [<<"exec /usr/bin/python3">>, quote(list_to_binary(File)),
-                        quote(list_to_binary(PipePath)), quote(literal()), atom_to_binary(Mode)],
-                    #{shell => iolist_to_binary(lists:join(<<" ">>, Words))}
+                    Command = tmux_test_child:shell_command(<<"pipe-consumer">>,
+                        [list_to_binary(PipePath), literal(), atom_to_binary(Mode)]),
+                    #{shell => <<"exec ", Command/binary>>}
                 end,
                 Function(Server, Fixture, Session, Pane, PanePeer, PipeListener, Spec)
             after ok = gen_tcp:close(PanePeer)
@@ -134,21 +125,9 @@ listener(Path) ->
         [local, {ifaddr, {local, Path}}, binary, {active, false}]),
     Listener.
 
-consumer_script() ->
-    <<"import os,socket,sys\ns=socket.socket(socket.AF_UNIX)\ns.connect(sys.argv[1])\n"
-      "arg=os.fsencode(sys.argv[2])\ns.sendall(os.getpid().to_bytes(4,'big'))\n"
-      "s.sendall(len(arg).to_bytes(4,'big')+arg)\nassert s.recv(1)==b'R'\n"
-      "if sys.argv[3] in ('both','input'): os.write(1,bytes(range(256)))\n"
-      "if sys.argv[3]=='input':\n assert s.recv(1)==b'Q'\n"
-      "else:\n data=b''\n"
-      " while len(data)<256:\n  part=os.read(0,256-len(data))\n"
-      "  assert part\n  data+=part\n"
-      " s.sendall(len(data).to_bytes(4,'big')+data)\n assert os.read(0,1)==b''\n"
-      "s.sendall(b'E')\ns.close()\n">>.
-
 consumer(Fixture, Listener) ->
-    {ok, Peer} = gen_tcp:accept(Listener, 900),
-    {ok, <<Pid:32>>} = gen_tcp:recv(Peer, 4, 900),
+    {ok, Peer} = gen_tcp:accept(Listener, 10000),
+    {ok, <<Pid:32>>} = gen_tcp:recv(Peer, 4, 10000),
     ok = tmux_test_fixture:track_process(Fixture, Pid),
     Literal = literal(),
     Literal = received(Peer),
@@ -162,8 +141,8 @@ exchange(Pane, Consumer) ->
     Bytes = received(Consumer).
 
 received(Peer) ->
-    {ok, <<Size:32>>} = gen_tcp:recv(Peer, 4, 900),
-    {ok, Bytes} = gen_tcp:recv(Peer, Size, 900),
+    {ok, <<Size:32>>} = gen_tcp:recv(Peer, 4, 10000),
+    {ok, Bytes} = gen_tcp:recv(Peer, Size, 10000),
     Bytes.
 
 closed_pipe(Fixture, Pane) ->
@@ -176,4 +155,3 @@ bytes() -> list_to_binary(lists:seq(0, 255)).
 literal() ->
     <<"literal #[fg=red] ##[bg=blue] #{pane_id} %Y; $HOME ",
       (list_to_binary(lists:seq(1, 255)))/binary>>.
-quote(Value) -> <<$\', (binary:replace(Value, <<$\'>>, <<"'\\''">>, [global]))/binary, $\'>>.

@@ -41,8 +41,7 @@ output_limit(_Config) ->
 
 deadline(_Config) ->
     {error, #{code := timeout, outcome := unknown, cleanup := complete}} =
-        tmux_transport:run(<<"/usr/bin/python3">>,
-            [<<"-c">>, <<"import signal; signal.pause()">>], #{timeout_ms => 40}).
+        tmux_transport:run(<<"/bin/sleep">>, [<<"3600">>], #{timeout_ms => 40}).
 
 waiter_timeout(_Config) ->
     {ok, Handle} = blocking_child(),
@@ -95,17 +94,15 @@ incomplete_input(_Config) ->
     true = Delivered < 1048576.
 
 environment_and_cwd(_Config) ->
+    {Child, Arguments} = tmux_test_child:command(<<"environment">>, []),
     {ok, #{stdout := <<"/tmp\nvalue\nmissing\nmissing\n">>, exit_status := 0}} =
-        tmux_transport:run(<<"/usr/bin/python3">>, [<<"-c">>,
-            <<"import os; print(os.getcwd()); print(os.getenv('ONLY')); ",
-              "print(os.getenv('TMUX','missing')); print(os.getenv('TMUX_PANE','missing'))">>],
-            #{cwd => <<"/tmp">>, inherit_env => false,
+        tmux_transport:run(Child, Arguments,
+            #{cwd => <<"/tmp">>, inherit_env => false, timeout_ms => 10000,
               env => #{<<"ONLY">> => <<"value">>, <<"TMUX">> => <<"borrowed">>,
                        <<"TMUX_PANE">> => <<"%1">>}}).
 
 blocking_child() ->
-    tmux_transport:start(<<"/usr/bin/python3">>,
-        [<<"-c">>, <<"import signal; signal.pause()">>], #{timeout_ms => 5000}).
+    tmux_transport:start(<<"/bin/sleep">>, [<<"3600">>], #{timeout_ms => 5000}).
 
 asynchronous_requests(_Config) ->
     {ok, Handle} = blocking_child(),

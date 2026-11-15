@@ -11,17 +11,8 @@ init_per_suite(Config) ->
 end_per_suite(_) -> ok = application:stop(libtmux_erlang).
 
 duplex_credit(_) ->
-    Script = <<"import os
-os.write(1,b'ready'+bytes([10]))
-os.write(2,b'notice')
-",
-               "while chunk:=os.read(0,8192):
-",
-               " os.write(1,chunk)
- os.write(2,b'W')
-">>,
-    {ok, Handle} = tmux_transport:start_channel(<<"/usr/bin/python3">>,
-        [<<"-c">>, Script], #{}),
+    {Child, Arguments} = tmux_test_child:command(<<"echo-marked">>, []),
+    {ok, Handle} = tmux_transport:start_channel(Child, Arguments, #{}),
     try
         {ok, _} = tmux_transport:await_started(Handle, 900),
         {ReadySeq, <<"ready\n">>} = data(Handle, stdout),
@@ -139,12 +130,12 @@ owner_death(_) ->
     end.
 
 blocked_channel() ->
-    tmux_transport:start_channel(<<"/usr/bin/python3">>, [<<"-c">>,
-        <<"import os,signal; os.write(1,b'x'*65536); signal.pause()">>], #{}).
+    {Child, Arguments} = tmux_test_child:command(<<"blocked">>, []),
+    tmux_transport:start_channel(Child, Arguments, #{}).
 
 data(Handle, Stream) ->
     receive {tmux_transport, Handle, {data, Stream, Seq, Bytes}} -> {Seq, Bytes}
-    after 900 -> ct:fail({channel_data_timeout, Stream})
+    after 10000 -> ct:fail({channel_data_timeout, Stream})
     end.
 
 write(Handle, Bytes) ->

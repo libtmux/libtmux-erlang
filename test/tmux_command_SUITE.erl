@@ -119,17 +119,20 @@ singleton_argv(Config) ->
         {ok, Listener} = gen_tcp:listen(0, [local, {ifaddr, {local, Ready}}, binary,
                                           {active, false}]),
         %% A kernel shebang is explicit executable behavior; tmux must not parse its name.
-        ok = file:write_file(Executable, ["#!/usr/bin/python3\nimport socket, signal\n",
-            io_lib:format("s=socket.socket(socket.AF_UNIX)\ns.connect(~p)\n", [Ready]),
-            "s.sendall(b'R')\ns.close()\nsignal.pause()\n"]),
+        ok = file:write_file(Executable, [<<"#!">>, tmux_test_child:escript(), <<"\n">>,
+            io_lib:format("main(_) ->~n"
+                "    {ok, S} = gen_tcp:connect({local, ~w}, 0, [local, binary]),~n"
+                "    ok = gen_tcp:send(S, <<\"R\">>),~n"
+                "    ok = gen_tcp:close(S),~n"
+                "    receive after infinity -> ok end.~n", [Ready])]),
         ok = file:change_mode(Executable, 8#700),
         {ok, Launch} = tmux_command:launch(#{argv => [list_to_binary(Executable)]}),
         {ok, Command} = tmux_command:raw(<<"new-session">>,
             [<<"-d">>, <<"-s">>, <<"literal">> | Launch]),
         {ok, #{exit_status := 0}} = tmux_test_fixture:command(Fixture, tmux_command:argv(Command)),
         try
-            {ok, Peer} = gen_tcp:accept(Listener, 900),
-            try {ok, <<"R">>} = gen_tcp:recv(Peer, 1, 900)
+            {ok, Peer} = gen_tcp:accept(Listener, 10000),
+            try {ok, <<"R">>} = gen_tcp:recv(Peer, 1, 10000)
             after ok = gen_tcp:close(Peer)
             end
         after ok = gen_tcp:close(Listener)

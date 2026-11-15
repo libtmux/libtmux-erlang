@@ -88,17 +88,14 @@ paste_delivery(Config) ->
         {ok, Version} = tmux_server:version(Server),
         Modern = tmux_version:at_least(Version, {3, 7}),
         Counts = case Modern of true -> <<"[256,12,4]">>; false -> <<"[256,12]">> end,
-        Script = <<"import os,socket,sys,tty,json,signal\n"
-            "tty.setraw(0)\ns=socket.socket(socket.AF_UNIX)\ns.connect(sys.argv[1])\n"
-            "s.sendall(b'R')\nfor n in json.loads(sys.argv[2]):\n data=b''\n"
-            " while len(data)<n: data+=os.read(0,n-len(data))\n"
-            " s.sendall(len(data).to_bytes(4,'big')+data)\nsignal.pause()\n">>,
+        {Child, ChildArguments} = tmux_test_child:command(<<"paste-probe">>,
+            [list_to_binary(Ready), Counts]),
         try
-            {ok, Session} = tmux_session:create(Server, #{launch => #{argv =>
-                [<<"/usr/bin/python3">>, <<"-c">>, Script, list_to_binary(Ready), Counts]}}),
-            {ok, Peer} = gen_tcp:accept(Listener, 900),
+            {ok, Session} = tmux_session:create(Server,
+                #{launch => #{argv => [Child | ChildArguments]}}),
+            {ok, Peer} = gen_tcp:accept(Listener, 10000),
             try
-                {ok, <<"R">>} = gen_tcp:recv(Peer, 1, 900),
+                {ok, <<"R">>} = gen_tcp:recv(Peer, 1, 10000),
                 {ok, Snapshot} = tmux_server:snapshot(Server),
                 [Pane] = tmux_snapshot:panes(Snapshot),
                 ok = tmux_test_fixture:track_process(Fixture, tmux_model:get(pid, Pane)),

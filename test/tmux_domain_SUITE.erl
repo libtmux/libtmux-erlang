@@ -124,25 +124,20 @@ launch_and_input(Config) ->
         Ready = filename:join(Directory, "input-ready"),
         {ok, Listener} = gen_tcp:listen(0, [local, {ifaddr, {local, Ready}}, binary,
                                           {active, false}]),
-        Script = <<"import os,socket,sys,json,tty,signal\n"
-            "tty.setraw(0)\ns=socket.socket(socket.AF_UNIX)\ns.connect(sys.argv[1])\n"
-            "p=json.dumps([sys.argv[2:],os.getcwdb().hex(),os.environ['LIBTMUX_VALUE']]).encode()\n"
-            "s.sendall(len(p).to_bytes(4,'big')+p)\ndata=b''\n"
-            "while len(data)<9:\n data+=os.read(0,9-len(data))\n"
-            "s.sendall(data)\nsignal.pause()\n">>,
         Argument = <<"literal;\n#{pid}">>,
         Environment = <<"value;\n%end 1 2 3">>,
+        {Child, ChildArguments} = tmux_test_child:command(<<"launch-report">>,
+            [list_to_binary(Ready), Argument]),
         try
             {ok, Session} = tmux_session:create(Server, #{name => <<"launch">>}),
             {ok, Window} = tmux_window:create(Session, #{launch => #{argv => [<<"/bin/cat">>]}}),
             {ok, Pane} = tmux_pane:split(Window, #{cwd => Cwd,
                 env => #{<<"LIBTMUX_VALUE">> => Environment},
-                launch => #{argv => [<<"/usr/bin/python3">>, <<"-c">>, Script,
-                                     list_to_binary(Ready), Argument]}}),
-            {ok, Peer} = gen_tcp:accept(Listener, 900),
+                launch => #{argv => [Child | ChildArguments]}}),
+            {ok, Peer} = gen_tcp:accept(Listener, 10000),
             try
-                {ok, <<Length:32>>} = gen_tcp:recv(Peer, 4, 900),
-                {ok, Payload} = gen_tcp:recv(Peer, Length, 900),
+                {ok, <<Length:32>>} = gen_tcp:recv(Peer, 4, 10000),
+                {ok, Payload} = gen_tcp:recv(Peer, Length, 10000),
                 [[Argument], CwdHex, Environment] = json:decode(Payload),
                 Cwd = binary:decode_hex(CwdHex),
                 {ok, Current} = tmux_pane:get(Server, tmux_model:get(id, Pane)),
@@ -277,14 +272,11 @@ respawn(Config) ->
         Ready = filename:join(Directory, "respawn-ready"),
         {ok, Listener} = gen_tcp:listen(0, [local, {ifaddr, {local, Ready}},
             binary, {packet, 4}, {active, false}]),
-        Script = <<"import os,socket,sys,json,signal\n"
-            "s=socket.socket(socket.AF_UNIX);s.connect(sys.argv[1])\n"
-            "p=json.dumps([sys.argv[2],os.getcwd(),"
-            "os.environ.get(sys.argv[3],'unset'),os.getpid()]).encode()\n"
-            "s.sendall(len(p).to_bytes(4,'big')+p);signal.pause()\n">>,
         Argument = <<"literal; #{pid}\n">>,
         Value = <<"fresh;\n#{pane_id}">>,
         Key = <<"LIBTMUX_PROBE_", (binary:encode_hex(crypto:strong_rand_bytes(8)))/binary>>,
+        {Child, ChildArguments} = tmux_test_child:command(<<"respawn-report">>,
+            [list_to_binary(Ready), Argument, Key]),
         try
             Launch = #{launch => #{argv => [<<"/bin/cat">>]}},
             {ok, Session} = tmux_session:create(Server, Launch),
@@ -307,14 +299,13 @@ respawn(Config) ->
             OriginalPid = tmux_model:get(pid, Unchanged),
             {error, #{code := command_error}} = tmux_window:respawn(Window, #{}),
             {ok, _} = tmux_pane:respawn(Pane, #{force => true, cwd => Cwd,
-                env => #{Key => Value}, launch => #{argv => [<<"/usr/bin/python3">>,
-                    <<"-c">>, Script, list_to_binary(Ready), Argument, Key]}}),
+                env => #{Key => Value}, launch => #{argv => [Child | ChildArguments]}}),
             {ok, Spawned} = tmux_pane:get(Server, PaneId),
             NewPid = tmux_model:get(pid, Spawned),
             ok = tmux_test_fixture:track_process(Fixture, NewPid),
-            {ok, Peer} = gen_tcp:accept(Listener, 900),
+            {ok, Peer} = gen_tcp:accept(Listener, 10000),
             try
-                {ok, Payload} = gen_tcp:recv(Peer, 0, 900),
+                {ok, Payload} = gen_tcp:recv(Peer, 0, 10000),
                 [Argument, Cwd, Value, NewPid] = json:decode(Payload),
                 true = NewPid =/= OriginalPid,
                 {ok, Fresh} = tmux_pane:get(Server, PaneId),
@@ -326,9 +317,9 @@ respawn(Config) ->
             {ok, Reused} = tmux_pane:get(Server, PaneId),
             ReusedPid = tmux_model:get(pid, Reused),
             ok = tmux_test_fixture:track_process(Fixture, ReusedPid),
-            {ok, ReusedPeer} = gen_tcp:accept(Listener, 900),
+            {ok, ReusedPeer} = gen_tcp:accept(Listener, 10000),
             try
-                {ok, ReusedPayload} = gen_tcp:recv(ReusedPeer, 0, 900),
+                {ok, ReusedPayload} = gen_tcp:recv(ReusedPeer, 0, 10000),
                 [Argument, Cwd, <<"unset">>, ReusedPid] = json:decode(ReusedPayload)
             after ok = gen_tcp:close(ReusedPeer)
             end,
