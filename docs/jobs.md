@@ -4,10 +4,12 @@ A successful send does not prove a terminal program processed the input. This
 program runs a job that acknowledges terminal parsing, waits for `pane-died`,
 checks the exit status and captures the output.
 
-- The [companion job](../examples/terminal_job.py) writes its result and an
-  ANSI device-status request. It exits only after reading tmux's reply, which
-  tmux sends after parsing the output. It writes nothing afterward.
-- The job needs Python 3.12 or newer. The library does not.
+- The [companion job](../examples/terminal_job.erl) is an escript. It switches
+  the terminal to raw mode with `shell:start_interactive({noshell, raw})`,
+  writes its result and an ANSI device-status request, and exits only after
+  reading tmux's reply, which tmux sends after parsing the output. It writes
+  nothing afterward.
+- The job needs the Erlang/OTP that runs the example, and nothing else.
 - `pane-died` alone is not an output-drain barrier on tmux 3.3. This protocol
   covers a cooperating job. It cannot reconstruct output that scrolled out of
   history.
@@ -41,7 +43,7 @@ run(Socket, Executable) ->
             {ok, Window} = tmux_window:create(Session,
                 #{launch => #{argv => [<<"/bin/cat">>]}}),
             Target = [<<"-w">>, <<"-t">>, tmux_model:get(id, Window)],
-            Deadline = #{deadline_ms => 2000},
+            Deadline = #{deadline_ms => 6000},
             {ok, _} = tmux_option:set(Window, <<"remain-on-exit">>, <<"on">>),
             {ok, _} = tmux_option:set(
                 Window, <<"remain-on-exit-format">>, <<>>),
@@ -52,13 +54,14 @@ run(Socket, Executable) ->
             {ok, Operation} = tmux_operation:start(Server, Wait, Deadline),
             {error, #{code := await_timeout}} =
                 tmux_operation:await(Operation, 0),
-            JobFile = filename:absname("examples/terminal_job.py"),
-            Launch = #{argv => [<<"/usr/bin/python3">>,
+            Escript = os:find_executable("escript"),
+            JobFile = filename:absname("examples/terminal_job.erl"),
+            Launch = #{argv => [list_to_binary(Escript),
                 list_to_binary(JobFile)]},
             {ok, Job} = tmux_pane:split(Window, #{launch => #{shell => <<>>}}),
             {ok, _} = tmux_pane:respawn(Job, #{launch => Launch}),
             {ok, #{exit_status := 0, cleanup := complete}} =
-                tmux_operation:await(Operation, 900),
+                tmux_operation:await(Operation, 5000),
             {ok, Completed} = tmux_pane:get(Server, tmux_model:get(id, Job)),
             true = tmux_model:get(dead, Completed),
             0 = tmux_model:get(exit_status, Completed),

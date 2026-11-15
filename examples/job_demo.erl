@@ -14,7 +14,7 @@ run(Socket, Executable) ->
             {ok, Window} = tmux_window:create(Session,
                 #{launch => #{argv => [<<"/bin/cat">>]}}),
             Target = [<<"-w">>, <<"-t">>, tmux_model:get(id, Window)],
-            Deadline = #{deadline_ms => 2000},
+            Deadline = #{deadline_ms => 6000},
             {ok, _} = tmux_option:set(Window, <<"remain-on-exit">>, <<"on">>),
             {ok, _} = tmux_option:set(
                 Window, <<"remain-on-exit-format">>, <<>>),
@@ -25,13 +25,14 @@ run(Socket, Executable) ->
             {ok, Operation} = tmux_operation:start(Server, Wait, Deadline),
             {error, #{code := await_timeout}} =
                 tmux_operation:await(Operation, 0),
-            JobFile = filename:absname("examples/terminal_job.py"),
-            Launch = #{argv => [<<"/usr/bin/python3">>,
+            Escript = os:find_executable("escript"),
+            JobFile = filename:absname("examples/terminal_job.erl"),
+            Launch = #{argv => [list_to_binary(Escript),
                 list_to_binary(JobFile)]},
             {ok, Job} = tmux_pane:split(Window, #{launch => #{shell => <<>>}}),
             {ok, _} = tmux_pane:respawn(Job, #{launch => Launch}),
             {ok, #{exit_status := 0, cleanup := complete}} =
-                tmux_operation:await(Operation, 900),
+                tmux_operation:await(Operation, 5000),
             {ok, Completed} = tmux_pane:get(Server, tmux_model:get(id, Job)),
             true = tmux_model:get(dead, Completed),
             0 = tmux_model:get(exit_status, Completed),

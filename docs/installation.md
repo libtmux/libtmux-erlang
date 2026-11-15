@@ -101,7 +101,6 @@ $ rebar3 shell \
 | Platform | Linux, including WSL |
 | Native build | C11 compiler, libc headers and make |
 | Core dependencies | OTP kernel, stdlib and crypto; no JSON package or NIF |
-| Checkout example runner | Python 3.12 or newer |
 
 - The helper builds from its packaged C source. Installation fails if that
   build fails. Nothing is downloaded at runtime.

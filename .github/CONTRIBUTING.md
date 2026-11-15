@@ -196,6 +196,12 @@ output line proves the server listens, so startup never polls a socket or a
 borrowed server. Closing the fixture retires the client, helper and daemon.
 Passing this local suite does not establish the complete CI version matrix.
 
+The terminal job protocol suite needs a pseudo-terminal. It gets one from
+erlexec, a test-only dependency pinned to an exact version in the `test`
+profile of rebar.config. The first `rebar3 eunit` or `rebar3 ct` downloads it
+and compiles its C++ port program with g++; the library and its consumers never
+depend on it.
+
 Dialyzer includes Common Test in its analysis table because the external
 consumer executes ct_doctest. Its first run builds the table; retain that
 setup time when reporting the outer check.
