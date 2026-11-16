@@ -16,6 +16,13 @@ tag_matches_semver_exactly_test() ->
           {"0.0.1-alpha.01", "v0.0.1-alpha.01"}]),
     ?assertEqual("0.0.1", check_release:validate_version("0.0.1", none)).
 
+actions_release_only_a_push_names_a_tag_test() ->
+    ?assertEqual("v0.0.1", check_release:actions_tag("push", "v0.0.1")),
+    lists:foreach(fun(Event) ->
+        ?assertEqual(none, check_release:actions_tag(Event, "refs/pull/1/merge"))
+    end, ["pull_request", "workflow_dispatch", false]),
+    ?assertError(missing_ref_name, check_release:actions_tag("push", false)).
+
 checkout_test_() ->
     {setup,
      fun() -> {ok, _} = application:ensure_all_started(libtmux_erlang) end,

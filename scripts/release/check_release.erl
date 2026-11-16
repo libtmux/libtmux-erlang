@@ -1,10 +1,10 @@
 %% Validate a clean release checkout and the exact public Hex source artifact.
-%% Usage: escript scripts/release/check_release.erl [--tag vVERSION]
+%% Usage: escript scripts/release/check_release.erl [--tag vVERSION | --from-actions]
 %%        [--artifact TARBALL [--qualified-receipt RECEIPT]] [--require-published]
 -module(check_release).
 -mode(compile).
 -export([main/1, validate_version/2, validate_checkout/2, published_artifact/3,
-         validate_qualification/3, application_version/1]).
+         validate_qualification/3, application_version/1, actions_tag/2]).
 -export_type([fetch/0]).
 
 -define(APP, "libtmux_erlang").
@@ -33,6 +33,11 @@ main(Arguments) ->
 
 parse([], Options) -> Options;
 parse(["--tag", Tag | Rest], Options) -> parse(Rest, Options#{tag => Tag});
+parse(["--from-actions" | Rest], Options) ->
+    case actions_tag(os:getenv("GITHUB_EVENT_NAME"), os:getenv("GITHUB_REF_NAME")) of
+        none -> parse(Rest, Options);
+        Tag -> parse(Rest, Options#{tag => Tag})
+    end;
 parse(["--artifact", Path | Rest], Options) -> parse(Rest, Options#{artifact => Path});
 parse(["--qualified-receipt", Path | Rest], Options) ->
     parse(Rest, Options#{receipt => Path});
@@ -41,6 +46,15 @@ parse(["--require-published" | Rest], Options) ->
 parse(Other, _) ->
     io:format(standard_error, "unrecognized arguments: ~p~n", [Other]),
     halt(2).
+
+-doc """
+The tag a GitHub Actions run releases: the ref name on a push event, `none` on
+any other event.
+""".
+-spec actions_tag(string() | false, string() | false) -> string() | none.
+actions_tag("push", Ref) when is_list(Ref), Ref =/= "" -> Ref;
+actions_tag("push", _) -> error(missing_ref_name);
+actions_tag(_, _) -> none.
 
 run(Root, Options) ->
     case usage(Options) of
