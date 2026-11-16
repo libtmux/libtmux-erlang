@@ -43,3 +43,14 @@ library. Do not add shell or Python script files.
 - A capability Erlang lacks comes from a test-only Erlang dependency, not from
   a second language.
 - Test data that is not a comparison, such as workspace files a loader reads.
+
+## Exceptions
+
+- `tools/regex-conformance/` is a Rust program and a JavaScript module. They
+  run the Rust `regex` crate and Node's `RegExp` over the portable-regex
+  fixture so `scripts/regex/check_regex.erl` can compare their answers with
+  the Erlang matcher's. The comparison needs engines independent of the code it
+  checks, and Erlang cannot host them. Only the `regex` job in
+  [ci.yml](workflows/ci.yml) builds and runs them; the core and the mid loop
+  need neither. The toolchain pins are `RUSTUP_TOOLCHAIN` and the
+  `setup-node` version in that job.

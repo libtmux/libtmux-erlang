@@ -80,8 +80,10 @@ consumers against it. The release workflow runs it after publishing, with the
 released version. It writes `_build/checks/hex-install.json`; the file says
 `UNVERIFIED` until the install finishes, so a failed run never leaves a `PASS`.
 
+Pass the released version as `VERSION`:
+
 ```console
-$ mise exec -- escript scripts/package/check_hex_install.erl 0.1.0
+$ mise exec -- escript scripts/package/check_hex_install.erl VERSION
 ```
 
 ## Tests

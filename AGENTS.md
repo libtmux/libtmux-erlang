@@ -39,6 +39,18 @@ Each guide owns its subject. `CLAUDE.md` is a relative symlink to this file.
 - Commit, push, publish, or change remote settings only within the user's
   current authorization.
 
+## Checks
+
+[CONTRIBUTING.md](.github/CONTRIBUTING.md#current-checks) lists the loops and
+their budgets. Run the one that fits the change:
+
+- One module, after each edit: `rebar3 eunit --module=tmux_model_tests`, or
+  `escript scripts/check/check.erl inner --module tmux_model_tests` to keep
+  a receipt.
+- Everything unit-level, before handoff:
+  `escript scripts/check/check.erl mid`.
+- Before a commit or review: `escript scripts/check/check.erl outer`.
+
 ## Shared resources
 
 Future tmux checks must use unique, owned sockets and temporary directories.
