@@ -70,5 +70,32 @@ real_runner_reports_status_output_and_deadline_test() ->
     ?assertMatch(#{timed_out := true},
                  check:runner(["sleep", "30"], Options#{timeout_ms => 200})).
 
+%% `timeout` keeps the command alive as the parent of `setsid`, which moves
+%% `sleep` into a new session: a signal to the command's process group never
+%% reaches it.
+overrun_kills_a_descendant_in_its_own_session_test() ->
+    case {os:find_executable("timeout"), os:find_executable("setsid")} of
+        {false, _} -> ok;
+        {_, false} -> ok;
+        _ ->
+            Seconds = "299.4217",
+            Options = #{cwd => element(2, file:get_cwd()), env => [], timeout_ms => 500},
+            try check:runner(["timeout", "299", "setsid", "sleep", Seconds], Options) of
+                Outcome ->
+                    ?assertMatch(#{timed_out := true}, Outcome),
+                    ?assertEqual([], sleepers(Seconds))
+            after
+                lists:foreach(fun(Pid) -> os:cmd("kill -KILL " ++ Pid) end, sleepers(Seconds))
+            end
+    end.
+
+%% Process IDs whose command line is `sleep Seconds`, with or without a parent.
+sleepers(Seconds) ->
+    Needle = <<"sleep", 0, (list_to_binary(Seconds))/binary, 0>>,
+    [filename:basename(filename:dirname(Path)) ||
+        Path <- filelib:wildcard("/proc/[0-9]*/cmdline"),
+        {ok, Text} <- [file:read_file(Path)],
+        binary:match(Text, Needle) =/= nomatch].
+
 outcome(Status, TimedOut) ->
     #{exit_status => Status, seconds => 0.0, timed_out => TimedOut, output => <<>>}.

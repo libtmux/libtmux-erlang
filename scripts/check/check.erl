@@ -13,6 +13,9 @@
 -export([main/1, plan/2, budget/1, run/3, runner/2, passed/3]).
 -export_type([command/0, outcome/0, tier/0]).
 
+%% Set in every command's environment so its descendants can be found.
+-define(RUN_VARIABLE, "LIBTMUX_CHECK_RUN").
+
 -type tier() :: inner | mid | outer.
 -type command() :: [string()].
 -type outcome() :: #{exit_status := integer(), seconds := float(), timed_out := boolean(),
@@ -113,24 +116,69 @@ run([Command | Rest], Budget, Started, Runner, Acc) ->
             end
     end.
 
-%% Run one command under `timeout`, which kills its whole process group.
+%% Run one command. When it overruns Milliseconds, kill it and everything it
+%% started, including processes that left its process group or session.
 -spec runner(command(), #{cwd := file:filename(), env := [{string(), string()}],
                           timeout_ms := integer()}) -> outcome().
 runner([Program | Arguments], #{cwd := Root, env := Environment, timeout_ms := Milliseconds}) ->
     Started = erlang:monotonic_time(millisecond),
-    Limit = io_lib:format("~.3f", [Milliseconds / 1000]),
-    Port = open_port({spawn_executable, os:find_executable("timeout")},
-        [binary, exit_status, stderr_to_stdout, {cd, Root}, {env, Environment},
-         {args, ["--signal=KILL", Limit, os:find_executable(Program) | Arguments]}]),
-    {Status, Output} = collect(Port, <<>>),
+    Run = integer_to_list(erlang:unique_integer([positive])) ++ "-" ++ os:getpid(),
+    Port = open_port({spawn_executable, os:find_executable(Program)},
+        [binary, exit_status, stderr_to_stdout, {cd, Root},
+         {env, [{?RUN_VARIABLE, Run} | Environment]}, {args, Arguments}]),
+    {Status, Output, TimedOut} = collect(Port, Started + Milliseconds, Run, <<>>),
     Seconds = (erlang:monotonic_time(millisecond) - Started) / 1000,
-    #{exit_status => Status, seconds => Seconds, output => Output,
-      timed_out => Status =:= 137 andalso Seconds * 1000 >= Milliseconds - 50}.
+    #{exit_status => Status, seconds => Seconds, output => Output, timed_out => TimedOut}.
 
-collect(Port, Acc) ->
+collect(Port, Deadline, Run, Acc) ->
+    Remaining = max(0, Deadline - erlang:monotonic_time(millisecond)),
     receive
-        {Port, {data, Data}} -> collect(Port, <<Acc/binary, Data/binary>>);
+        {Port, {data, Data}} -> collect(Port, Deadline, Run, <<Acc/binary, Data/binary>>);
+        {Port, {exit_status, Status}} -> {Status, Acc, false}
+    after Remaining ->
+        {os_pid, OsPid} = erlang:port_info(Port, os_pid),
+        kill_run(Run, OsPid),
+        {Status, Rest} = drain(Port, Acc),
+        {Status, Rest, true}
+    end.
+
+drain(Port, Acc) ->
+    receive
+        {Port, {data, Data}} -> drain(Port, <<Acc/binary, Data/binary>>);
         {Port, {exit_status, Status}} -> {Status, Acc}
+    end.
+
+%% Every process the command started carries ?RUN_VARIABLE in its environment,
+%% whatever its parent, group or session. Kill them, then rescan until none
+%% is left, because a process may fork between a scan and its kill. Without
+%% /proc only the command itself is killed.
+kill_run(Run, OsPid) ->
+    kill([integer_to_list(OsPid) | marked(Run)]),
+    kill_marked(Run, 100).
+
+kill_marked(_, 0) -> ok;
+kill_marked(Run, Left) ->
+    case marked(Run) of
+        [] -> ok;
+        Pids ->
+            kill(Pids),
+            receive after 10 -> kill_marked(Run, Left - 1) end
+    end.
+
+kill(Pids) ->
+    Port = open_port({spawn_executable, os:find_executable("kill")},
+                     [exit_status, {args, ["-s", "KILL" | Pids]}]),
+    receive {Port, {exit_status, _}} -> ok end.
+
+%% Process IDs, as strings, whose environment names this run.
+marked(Run) ->
+    Entry = <<0, ?RUN_VARIABLE, $=, (list_to_binary(Run))/binary, 0>>,
+    case file:list_dir("/proc") of
+        {ok, Names} ->
+            [Name || Name <- Names, lists:all(fun(C) -> C >= $0 andalso C =< $9 end, Name),
+                     {ok, Environment} <- [file:read_file(filename:join(["/proc", Name, "environ"]))],
+                     binary:match(<<0, Environment/binary>>, Entry) =/= nomatch];
+        {error, _} -> []
     end.
 
 %% Keep the output, print the verdict line and build the receipt entry.

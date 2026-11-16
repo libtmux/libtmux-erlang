@@ -16,6 +16,13 @@ remaining budget; the first failure or timeout ends the loop. Output goes to
 Outside GitHub Actions each command runs through `mise exec --`. The default
 `ERL_FLAGS` is `+S 4:4`.
 
+A command that overruns its remaining budget is killed together with every
+process it started, including one that moved to another session or process
+group. Each command's environment carries `LIBTMUX_CHECK_RUN`, and the runner
+kills the processes whose `/proc/<pid>/environ` names that run, then rescans
+until none is left. Without `/proc` it kills only the command itself. It needs
+a `kill` executable on `PATH`.
+
 The runner uses no helper module, because it runs before the library is
 compiled. Run it from anywhere:
 
