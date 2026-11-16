@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Generate capability manifests from the library registry and include them in
+  OTP archives and Hex source packages. Add an owned-daemon example and a guide
+  to feature decisions, fallbacks and source-catalogue limits.
+
 - Run the support scripts as Erlang modules that `escript` runs and Rebar3
   compiles, type checks and tests with the library, and remove their Python
   versions. Only the shared example-width checker still runs under Python.
