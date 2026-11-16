@@ -6,12 +6,12 @@
 run(Executable) ->
     {ok, Result} = tmux_server:with_owned(#{executable => Executable},
         fun(Server) ->
-            {ok, Version} = tmux_server:version(Server),
-            {ok, Layout} = tmux_capability:decision(Version, layout_json),
-            {ok, Control} = tmux_capability:decision(Version, control_no_detach),
+            {ok, Vsn} = tmux_server:version(Server),
+            {ok, Layout} = tmux_capability:decision(Vsn, layout_json),
+            {ok, Control} = tmux_capability:decision(Vsn, control_no_detach),
             {error, #{code := unknown_capability}} =
-                tmux_capability:decision(Version, unknown),
-            #{daemon_version => tmux_version:format(Version),
+                tmux_capability:decision(Vsn, unknown),
+            #{daemon_version => tmux_version:format(Vsn),
               json_layout => maps:with([supported, minimum, handling], Layout),
               control => maps:with([supported, handling, fallback], Control)}
         end),

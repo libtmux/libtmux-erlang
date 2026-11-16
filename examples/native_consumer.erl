@@ -52,9 +52,11 @@ run() ->
         {error, #{code := unsupported_capability}} =
             tmux_capability:require(Candidate, layout_json),
         AppRoot = code:lib_dir(libtmux_erlang),
-        {ok, Manifest} = file:read_file(filename:join(AppRoot, "capabilities.json")),
-        true = json:decode(Manifest) =:=
-            json:decode(iolist_to_binary(json:encode(tmux_capability:manifest()))),
+        ManifestPath = filename:join(AppRoot, "capabilities.json"),
+        {ok, Manifest} = file:read_file(ManifestPath),
+        Expected = tmux_capability:manifest(),
+        Encoded = iolist_to_binary(json:encode(Expected)),
+        true = json:decode(Manifest) =:= json:decode(Encoded),
         ok = ct_doctest:module(?MODULE),
         ok
     end, fun() ->
