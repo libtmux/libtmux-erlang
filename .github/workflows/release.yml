@@ -40,14 +40,11 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
-      - name: Read exact tool versions
-        id: tools
-        run: |
-          printf 'otp=%s\nrebar=%s\n' "$(awk '$1 == "erlang" {print $2}' .tool-versions)" "$(awk '$1 == "rebar" {print $2}' .tool-versions)" >> "$GITHUB_OUTPUT"
-      - uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1.24.1
+      - name: Install the OTP and Rebar3 versions in .tool-versions
+        id: beam
+        uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1.24.1
         with:
-          otp-version: ${{ steps.tools.outputs.otp }}
-          rebar3-version: ${{ steps.tools.outputs.rebar }}
+          version-file: .tool-versions
           version-type: strict
       - name: Compile the library and scripts
         run: rebar3 compile
@@ -55,29 +52,21 @@ jobs:
         run: rebar3 eunit --module check_release_tests
       - name: Validate release source
         id: metadata
-        env:
-          EVENT: ${{ github.event_name }}
-          TAG: ${{ github.ref_name }}
-        run: |
-          if [ "$EVENT" = push ]; then
-            escript scripts/release/check_release.erl --tag "$TAG"
-          else
-            escript scripts/release/check_release.erl
-          fi
+        run: escript scripts/release/check_release.erl --from-actions
       - name: Prepare pinned documentation tools
         run: escript scripts/docs/build_docs.erl --prepare
       - name: Build EEP-48 documentation
         run: escript scripts/docs/build_docs.erl
       - name: Build source package
+        run: rebar3 as release hex build package --app libtmux_erlang
+      - name: Name the candidate package
         env:
           VERSION: ${{ steps.metadata.outputs.version }}
-        run: |
-          rebar3 as release hex build package --app libtmux_erlang
-          cp "_build/release/lib/libtmux_erlang/hex/libtmux_erlang-$VERSION.tar" _build/libtmux_erlang-release.tar
-      - name: Exercise native publisher without credentials or upload
-        run: |
-          rebar3 as release hex publish package --app libtmux_erlang --yes --dry-run
-          rebar3 as release hex publish docs --app libtmux_erlang --yes --dry-run --doc-dir "$PWD/_build/docs/core"
+        run: cp "_build/release/lib/libtmux_erlang/hex/libtmux_erlang-$VERSION.tar" _build/libtmux_erlang-release.tar
+      - name: Exercise the package publisher without credentials or upload
+        run: rebar3 as release hex publish package --app libtmux_erlang --yes --dry-run
+      - name: Exercise the documentation publisher without credentials or upload
+        run: rebar3 as release hex publish docs --app libtmux_erlang --yes --dry-run --doc-dir "$PWD/_build/docs/core"
       - name: Retain candidate package and docs
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
@@ -119,14 +108,11 @@ jobs:
         with:
           name: checks-ubuntu-24.04-tmux-3.8
           path: _build/qualified
-      - name: Read exact tool versions
-        id: tools
-        run: |
-          printf 'otp=%s\nrebar=%s\n' "$(awk '$1 == "erlang" {print $2}' .tool-versions)" "$(awk '$1 == "rebar" {print $2}' .tool-versions)" >> "$GITHUB_OUTPUT"
-      - uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1.24.1
+      - name: Install the OTP and Rebar3 versions in .tool-versions
+        id: beam
+        uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1.24.1
         with:
-          otp-version: ${{ steps.tools.outputs.otp }}
-          rebar3-version: ${{ steps.tools.outputs.rebar }}
+          version-file: .tool-versions
           version-type: strict
       - name: Compile the library and scripts
         run: rebar3 compile
@@ -139,22 +125,17 @@ jobs:
             --tag "$TAG" \
             --artifact _build/libtmux_erlang-release.tar \
             --qualified-receipt _build/qualified/source-package-check/receipt.json
+      - name: Rebuild the source package
+        run: rebar3 as release hex build package --app libtmux_erlang
       - name: Verify reproducible publisher input
         env:
           VERSION: ${{ steps.release.outputs.version }}
-        run: |
-          rebar3 as release hex build package --app libtmux_erlang
-          cmp _build/libtmux_erlang-release.tar "_build/release/lib/libtmux_erlang/hex/libtmux_erlang-$VERSION.tar"
+        run: cmp _build/libtmux_erlang-release.tar "_build/release/lib/libtmux_erlang/hex/libtmux_erlang-$VERSION.tar"
       - name: Publish package and prebuilt docs
         env:
           HEX_API_KEY: ${{ secrets.HEX_API_KEY }}
           ALREADY_PUBLISHED: ${{ steps.release.outputs.published }}
-        run: |
-          if [ -z "${HEX_API_KEY:-}" ]; then unset HEX_API_KEY; fi
-          if [ "$ALREADY_PUBLISHED" != true ]; then
-            rebar3 as release hex publish package --app libtmux_erlang --yes --wait
-          fi
-          rebar3 as release hex publish docs --app libtmux_erlang --yes --wait --doc-dir "$PWD/_build/docs/core"
+        run: escript scripts/release/publish_hex.erl --published "$ALREADY_PUBLISHED"
       - name: Verify public artifact
         env:
           TAG: ${{ github.ref_name }}
@@ -173,14 +154,11 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - name: Read exact tool versions
-        id: tools
-        run: |
-          printf 'otp=%s\nrebar=%s\n' "$(awk '$1 == "erlang" {print $2}' .tool-versions)" "$(awk '$1 == "rebar" {print $2}' .tool-versions)" >> "$GITHUB_OUTPUT"
-      - uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1.24.1
+      - name: Install the OTP and Rebar3 versions in .tool-versions
+        id: beam
+        uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1.24.1
         with:
-          otp-version: ${{ steps.tools.outputs.otp }}
-          rebar3-version: ${{ steps.tools.outputs.rebar }}
+          version-file: .tool-versions
           version-type: strict
       - name: Install consumer prerequisites
         uses: libtmux/.github/actions/apt-get@30f81842b1e639ea4e25f93f1f2543504178e228

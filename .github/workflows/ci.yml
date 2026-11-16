@@ -31,18 +31,11 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - name: Read exact tool versions
-        id: tools
-        shell: bash
-        run: |
-          otp=$(awk '$1 == "erlang" {print $2}' .tool-versions)
-          rebar=$(awk '$1 == "rebar" {print $2}' .tool-versions)
-          test -n "$otp" && test -n "$rebar"
-          printf 'otp=%s\nrebar=%s\n' "$otp" "$rebar" >> "$GITHUB_OUTPUT"
-      - uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1.24.1
+      - name: Install the OTP and Rebar3 versions in .tool-versions
+        id: beam
+        uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1.24.1
         with:
-          otp-version: ${{ steps.tools.outputs.otp }}
-          rebar3-version: ${{ steps.tools.outputs.rebar }}
+          version-file: .tool-versions
           version-type: strict
       - name: Build tmux ${{ matrix.tmux }}
         id: tmux
@@ -56,13 +49,13 @@ jobs:
       - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: _build/default/*_plt
-          key: plt-${{ runner.os }}-${{ runner.arch }}-${{ steps.tools.outputs.otp }}-${{ steps.tools.outputs.rebar }}-${{ hashFiles('rebar.config', 'rebar.lock', 'apps/*/src/*.app.src') }}
-      - name: Verify selected toolchain
-        run: |
-          erl -noshell -noinput -eval 'io:format("OTP ~s / ERTS ~s~n", [erlang:system_info(otp_release), erlang:system_info(version)]), halt().'
-          rebar3 version
-          "$LIBTMUX_TEST_TMUX" -V
-          sha256sum "$LIBTMUX_TEST_TMUX"
+          key: plt-${{ runner.os }}-${{ runner.arch }}-${{ steps.beam.outputs.otp-version }}-${{ steps.beam.outputs.rebar3-version }}-${{ hashFiles('rebar.config', 'rebar.lock', 'apps/*/src/*.app.src') }}
+      - name: Print the OTP, ERTS and Rebar3 versions
+        run: rebar3 version
+      - name: Print the tmux version
+        run: '"$LIBTMUX_TEST_TMUX" -V'
+      - name: Print the tmux binary checksum
+        run: sha256sum "$LIBTMUX_TEST_TMUX"
       - name: Prepare test dependencies
         run: rebar3 as test compile
       - name: Check example width
@@ -113,14 +106,11 @@ jobs:
         with:
           update: "true"
           args: install --yes --no-install-recommends clang-18 libclang-rt-18-dev
-      - name: Read exact tool versions
-        id: tools
-        run: |
-          printf 'otp=%s\nrebar=%s\n' "$(awk '$1 == "erlang" {print $2}' .tool-versions)" "$(awk '$1 == "rebar" {print $2}' .tool-versions)" >> "$GITHUB_OUTPUT"
-      - uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1.24.1
+      - name: Install the OTP and Rebar3 versions in .tool-versions
+        id: beam
+        uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1.24.1
         with:
-          otp-version: ${{ steps.tools.outputs.otp }}
-          rebar3-version: ${{ steps.tools.outputs.rebar }}
+          version-file: .tool-versions
           version-type: strict
       - name: Compile the library and scripts
         run: rebar3 compile
@@ -143,21 +133,19 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - name: Read exact tool versions
-        id: tools
-        run: |
-          printf 'otp=%s\nrebar=%s\n' "$(awk '$1 == "erlang" {print $2}' .tool-versions)" "$(awk '$1 == "rebar" {print $2}' .tool-versions)" >> "$GITHUB_OUTPUT"
-      - uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1.24.1
+      - name: Install the OTP and Rebar3 versions in .tool-versions
+        id: beam
+        uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1.24.1
         with:
-          otp-version: ${{ steps.tools.outputs.otp }}
-          rebar3-version: ${{ steps.tools.outputs.rebar }}
+          version-file: .tool-versions
           version-type: strict
       - name: Prepare isolated test dependencies
         run: rebar3 as property,test get-deps
+      - name: Create the check log directory
+        run: mkdir -p _build/checks
       - name: Run PropEr properties
-        run: |
-          mkdir -p _build/checks
-          time rebar3 as property proper --dir property --numtests 300 2>&1 | tee _build/checks/properties.log
+        shell: bash
+        run: rebar3 as property proper --dir property --numtests 300 2>&1 | tee _build/checks/properties.log
       - name: Preserve property counterexamples and log
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -177,28 +165,26 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - name: Read exact tool versions
-        id: tools
-        run: |
-          printf 'otp=%s\nrebar=%s\n' "$(awk '$1 == "erlang" {print $2}' .tool-versions)" "$(awk '$1 == "rebar" {print $2}' .tool-versions)" >> "$GITHUB_OUTPUT"
-      - uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1.24.1
+      - name: Install the OTP and Rebar3 versions in .tool-versions
+        id: beam
+        uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1.24.1
         with:
-          otp-version: ${{ steps.tools.outputs.otp }}
-          rebar3-version: ${{ steps.tools.outputs.rebar }}
+          version-file: .tool-versions
           version-type: strict
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: '26.5.1'
           package-manager-cache: false
-      - name: Prepare reference backends
-        run: |
-          rustup toolchain install "$RUSTUP_TOOLCHAIN" --profile minimal
-          cargo build --manifest-path tools/regex-conformance/Cargo.toml --locked --target-dir _build/regex-conformance
-          rebar3 compile
-      - name: Check fixture drift and differential matches
-        run: |
-          time escript scripts/regex/generate_fixture.erl --check
-          time escript scripts/regex/check_regex.erl
+      - name: Install the Rust toolchain
+        run: rustup toolchain install "$RUSTUP_TOOLCHAIN" --profile minimal
+      - name: Build the Rust reference engine
+        run: cargo build --manifest-path tools/regex-conformance/Cargo.toml --locked --target-dir _build/regex-conformance
+      - name: Compile the library and scripts
+        run: rebar3 compile
+      - name: Check fixture drift
+        run: escript scripts/regex/generate_fixture.erl --check
+      - name: Check differential matches
+        run: escript scripts/regex/check_regex.erl
       - name: Preserve reference engine receipt
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -218,14 +204,11 @@ jobs:
           # Rendered ADR links are checked against their pinned source commits.
           fetch-depth: 0
           persist-credentials: false
-      - name: Read exact tool versions
-        id: tools
-        run: |
-          printf 'otp=%s\nrebar=%s\n' "$(awk '$1 == "erlang" {print $2}' .tool-versions)" "$(awk '$1 == "rebar" {print $2}' .tool-versions)" >> "$GITHUB_OUTPUT"
-      - uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1.24.1
+      - name: Install the OTP and Rebar3 versions in .tool-versions
+        id: beam
+        uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1.24.1
         with:
-          otp-version: ${{ steps.tools.outputs.otp }}
-          rebar3-version: ${{ steps.tools.outputs.rebar }}
+          version-file: .tool-versions
           version-type: strict
       - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
@@ -235,11 +218,12 @@ jobs:
         run: rebar3 compile
       - name: Prepare pinned documentation renderer
         run: escript scripts/docs/build_docs.erl --prepare
-      - name: Verify public contracts and guide corpus
-        run: |
-          escript tools/check_api_docs.escript > _build/api-docs.json
-          escript tools/generate_reference.escript --check
-          escript scripts/docs/check_docs.erl
+      - name: Verify the public API contracts
+        run: escript tools/check_api_docs.escript > _build/api-docs.json
+      - name: Check the generated reference
+        run: escript tools/generate_reference.escript --check
+      - name: Verify the guide corpus
+        run: escript scripts/docs/check_docs.erl
       - name: Render warnings-free API browser
         run: escript scripts/docs/build_docs.erl
       - name: Preserve browser and documentation receipts
