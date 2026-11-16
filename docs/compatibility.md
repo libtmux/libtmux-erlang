@@ -88,6 +88,7 @@ Storing rows:
 | Buffers | Named or automatic binary load, exact show, metadata lists, delete/rename and paste; native version differences are explicit |
 | Server utilities | Command values for literal source-file/stdin configuration and native wait-for signals, waits and explicit advisory locks |
 | Pane pipe | Literal shell command, output/input/both directions, native toggle and explicit stop; tmux-owned process and delivery checks |
+| Feature decisions | Named version gates, explicit fallbacks and generated operation manifests; [choose a feature](capabilities.md) |
 
 - Each guide's program exercises the current public API.
 - A captured row can vanish before an action. A stable ID is no permission to
@@ -98,7 +99,7 @@ Storing rows:
 - Control command submission, command groups and output subscriptions or
   streams.
 - Complete performance qualification.
-- Typed command coverage, a generated capability inventory, public cross-port
+- Complete typed command coverage, public cross-port
   filter conformance and independent implementation reviews.
 - The core is on [Hex](https://hex.pm/packages/libtmux_erlang). HexDocs is not
   published.

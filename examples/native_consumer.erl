@@ -46,6 +46,15 @@ run() ->
         ok = tmux_capability:require(Floor, native_list_filter),
         {error, #{code := unsupported_capability}} =
             tmux_capability:require(Floor, layout_json),
+        {ok, #{supported := false, handling := fallback}} =
+            tmux_capability:decision(Floor, control_no_detach),
+        {ok, Candidate} = tmux_version:parse(<<"tmux 3.8-rc2">>),
+        {error, #{code := unsupported_capability}} =
+            tmux_capability:require(Candidate, layout_json),
+        AppRoot = code:lib_dir(libtmux_erlang),
+        {ok, Manifest} = file:read_file(filename:join(AppRoot, "capabilities.json")),
+        true = json:decode(Manifest) =:=
+            json:decode(iolist_to_binary(json:encode(tmux_capability:manifest()))),
         ok = ct_doctest:module(?MODULE),
         ok
     end, fun() ->

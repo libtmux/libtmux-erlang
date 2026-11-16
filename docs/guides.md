@@ -28,3 +28,4 @@ source, checks immutability and cleans up.
 - [API browser](api.md): native source docs, types, specs and source links.
 - [Architecture decision record](adr-0001-architecture.md): selected design, alternatives and consequences.
 - [Support and gaps](compatibility.md): tested cells, current capabilities and open gates.
+- [Feature decisions](capabilities.md): inspect daemon version gates and older-release fallbacks.
