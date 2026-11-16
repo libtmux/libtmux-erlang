@@ -260,9 +260,9 @@ launch_channel(#{context := #{config := Native}, config := Config} = State) ->
     case authorized(State) andalso Remaining > 0 of
         false -> fail(#{code => parent_closed}, State);
         true ->
-            Flags = case tmux_version:at_least(maps:get(version, Native), {3, 6}) of
-                true -> <<"no-output,ignore-size,no-detach-on-destroy">>;
-                false -> <<"no-output,ignore-size">>
+            Flags = case tmux_capability:require(maps:get(version, Native), control_no_detach) of
+                ok -> <<"no-output,ignore-size,no-detach-on-destroy">>;
+                {error, #{code := unsupported_capability}} -> <<"no-output,ignore-size">>
             end,
             Args = [<<"-u">>, <<"-C">>, <<"-N">>, <<"-S">>, maps:get(socket_path, Native),
                 <<"attach-session">>, <<"-E">>, <<"-f">>, Flags, <<"-t">>, maps:get(target, Config)],
