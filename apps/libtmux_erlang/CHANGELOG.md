@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+- Add discoverable feature decisions shared with buffer, layout and control
+  gates. Feature minimums are version strings; parsed versions distinguish
+  development builds, numbered release candidates, stable and letter patches.
+  Exact command and option catalogues still require a known source profile.
+
+- Observe endpoint identity with native `list-commands` to avoid after-hooks.
+  Its bootstrap spelling must remain unaliased. The endpoint version remains
+  a cached daemon observation; ordinary commands retain identity checks.
+
 - Add `tmux_pane:wait_exit/2`, which waits for a pane's process to exit and
   returns `{status, Code}` or `{signal, Signal}` with the dead pane freshly
   observed, so a death by signal is no longer read as a missing exit status.
