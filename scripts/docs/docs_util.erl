@@ -3,8 +3,8 @@
 Path, URL, HTML and JSON helpers shared by `check_docs` and `build_docs`.
 
 Paths and text are UTF-8 binaries. A JSON object whose key order matters is
-`{object, [{Key, Value}]}`. `json_text/1` writes it in the layout of Python's
-`json.dumps(indent=2)`, so receipts stay diffable against earlier ones.
+`{object, [{Key, Value}]}`. `json_text/1` writes it with two-space indentation
+and ASCII-only strings, so receipts stay diffable against earlier ones.
 """.
 -export([wildcard/2, resolve/1, is_within/2, relative_to/2, relative_path/2, urlsplit/1,
          unquote/1, quote/2, escape/1, unescape/1, splitlines/1, replace/4,
@@ -26,8 +26,8 @@ wildcard(Root, Pattern) ->
     lists:sort(fun(A, B) -> filename:split(A) =< filename:split(B) end, Found).
 
 -doc """
-Absolute path with `.`, `..` and symbolic links resolved, like Python's
-`Path.resolve()`. Components that do not exist stay as written.
+Absolute path with `.`, `..` and symbolic links resolved. Components that do
+not exist stay as written.
 """.
 -spec resolve(file:filename_all()) -> binary().
 resolve(Path) ->
@@ -78,8 +78,9 @@ drop_common([Part | From], [Part | To]) -> drop_common(From, To);
 drop_common(From, To) -> {From, To}.
 
 -doc """
-Split a URL the way Python's `urlsplit` does: scheme, network location, path,
-query and fragment, with leading controls and tabs or newlines removed.
+Split a URL into scheme, network location, path, query and fragment. Leading
+controls and spaces, and every tab and newline, are removed first, and the
+scheme is lower-cased. A part the URL lacks is an empty binary.
 """.
 -spec urlsplit(binary()) -> url().
 urlsplit(Url) ->
@@ -141,7 +142,7 @@ utf8(Bytes) ->
 
 -doc """
 Percent-encode the UTF-8 bytes of `Binary`, keeping letters, digits, `_.-~`
-and the bytes of `Safe`, like Python's `urllib.parse.quote`.
+and the bytes of `Safe`.
 """.
 -spec quote(binary(), binary()) -> binary().
 quote(Binary, Safe) ->
@@ -156,7 +157,7 @@ quote_byte(Byte, Safe) ->
         _ -> <<Byte>>
     end.
 
--doc "Escape `& < > \"` and `'` as Python's `html.escape` does.".
+-doc "Escape `& < > \"` and `'`, writing the apostrophe as `&#x27;`.".
 -spec escape(binary()) -> binary().
 escape(Binary) ->
     << <<(escape_byte(Byte))/binary>> || <<Byte>> <= Binary >>.
@@ -201,8 +202,8 @@ reference(<<"nbsp">>, _) -> <<16#A0/utf8>>;
 reference(_, Whole) -> Whole.
 
 -doc """
-Split text into lines at the boundaries Python's `str.splitlines` uses, without
-a final empty line.
+Split text into lines at `\r\n` and at a lone `\n` or `\r`, vertical tab, form
+feed, U+001C to U+001E, U+0085, U+2028 and U+2029, with no final empty line.
 """.
 -spec splitlines(binary()) -> [binary()].
 splitlines(Binary) ->
@@ -236,8 +237,8 @@ splice([[{Start, Length} | Groups] | More], Subject, Position, Fun, Acc, Out) ->
     splice(More, Subject, Start + Length, Fun, Next, [Replacement, Before | Out]).
 
 -doc """
-JSON text of `Value` with two-space indentation and ASCII-only strings, the
-layout of Python's `json.dumps(indent=2)`. Writes no trailing newline.
+JSON text of `Value` with two-space indentation and ASCII-only strings. Writes
+no trailing newline.
 """.
 -spec json_text(json()) -> binary().
 json_text(Value) -> iolist_to_binary(encode(Value, 0)).

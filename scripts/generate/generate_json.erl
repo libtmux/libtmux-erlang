@@ -1,7 +1,6 @@
 -module(generate_json).
 -moduledoc """
-JSON that keeps object key order, written the way Python's
-`json.dumps(value, indent=2)` writes it.
+JSON that keeps object key order, written with two-space indentation.
 
 An object is a non-empty list of `{Key, Value}` pairs with binary keys; an
 empty object is `#{}` and an empty array is `[]`. Strings are binaries, `null`,

@@ -5,8 +5,8 @@ honest.
 
 `generate_fixture.erl` writes the fixture: explicit edge cases and 100
 generated expressions whose expected results come from a position-set matching
-oracle. Its random draws follow Python's Mersenne Twister seeding, so the file
-is stable byte for byte. `--check` fails when the committed file differs. The
+oracle. Its random draws come from a Mersenne Twister (MT19937) seeded from a
+fixed integer, so the file is stable byte for byte. `--check` fails when the committed file differs. The
 mid loop runs the check.
 
 `check_regex.erl` renders every pattern for PCRE2, JavaScript and Rust, runs

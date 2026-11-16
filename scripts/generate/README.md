@@ -63,9 +63,9 @@ agree. A changed schema is a review item: the diff must match the pin change.
 
 - `generate_catalogue`: the manifest, command line, schema round trip, drift
   check and the readers for tmux's C sources, shared by both generators.
-- `generate_json`: JSON that keeps object key order and writes the text
-  Python's `json.dumps(indent=2)` writes, so schema diffs stay small. An object
-  is a list of `{Key, Value}` pairs because Erlang maps do not keep order.
+- `generate_json`: JSON that keeps object key order and indents by two spaces,
+  so schema diffs stay small. An object is a list of `{Key, Value}` pairs
+  because Erlang maps do not keep order.
 
 `refresh/2` in each generator takes its source reader as a fun, so tests supply
 fixtures instead of a tmux clone.

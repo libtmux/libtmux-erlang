@@ -3,8 +3,8 @@
 %%
 %% Explicit edge cases come first, then 100 generated expressions whose
 %% expected results come from a position-set matching oracle. The generator
-%% draws from a Mersenne Twister seeded as Python's random module seeds it,
-%% so the committed fixture stays byte for byte stable.
+%% draws from a Mersenne Twister (MT19937) seeded from a fixed integer, so
+%% the committed fixture stays byte for byte stable.
 -module(generate_fixture).
 -mode(compile).
 -export([main/1, fixture/0, render/1, rng_new/1, rng_bits/2, rng_below/2,
@@ -179,7 +179,8 @@ ends({rep, Node, Low, High}, Position, Bytes, Length) ->
     end, {[Position], Start}, lists:seq(1, High)),
     Result.
 
-%% Python-compatible Mersenne Twister (MT19937 seeded with init_by_array).
+%% Mersenne Twister (MT19937) seeded with init_by_array from the integer's
+%% 32-bit words, least significant first.
 
 -spec rng_new(non_neg_integer()) -> rng().
 rng_new(Seed) ->
@@ -258,7 +259,7 @@ twist(Array0) ->
     end, Array0, lists:seq(0, ?N - 1)),
     Array1.
 
-%% JSON, laid out as Python's json.dumps(indent=2, ensure_ascii=False).
+%% JSON with two-space indentation; characters above ASCII stay as written.
 
 -spec render(term()) -> binary().
 render(Value) -> iolist_to_binary([encode(Value, 0), $\n]).
