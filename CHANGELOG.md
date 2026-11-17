@@ -16,6 +16,11 @@
 
 - Add a capability directory to the `tmux_server` module docs.
 
+- Add "What is on here" capability directories to the tmux_session,
+  tmux_window and tmux_pane module docs, so their libtmux.org reference pages
+  group each module's calls by task like tmux_server. A new unit check keeps
+  every owner directory at three rows or more, naming each public call.
+
 - Add the typing, query planner and command batching programs to the README and
   rewrite the README and guides around tasks, linked APIs and executed
   examples.
