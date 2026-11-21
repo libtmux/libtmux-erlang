@@ -7,6 +7,9 @@
 - Find installation and first tasks together in the native docs. Examples link
   to the Erlang APIs they use, and the compatibility guide links the generated
   capability manifest.
+- On tmux 3.8, [run a program in a private terminal](docs/programs.md) with
+  literal arguments. Collect its exit, bounded screen capture and cleanup
+  result. Start a program separately to send input or request stop.
 - Run contributor checks and examples with Erlang tooling. The shared
   example-width check uses Python.
 - Tagged Hex releases use workload identity and check for HTTP 200 on the
