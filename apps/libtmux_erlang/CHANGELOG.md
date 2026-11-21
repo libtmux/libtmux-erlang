@@ -4,6 +4,9 @@
 
 - Use `tmux_pane:wait_exit/2` to read a pane's exit status or signal after tmux
   publishes it. Set `remain-on-exit` to retain the pane.
+- Wait for literal screen text on an owned live pane with
+  `tmux_pane:wait_for_text/3`. Use `tmux_pane_text:start/3` to observe the pane
+  before sending input.
 - Use `tmux_capability:decision/2` to see the release a feature requires and
   how it behaves on older daemons. Version checks order development builds,
   numbered release candidates, stable releases and letter patches.
