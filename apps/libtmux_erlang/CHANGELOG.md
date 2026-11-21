@@ -8,7 +8,8 @@
   how it behaves on older daemons. Version checks order development builds,
   numbered release candidates, stable releases and letter patches.
 - Errors for unsupported releases name the tmux client or daemon, the found
-  and required releases, and what to change.
+  and required releases, and what to change. Feature refusals give the same
+  release details for operations such as JSON layouts and sanitized paste.
 
 ## 0.0.1 - 2026-11-13
 
