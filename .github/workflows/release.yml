@@ -202,7 +202,7 @@ jobs:
       - name: Verify HexDocs is public
         env:
           VERSION: ${{ needs.candidate.outputs.version }}
-        run: curl --fail --silent --show-error --output /dev/null "https://hexdocs.pm/libtmux_erlang/$VERSION/"
+        run: escript scripts/release/check_release.erl --hexdocs "$VERSION"
       - name: Preserve public install receipt
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

@@ -79,6 +79,25 @@ registry_absence_is_distinct_from_failure_and_mismatch_test() ->
     ?assertEqual("https://repo.hex.pm/tarballs/libtmux_erlang-0.0.2.tar",
                  receive {url, Url} -> Url end).
 
+hexdocs_requires_a_versioned_page_with_status_200_test() ->
+    Url = "https://libtmux-erlang.hexdocs.pm/0.0.1/readme.html",
+    Fetch = fun(Status) ->
+        fun(Requested) ->
+            ?assertEqual(Url, Requested),
+            {ok, Status, <<>>}
+        end
+    end,
+    ?assertEqual(ok, check_release:verify_hexdocs("0.0.1", Fetch(200))),
+    lists:foreach(fun(Status) ->
+        ?assertError({release, _}, check_release:verify_hexdocs("0.0.1", Fetch(Status)))
+    end, [204, 301, 404]),
+    ?assertError({release, _},
+        check_release:verify_hexdocs("0.0.1", fun(_) -> {error, timeout} end)),
+    Fetched = make_ref(),
+    UnexpectedFetch = fun(_) -> self() ! Fetched, {ok, 200, <<>>} end,
+    ?assertError({release, _}, check_release:verify_hexdocs("0.0.1+development", UnexpectedFetch)),
+    receive Fetched -> ?assert(false) after 0 -> ok end.
+
 qualification_must_bind_the_same_clean_commit_and_bytes_test() ->
     Proof = #{<<"result">> => <<"PASS">>,
               <<"source">> => #{<<"head">> => <<"commit">>, <<"status">> => <<>>},

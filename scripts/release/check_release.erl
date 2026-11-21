@@ -1,10 +1,11 @@
 %% Validate a clean release checkout and the exact public Hex source artifact.
 %% Usage: escript scripts/release/check_release.erl [--tag vVERSION | --from-actions]
 %%        [--artifact TARBALL [--qualified-receipt RECEIPT]] [--require-published]
+%% Usage: escript scripts/release/check_release.erl --hexdocs VERSION
 -module(check_release).
 -mode(compile).
 -export([main/1, validate_version/2, validate_checkout/2, published_artifact/3,
-         validate_qualification/3, application_version/1, actions_tag/2]).
+         validate_qualification/3, application_version/1, actions_tag/2, verify_hexdocs/2]).
 -export_type([fetch/0]).
 
 -define(APP, "libtmux_erlang").
@@ -16,6 +17,16 @@
 -type fetch() :: fun((string()) -> {ok, non_neg_integer(), binary()} | {error, term()}).
 
 -spec main([string()]) -> no_return().
+main(["--hexdocs", Version]) ->
+    try verify_hexdocs(Version, fun(Url) -> fetch(Url, false) end) of
+        ok ->
+            io:format("HexDocs ~s returned HTTP 200~n", [Version]),
+            halt(0)
+    catch
+        error:{release, Message} ->
+            io:format(standard_error, "~s~n", [Message]),
+            halt(1)
+    end;
 main(Arguments) ->
     Root = filename:dirname(filename:dirname(filename:dirname(
         filename:absname(escript:script_name())))),
@@ -175,6 +186,17 @@ published_artifact(Version, Expected, Fetch) ->
         {error, Reason} -> fail(io_lib:format("registry request failed: ~p", [Reason]))
     end.
 
+-doc "Require HTTP 200 at the canonical README URL for this release.".
+-spec verify_hexdocs(string(), fetch()) -> ok.
+verify_hexdocs(Version0, Fetch) ->
+    Version = validate_version(Version0, none),
+    Url = "https://libtmux-erlang.hexdocs.pm/" ++ Version ++ "/readme.html",
+    case Fetch(Url) of
+        {ok, 200, _} -> ok;
+        {ok, Status, _} -> fail(io_lib:format("HexDocs ~s answered HTTP ~B", [Version, Status]));
+        {error, Reason} -> fail(io_lib:format("HexDocs ~s request failed: ~p", [Version, Reason]))
+    end.
+
 -doc "Bind a tarball to a passing receipt for the same clean commit and bytes.".
 -spec validate_qualification(map(), string(), binary()) -> ok.
 validate_qualification(Proof, Head, Sha256) ->
@@ -188,14 +210,16 @@ validate_qualification(Proof, Head, Sha256) ->
         _ -> fail("artifact does not match clean native CI qualification")
     end.
 
-fetch(Url) ->
+fetch(Url) -> fetch(Url, true).
+
+fetch(Url, FollowRedirects) ->
     {ok, _} = application:ensure_all_started(ssl),
     {ok, _} = application:ensure_all_started(inets),
     Ssl = [{verify, verify_peer}, {cacerts, public_key:cacerts_get()},
            {customize_hostname_check,
             [{match_fun, public_key:pkix_verify_hostname_match_fun(https)}]}],
-    case httpc:request(get, {Url, []}, [{timeout, 30000}, {ssl, Ssl}],
-                       [{body_format, binary}]) of
+    Options = [{timeout, 30000}, {autoredirect, FollowRedirects}, {ssl, Ssl}],
+    case httpc:request(get, {Url, []}, Options, [{body_format, binary}]) of
         {ok, {{_, Status, _}, _, Body}} when byte_size(Body) =< ?LIMIT -> {ok, Status, Body};
         {ok, {{_, _, _}, _, _}} -> {error, body_too_large};
         {error, Reason} -> {error, Reason}
