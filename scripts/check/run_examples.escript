@@ -3,12 +3,13 @@
 -mode(compile).
 
 main(Arguments) ->
-    Root = filename:dirname(filename:dirname(filename:absname(escript:script_name()))),
+    Root = filename:dirname(filename:dirname(filename:dirname(
+        filename:absname(escript:script_name())))),
     Receipt = filename:join([Root, "_build", "checks", "examples.json"]),
     try
         ok = filelib:ensure_dir(Receipt),
         ok = file:write_file(Receipt, json:encode(#{result => 'RUNNING'})),
-        Result = run(Arguments),
+        Result = run(Arguments, Root),
         Encoded = json:encode(Result),
         ok = file:write_file(Receipt, Encoded),
         io:format("~s~n", [Encoded])
@@ -23,10 +24,10 @@ main(Arguments) ->
         halt(1)
     end.
 
-run(Arguments) ->
+run(Arguments, Root) ->
     Started = erlang:monotonic_time(microsecond),
     ok = logger:set_primary_config(level, warning),
-    ok = file:set_cwd(filename:dirname(filename:dirname(filename:absname(escript:script_name())))),
+    ok = file:set_cwd(Root),
     {CodePaths, Selected} = code_paths(Arguments, []),
     ok = code:add_pathsa(CodePaths),
     {ok, _} = application:ensure_all_started(libtmux_erlang),

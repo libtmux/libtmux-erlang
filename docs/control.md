@@ -10,7 +10,7 @@ inspect its attachment effects and close the client.
 The program owns its session. The runner supplies a private tmux server:
 
 ```console
-$ mise exec -- escript tools/run_examples.escript control
+$ mise exec -- escript scripts/check/run_examples.escript control
 ```
 
 <!-- example: examples/control_demo.erl -->

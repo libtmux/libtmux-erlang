@@ -100,7 +100,7 @@ $ mise exec -- rebar3 compile
 Run it against a temporary server that the example runner starts:
 
 ```console
-$ mise exec -- escript tools/run_examples.escript inspect
+$ mise exec -- escript scripts/check/run_examples.escript inspect
 ```
 
 It returns a map with the `sessions`, `windows` and `panes` counts.

@@ -91,7 +91,7 @@ plan(outer, _) ->
     [["rebar3", "compile"],
      ["rebar3", "dialyzer"],
      ["rebar3", "ct"],
-     ["escript", "tools/run_examples.escript"],
+     ["escript", "scripts/check/run_examples.escript"],
      ["escript", "scripts/docs/check_docs.erl", "--examples-receipt", "_build/checks/examples.json"],
      ["escript", "scripts/package/check_package.erl", "--dialyzer"]].
 

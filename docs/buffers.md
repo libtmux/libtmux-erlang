@@ -7,7 +7,7 @@ bytes, including NUL, invalid UTF-8 and protocol-like lines.
 Run this program against the runner's isolated server:
 
 ```console
-$ mise exec -- escript tools/run_examples.escript buffers
+$ mise exec -- escript scripts/check/run_examples.escript buffers
 ```
 
 <!-- example: examples/buffer_demo.erl -->

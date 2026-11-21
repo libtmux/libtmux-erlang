@@ -17,7 +17,7 @@ $ mise exec -- rebar3 compile
 Run the complete program:
 
 ```console
-$ mise exec -- escript tools/run_examples.escript config
+$ mise exec -- escript scripts/check/run_examples.escript config
 ```
 
 <!-- example: examples/config_demo.erl -->

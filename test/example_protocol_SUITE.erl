@@ -26,7 +26,7 @@ end_per_suite(_) -> ok = application:stop(erlexec).
 %% The Common Test node does not run in the checkout; find it above the build tree.
 checkout("/") -> ct:fail(checkout_not_found);
 checkout(Directory) ->
-    case filelib:is_file(filename:join(Directory, "tools/run_examples.escript")) of
+    case filelib:is_file(filename:join(Directory, "scripts/check/run_examples.escript")) of
         true -> Directory;
         false -> checkout(filename:dirname(Directory))
     end.
@@ -143,9 +143,9 @@ project(Config, Case) ->
     Root = proplists:get_value(root, Config),
     Project = filename:join(proplists:get_value(priv_dir, Config), atom_to_list(Case)),
     lists:foreach(fun(Name) -> ok = filelib:ensure_path(filename:join(Project, Name)) end,
-                  ["tools", "test", "examples", "_build/checks", "scratch", "scripts/check"]),
-    {ok, _} = file:copy(filename:join(Root, "tools/run_examples.escript"),
-                        filename:join(Project, "tools/run_examples.escript")),
+                  ["test", "examples", "_build/checks", "scratch", "scripts/check"]),
+    {ok, _} = file:copy(filename:join(Root, "scripts/check/run_examples.escript"),
+                        filename:join(Project, "scripts/check/run_examples.escript")),
     {ok, _} = file:copy(filename:join(Root, "scripts/check/tmux_test_sandbox.erl"),
                         filename:join(Project, "scripts/check/tmux_test_sandbox.erl")),
     ok = file:write_file(filename:join(Project, "_build/checks/examples.json"),
@@ -164,7 +164,7 @@ receipt(Project) ->
     json:decode(Bytes).
 
 start_examples(Config, Project) ->
-    Runner = filename:join(Project, "tools/run_examples.escript"),
+    Runner = filename:join(Project, "scripts/check/run_examples.escript"),
     Ebin = filename:join(code:lib_dir(libtmux_erlang), "ebin"),
     exec:run([proplists:get_value(escript, Config), Runner, "--ebin", Ebin, "filter"],
         [stdout, stderr, monitor, {cd, Project},

@@ -21,7 +21,7 @@ program runs a job that acknowledges terminal parsing, waits for its exit with
 Run it from the checkout so the job script can be found:
 
 ```console
-$ mise exec -- escript tools/run_examples.escript job
+$ mise exec -- escript scripts/check/run_examples.escript job
 ```
 
 <!-- example: examples/job_demo.erl -->

@@ -98,7 +98,7 @@ Change it in all of them together.
   by `scripts/docs/check_docs.erl` with the same column measure. Expected
   shell replies are compared output; numbered input prompts are checked code.
 - **Runs, compiles, exempt:** `ct_doctest` executes native shell transcripts.
-  `tools/run_examples.escript` executes the complete reader programs;
+  `scripts/check/run_examples.escript` executes the complete reader programs;
   the outer archive check repeats them as an installed consumer.
 - **Compared output and copied blocks:** output assertions stay intact.
   Edit programs in examples/, then refresh their `<!-- example: ... -->`

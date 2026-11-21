@@ -25,7 +25,7 @@ outer_runs_the_integration_suites_test() ->
     Outer = check:plan(outer, none),
     lists:foreach(fun(Command) -> ?assert(lists:member(Command, Outer), Command) end,
                   [["rebar3", "dialyzer"], ["rebar3", "ct"],
-                   ["escript", "tools/run_examples.escript"]]).
+                   ["escript", "scripts/check/run_examples.escript"]]).
 
 a_loop_passes_only_when_nothing_failed_inside_the_budget_test() ->
     ?assert(check:passed(false, 4.9, inner)),

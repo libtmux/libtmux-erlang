@@ -13,7 +13,7 @@ $ mise exec -- rebar3 compile
 Run it on an owned server:
 
 ```console
-$ mise exec -- escript tools/run_examples.escript pipe
+$ mise exec -- escript scripts/check/run_examples.escript pipe
 ```
 
 <!-- example: examples/pipe_demo.erl -->

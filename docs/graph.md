@@ -9,7 +9,7 @@ count physical objects and session memberships.
 Run it on a private server after compiling:
 
 ```console
-$ mise exec -- escript tools/run_examples.escript graph
+$ mise exec -- escript scripts/check/run_examples.escript graph
 ```
 
 <!-- example: examples/linked_graph.erl -->

@@ -13,7 +13,7 @@ without inheritance to decide whether the session belongs to that workspace.
 Run it:
 
 ```console
-$ mise exec -- escript tools/run_examples.escript options
+$ mise exec -- escript scripts/check/run_examples.escript options
 ```
 
 <!-- example: examples/options_demo.erl -->

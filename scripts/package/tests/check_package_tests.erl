@@ -128,7 +128,7 @@ installed_commands_keep_their_contract_test() ->
     ?assertEqual([json, plain, plain, plain, plain, plain, plain],
                  [Kind || {Kind, _} <- Commands]),
     Plain = [Command || {_, Command} <- Commands],
-    ?assertEqual(["escript", "tools/run_examples.escript", "--ebin", Ebin], hd(Plain)),
+    ?assertEqual(["escript", "scripts/check/run_examples.escript", "--ebin", Ebin], hd(Plain)),
     ?assert(lists:member([Temp ++ "/_build/default/lib/libtmux_erlang/priv/tmux_owned_io",
                           "--exec-one", "/bin/true"], Plain)),
     ?assert(lists:any(fun(Command) ->

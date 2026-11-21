@@ -81,7 +81,7 @@ $ mise exec -- rebar3 compile
 Run it on a private tmux server.
 
 ```console
-$ mise exec -- escript tools/run_examples.escript readme
+$ mise exec -- escript scripts/check/run_examples.escript readme
 ```
 
 `with_owned/2` stops the private daemon when the program finishes. A cleanup
@@ -142,7 +142,7 @@ returns before the program reads it, so the shell signals a tmux channel and
 the program awaits that signal before it captures:
 
 ```console
-$ mise exec -- escript tools/run_examples.escript typing
+$ mise exec -- escript scripts/check/run_examples.escript typing
 ```
 
 <!-- example: examples/typing_demo.erl -->
@@ -212,7 +212,7 @@ Filtering runs locally on captured rows and never calls tmux.
 JSON. This program needs no tmux server:
 
 ```console
-$ mise exec -- escript tools/run_examples.escript filter
+$ mise exec -- escript scripts/check/run_examples.escript filter
 ```
 
 <!-- example: examples/filter_demo.erl -->
@@ -289,7 +289,7 @@ More: [Local filters and source queries](docs/querying.md).
 query twice, then fetches it and checks that the rows agree:
 
 ```console
-$ mise exec -- escript tools/run_examples.escript plan
+$ mise exec -- escript scripts/check/run_examples.escript plan
 ```
 
 <!-- example: examples/plan_demo.erl -->
@@ -375,7 +375,7 @@ Build commands without I/O, join them and run them once. A sequence is not
 atomic: a failing member can leave the commands before it applied.
 
 ```console
-$ mise exec -- escript tools/run_examples.escript batch
+$ mise exec -- escript scripts/check/run_examples.escript batch
 ```
 
 <!-- example: examples/batch_demo.erl -->
@@ -448,7 +448,7 @@ connection, then close it and confirm cleanup. Commands still run through
 one-shot clients; control command submission and output streams are not built.
 
 ```console
-$ mise exec -- escript tools/run_examples.escript control
+$ mise exec -- escript scripts/check/run_examples.escript control
 ```
 
 <!-- example: examples/control_demo.erl -->
