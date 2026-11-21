@@ -2,36 +2,15 @@
 
 ## Unreleased
 
-- Use Hex workload identity for tagged releases and add an authentication-only
-  workflow check that exchanges and immediately revokes a package-scoped token.
-
-- Run the support scripts as Erlang modules that `escript` runs and Rebar3
-  compiles, type checks and tests with the library, and remove their Python
-  versions. Only the shared example-width checker still runs under Python.
-
-- Build tmux and install CI packages with the shared libtmux/.github actions.
-
-- Run the test suites' child programs and the terminal job example as Erlang
-  programs instead of Python ones.
-
-- Record the archive consumer's input pane pid, exit signal, clients and a
-  verbose tmux server log when that pane does not exit with status 0.
-
-- Add a capability directory to the `tmux_server` module docs.
-
-- Add "What is on here" capability directories to the tmux_session,
-  tmux_window and tmux_pane module docs, so their libtmux.org reference pages
-  group each module's calls by task like tmux_server. A new unit check keeps
-  every owner directory at three rows or more, naming each public call.
-
-- Add the typing, query planner and command batching programs to the README and
-  rewrite the README and guides around tasks, linked APIs and executed
-  examples.
-
-- Link example section headings directly to their named Erlang API functions.
-
-- Install the published core from Hex in both README examples and the
-  installation guide.
+- Install the core from Hex in a fresh Rebar3 project. The quickstart opens a
+  private tmux server, prints its pane count and stops it.
+- Find installation and first tasks together in the native docs. Examples link
+  to the Erlang APIs they use, and the compatibility guide links the generated
+  capability manifest.
+- Run contributor checks and examples with Erlang tooling. The shared
+  example-width check uses Python.
+- Tagged Hex releases use workload identity and check for HTTP 200 on the
+  versioned HexDocs README.
 
 ## 0.0.1 - 2026-11-13
 
