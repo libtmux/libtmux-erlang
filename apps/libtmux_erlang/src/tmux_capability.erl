@@ -59,7 +59,8 @@ commands(Version) ->
 Look up one canonical native command in an exact source profile. Returns
 unknown_command for aliases or unknown names, unsupported_command when a
 known command is absent from that profile, and unsupported_command_catalogue
-for uncatalogued or tracking versions. Performs no I/O.
+for uncatalogued versions, including development builds and release candidates.
+Performs no I/O.
 
 ```erlang
 1> {ok, V} = tmux_version:parse(<<"tmux 3.3a">>), ok.
@@ -106,9 +107,9 @@ describe(Feature) when is_atom(Feature) ->
 describe(Feature) -> {error, #{code => unknown_capability, capability => Feature}}.
 
 -doc """
-Require a native feature's numeric major/minor floor without dispatching I/O.
+Require a native feature's stable release floor without dispatching I/O.
 An older version returns unsupported_capability with capability and minimum.
-Patch letters and tracking markers do not promote an older minor version.
+Development builds and release candidates precede the matching stable release.
 Unknown features and malformed parsed versions return distinct errors.
 
 ```erlang
@@ -140,22 +141,20 @@ variant(Profile, [#{versions := Versions, metadata := Metadata} | Rest]) ->
 profile(Version) ->
     maybe
         ok ?= valid_version(Version),
-        #{major := Major, minor := Minor, patch := Patch, tracking := Tracking} = Version,
-        Prefix = case Tracking of true -> <<"next-">>; false -> <<>> end,
-        Profile = <<Prefix/binary, (integer_to_binary(Major))/binary, $.,
-            (integer_to_binary(Minor))/binary, Patch/binary>>,
+        Profile = tmux_version:format(Version),
         case lists:member(Profile, profiles()) of
             true -> {ok, Profile};
             false -> {error, #{code => unsupported_command_catalogue, version => Profile}}
         end
     end.
 
-valid_version(#{major := Major, minor := Minor, patch := Patch, tracking := Tracking})
+valid_version(#{major := Major, minor := Minor, patch := Patch, tracking := Tracking} = Version)
   when is_integer(Major), Major >= 0, is_integer(Minor), Minor >= 0,
        is_boolean(Tracking) ->
-    case Patch of
-        <<>> -> ok;
-        <<C>> when C >= $a, C =< $z -> ok;
+    case {Tracking, Patch, maps:get(candidate, Version, none)} of
+        {_, <<>>, none} -> ok;
+        {false, <<>>, Candidate} when is_integer(Candidate), Candidate > 0 -> ok;
+        {false, <<C>>, none} when C >= $a, C =< $z -> ok;
         _ -> {error, #{code => invalid_version}}
     end;
 valid_version(_) -> {error, #{code => invalid_version}}.

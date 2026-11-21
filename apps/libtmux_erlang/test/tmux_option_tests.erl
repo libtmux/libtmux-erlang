@@ -92,6 +92,7 @@ catalogue_version_boundary_test() ->
           <<"3.7c">>, <<"3.8">>]),
     {ok, Old} = tmux_version:parse(<<"tmux 3.3">>),
     {ok, New} = tmux_version:parse(<<"tmux 3.8">>),
+    {ok, Candidate} = tmux_version:parse(<<"tmux 3.8-rc2">>),
     {ok, Future} = tmux_version:parse(<<"tmux 4.0">>),
     ?assertMatch({ok, #{scopes := [server], array := false}},
         tmux_option:describe(Old, <<"exit-empty">>)),
@@ -99,6 +100,8 @@ catalogue_version_boundary_test() ->
         tmux_option:describe(Old, <<"pane-scrollbars-style">>)),
     ?assertMatch({ok, #{scopes := [window, pane]}},
         tmux_option:describe(New, <<"pane-scrollbars-style">>)),
+    ?assertMatch({error, #{code := unsupported_option_catalogue, version := <<"3.8-rc2">>}},
+        tmux_option:describe(Candidate, <<"exit-empty">>)),
     ?assertMatch({error, #{code := unsupported_option_catalogue}},
         tmux_option:describe(Future, <<"exit-empty">>)).
 
