@@ -136,15 +136,18 @@ decision(Version, Feature) ->
 
 -doc """
 Require a feature's release floor without dispatching I/O.
-An older version returns unsupported_capability with capability and minimum.
+An older version returns `unsupported_capability` with the feature name,
+`found`, `required` and a `hint`. `minimum` also holds the required release.
 Development builds and RCs precede the corresponding stable release.
 Unknown features and malformed parsed versions return distinct errors.
 
 ```erlang
-1> {ok, V} = tmux_version:parse(<<"tmux 3.4">>), ok.
+1> {ok, V} = tmux_version:parse(<<"tmux 3.3a">>), ok.
 ok
-2> tmux_capability:require(V, send_client_keys).
+2> {error, Detail} = tmux_capability:require(V, send_client_keys), ok.
 ok
+3> maps:with([found, required], Detail).
+#{found => <<"3.3a">>,required => <<"3.4">>}
 ```
 """.
 -spec require(tmux_version:t(), feature()) -> ok | {error, map()}.
@@ -154,7 +157,9 @@ require(Version, Feature) ->
         case Supported of
             true -> ok;
             false -> {error, #{code => unsupported_capability,
-                capability => Feature, minimum => Minimum}}
+                capability => Feature, minimum => Minimum,
+                found => tmux_version:format(Version), required => Minimum,
+                hint => <<"Use a tmux daemon at or above the required release.">>}}
         end
     end.
 

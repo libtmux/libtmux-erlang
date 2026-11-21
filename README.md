@@ -49,7 +49,7 @@ Drive tmux from Erlang: create [sessions][tmux-session],
 It needs:
 
 - Erlang/OTP 29 and Rebar3.
-- tmux 3.3a or newer, on Linux (including WSL).
+- tmux 3.3a through 3.8 on Linux (including WSL).
 - `make` and a C11 compiler, to build the bundled helper.
 
 Add the core from [Hex](https://hex.pm/packages/libtmux_erlang) to your
@@ -574,8 +574,8 @@ socket.
 - **Status:** early. Any release may change the API.
 - **Platform:** Linux, including WSL. macOS and native Windows are not
   advertised.
-- **tmux:** 3.3a or newer. A release newer than the tested ones returns
-  `unsupported_option_catalogue` for built-in options and hooks.
+- **tmux:** 3.3a through 3.8. Built-in options and hooks require a catalogued
+  release.
 - **Erlang/OTP:** 29 only. The application refuses to start on another release.
   Rows are native records, which OTP 29 marks experimental.
 - **Dependencies:** OTP only. The helper is an external program, not a NIF.

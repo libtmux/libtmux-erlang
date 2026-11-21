@@ -114,8 +114,11 @@ paste_delivery(Config) ->
                         {ok, _} = tmux_buffer:paste(Pane, <<"safe">>, #{sanitize => true}),
                         <<"A^[B">> = received(Peer);
                     false ->
-                        {error, #{code := unsupported_capability}} =
-                            tmux_buffer:paste(Pane, <<"safe">>, #{sanitize => true})
+                        Found = tmux_version:format(Version),
+                        {error, #{code := unsupported_capability, capability := paste_sanitize,
+                                  found := Found, required := <<"3.7">>, hint := Hint}} =
+                            tmux_buffer:paste(Pane, <<"safe">>, #{sanitize => true}),
+                        true = byte_size(Hint) > 0
                 end,
                 {ok, _} = tmux_session:kill(Session),
                 {error, #{code := target_gone}} = tmux_buffer:paste(Pane, latest, #{})

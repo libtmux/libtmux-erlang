@@ -1,5 +1,18 @@
 # Observe transport, operations and captures
 
+## Read a version refusal
+
+When `tmux_server:open/1` returns `unsupported_tmux_version`, check `component`
+for `client` or `daemon`. `found` gives the observed release, `required` gives
+the floor, and `hint` tells you which executable or socket to change.
+
+A feature can require a later release. For example, a JSON layout requires
+tmux 3.8. A version-based `unsupported_capability` error names the feature
+in `capability` and gives its `found`, `required` and `hint` fields. See
+[support and feature discovery](compatibility.md#check-a-feature-before-use).
+
+## Read log reports
+
 The core emits structured OTP Logger reports under the `[libtmux]` domain.
 
 - It adds no handler, telemetry dependency or background logging process.

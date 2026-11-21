@@ -97,7 +97,7 @@ $ rebar3 shell \
 | --- | --- |
 | Erlang/OTP | 29 |
 | Build tool | Rebar3 |
-| tmux | 3.3a or newer |
+| tmux | 3.3a through 3.8 |
 | Platform | Linux, including WSL |
 | Native build | C11 compiler, libc headers and make |
 | Core dependencies | OTP kernel, stdlib and crypto; no JSON package or NIF |

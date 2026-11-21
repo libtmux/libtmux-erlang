@@ -42,7 +42,7 @@ Drive tmux from Erlang: create [sessions][tmux-session],
 It needs:
 
 - Erlang/OTP 29 and Rebar3.
-- tmux 3.3a or newer, on Linux (including WSL).
+- tmux 3.3a through 3.8 on Linux (including WSL).
 - `make` and a C11 compiler, to build the bundled helper.
 
 Add the published application to `rebar.config`:
@@ -126,8 +126,8 @@ It returns a map with the `sessions`, `windows` and `panes` counts.
 
 - **Status:** early. Any release may change the API; pin an exact version.
 - **Platform:** Linux, including WSL. Erlang/OTP 29 only.
-- **tmux:** 3.3a or newer. A release newer than the tested ones returns
-  `unsupported_option_catalogue` for built-in options and hooks.
+- **tmux:** 3.3a through 3.8. Built-in options and hooks require a catalogued
+  release.
 - **Dependencies:** OTP only. The helper is an external program, not a NIF.
 - **Stored results:** a selection keeps its captured graph. Convert to plain
   rows to store only the data.

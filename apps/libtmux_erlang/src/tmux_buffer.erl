@@ -172,19 +172,22 @@ paste(Pane, Buffer, Options) ->
         {ok, BufferArgs} ?= target(Buffer),
         {ok, Server, PaneTarget} ?= tmux_target:resolve(pane, Pane),
         {ok, Version} ?= tmux_server:version(Server),
-        {ok, Safety} ?= safety(maps:get(sanitize, Options, false), capabilities(Version)),
+        {ok, Mode} ?= paste_mode(maps:get(sanitize, Options, false), Version),
         Separator = case maps:is_key(separator, Options) of
             true -> [];
             false -> [<<"-s">>, <<"\n">>]
         end,
         run(Server, <<"paste-buffer">>, BufferArgs ++ [<<"-t">>, PaneTarget] ++
-            Safety ++ Separator ++ Flags, #{})
+            Mode ++ Separator ++ Flags, #{})
     end.
 
-safety(true, #{paste_sanitize := false}) ->
-    {error, #{code => unsupported_capability, capability => paste_sanitize}};
-safety(false, #{paste_sanitize := true}) -> {ok, [<<"-S">>]};
-safety(_, _) -> {ok, []}.
+paste_mode(Sanitize, Version) ->
+    case tmux_capability:require(Version, paste_sanitize) of
+        ok when Sanitize -> {ok, []};
+        ok -> {ok, [<<"-S">>]};
+        {error, #{code := unsupported_capability}} when not Sanitize -> {ok, []};
+        Error -> Error
+    end.
 
 preflight(_, latest) -> ok;
 preflight(Server, Name) ->
