@@ -116,7 +116,8 @@ run_endpoint(Socket, Executable) ->
             none = tmux_option:get(Session, <<"update-environment">>, #{}),
             {ok, _} = tmux_window:respawn(Window, #{force => true}),
             {ok, _} = tmux_window:resize(Window, #{width => 96, height => 28}),
-            {ok, SizedWindow} = tmux_window:get(Server, tmux_model:get(id, Window)),
+            {ok, SizedWindow} =
+                tmux_window:get(Server, tmux_model:get(id, Window)),
             96 = tmux_model:get(width, SizedWindow),
             28 = tmux_model:get(height, SizedWindow),
             {ok, Pane} = tmux_pane:split(Window,
