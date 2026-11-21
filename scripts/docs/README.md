@@ -48,9 +48,9 @@ The script verifies the HTTPS peer, the size and the SHA-256 digest.
 $ mise exec -- escript scripts/docs/build_docs.erl --prepare
 ```
 
-The build compiles the library, stages the guides with links to repository
-files rewritten to generated source pages, runs ExDoc with warnings as errors
-and checks the rendered HTML with `check_docs`.
+The build compiles the library and stages guides, source pages and media
+through `docs_sources`. It runs ExDoc with warnings as errors and checks the
+rendered HTML.
 
 ```console
 $ escript scripts/docs/build_docs.erl

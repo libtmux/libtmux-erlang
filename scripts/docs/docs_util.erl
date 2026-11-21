@@ -8,7 +8,7 @@ and ASCII-only strings, so receipts stay diffable against earlier ones.
 """.
 -export([wildcard/2, resolve/1, is_within/2, relative_to/2, relative_path/2, urlsplit/1,
          unquote/1, quote/2, escape/1, unescape/1, splitlines/1, replace/4,
-         json_text/1, read_ordered_json/1, write_file/2, fail/2]).
+         json_text/1, read_ordered_json/1, write_file/2, fail/2, sha256_file/1]).
 -export_type([json/0, url/0]).
 
 -type json() :: null | boolean() | integer() | float() | binary() | [json()]
@@ -299,3 +299,17 @@ read_ordered_json(Path) ->
 write_file(Path, Data) ->
     ok = filelib:ensure_dir(Path),
     ok = file:write_file(Path, Data).
+
+-doc "Read a file in chunks and return its lowercase SHA-256 digest.".
+-spec sha256_file(file:filename_all()) -> binary().
+sha256_file(Path) ->
+    {ok, Device} = file:open(Path, [read, raw, binary]),
+    try sha256_stream(Device, crypto:hash_init(sha256))
+    after ok = file:close(Device)
+    end.
+
+sha256_stream(Device, State) ->
+    case file:read(Device, 65536) of
+        {ok, Data} -> sha256_stream(Device, crypto:hash_update(State, Data));
+        eof -> binary:encode_hex(crypto:hash_final(State), lowercase)
+    end.

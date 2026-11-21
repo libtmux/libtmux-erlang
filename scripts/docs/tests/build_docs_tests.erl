@@ -16,10 +16,10 @@ tree() ->
 with_repository(Fun) ->
     docs_fixture:with_tree(tree(), fun(Root) ->
         docs_fixture:init_repository(Root),
-        Fun(Root, build_docs:context(Root, ?EXTRAS))
+        Fun(Root, docs_sources:context(Root, ?EXTRAS))
     end).
 
-stage(Context, Page) -> build_docs:stage_page(Context, Page, build_docs:new_state()).
+stage(Context, Page) -> docs_sources:stage_page(Context, Page, docs_sources:new_state()).
 
 failure(Fun) ->
     try Fun() of
@@ -122,7 +122,7 @@ paths_outside_the_checkout_fail() ->
                                        || {Path, Data} <- tree()], fun(Parent) ->
         Root = filename:join(Parent, "repo"),
         docs_fixture:init_repository(Root),
-        Context = build_docs:context(Root, ?EXTRAS),
+        Context = docs_sources:context(Root, ?EXTRAS),
         docs_fixture:write(Root, "README.md", <<"[up](../outside.md)\n">>),
         ?assertEqual(<<"Broken documentation link: README.md -> ../outside.md">>,
                      failure(fun() -> stage(Context, <<"README.md">>) end)),
@@ -134,16 +134,16 @@ paths_outside_the_checkout_fail() ->
 source_links_name_their_files() ->
     with_repository(fun(Root, Context) ->
         docs_fixture:write(Root, "apps/app/src/m.erl", <<"-module(m).\n">>),
-        State = build_docs:new_state(),
-        {Url, _} = build_docs:source_link(Context, <<"m.erl">>, <<"1">>, State),
+        State = docs_sources:new_state(),
+        {Url, _} = docs_sources:source_link(Context, <<"m.erl">>, <<"1">>, State),
         ?assertEqual(<<"source/apps/app/src/m.erl.html#L1">>, iolist_to_binary(Url)),
-        {Page, _} = build_docs:source_link(Context, <<"_build/docs/pages/README.md">>,
+        {Page, _} = docs_sources:source_link(Context, <<"_build/docs/pages/README.md">>,
                                            <<"3">>, State),
         ?assertEqual(<<"source/README.md.html#L3">>, iolist_to_binary(Page)),
         docs_fixture:write(Root, "apps/other/src/m.erl", <<"-module(m).\n">>),
         ?assertEqual(<<"Ambiguous documentation source: m.erl">>,
                      failure(fun() ->
-                         build_docs:source_link(Context, <<"m.erl">>, <<"1">>, State)
+                         docs_sources:source_link(Context, <<"m.erl">>, <<"1">>, State)
                      end))
     end).
 
