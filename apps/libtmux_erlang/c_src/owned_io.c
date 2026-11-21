@@ -1,6 +1,8 @@
 #define _GNU_SOURCE
+#include <linux/magic.h>
 #include <sys/prctl.h>
 #include <sys/types.h>
+#include <sys/vfs.h>
 #include <sys/wait.h>
 #include <dirent.h>
 #include <errno.h>
@@ -381,12 +383,157 @@ static void exec_result(struct state *s) {
     else if (errno != EINTR && errno != EAGAIN) { close_fd(&s->exec_fd); fail(s, 2, errno); }
 }
 
+static int wait_success(pid_t child) {
+    int status;
+    pid_t observed;
+    do {
+        observed = waitpid(child, &status, 0);
+    } while (observed < 0 && errno == EINTR);
+    if (observed < 0) return errno;
+    if (!WIFEXITED(status) || WEXITSTATUS(status) != 0) return EIO;
+    return 0;
+}
+
+static int run_tmux_client(char *const command[]) {
+    pid_t waiter = fork();
+    if (waiter < 0) return errno;
+    if (waiter == 0) {
+        execv(command[0], command);
+        _exit(125);
+    }
+    return wait_success(waiter);
+}
+
+static int report_launch(char *tmux, char *socket, char *option, char *value) {
+    char *pane = getenv("TMUX_PANE");
+    if (pane == NULL || pane[0] != '%') return EINVAL;
+    char *const command[] = {
+        tmux, "-N", "-S", socket, "set-option", "-p", "-t", pane, "--", option, value,
+        ";", "wait-for", "-S", "--", option + 1, NULL
+    };
+    return run_tmux_client(command);
+}
+
+static int report_launch_error(char *tmux, char *socket, char *option, char stage, int error) {
+    char value[32];
+    int length = snprintf(value, sizeof value, "%c%d", stage, error);
+    if (length <= 0 || (size_t)length >= sizeof value) return 126;
+    return report_launch(tmux, socket, option, value) == 0 ? 125 : 126;
+}
+
+static void observe_program_exec(int input, char *tmux, char *socket, char *option) {
+    unsigned char failure[5];
+    size_t used = 0;
+    while (used < sizeof failure) {
+        ssize_t count = read(input, failure + used, sizeof failure - used);
+        if (count < 0 && errno == EINTR) continue;
+        if (count < 0) {
+            close(input);
+            return;
+        }
+        if (count == 0) break;
+        used += (size_t)count;
+    }
+    close(input);
+    if (used == 0) {
+        (void)report_launch(tmux, socket, option, "S");
+    } else if (used == sizeof failure) {
+        (void)report_launch_error(tmux, socket, option, (char)failure[0], (int)get32(failure + 1));
+    }
+}
+
+static int start_exec_observer(char *tmux, char *socket, char *option) {
+    int channel[2];
+    if (pipe2(channel, O_CLOEXEC) < 0) return -errno;
+    /* Reap the intermediate process before the application takes over. */
+    pid_t intermediate = fork();
+    if (intermediate == 0) {
+        close(channel[1]);
+        /* The pane can hang up before tmux acknowledges the report. */
+        if (setsid() < 0) _exit(1);
+        int null = open("/dev/null", O_RDWR);
+        if (null < 0) _exit(1);
+        for (int target = STDIN_FILENO; target <= STDERR_FILENO; target++)
+            if (dup2(null, target) < 0) _exit(1);
+        if (null > STDERR_FILENO) close(null);
+        pid_t observer = fork();
+        if (observer == 0) {
+            observe_program_exec(channel[0], tmux, socket, option);
+            _exit(0);
+        }
+        _exit(observer < 0 ? 1 : 0);
+    }
+    int error = intermediate < 0 ? errno : wait_success(intermediate);
+    close(channel[0]);
+    if (error != 0) {
+        close(channel[1]);
+        return -error;
+    }
+    return channel[1];
+}
+
+static int exec_program(int argc, char **argv) {
+    if (argc < 7 || argv[1][0] != '/' || argv[2][0] != '/' ||
+        argv[4][0] != '/' || argv[5][0] != '@' || argv[6][0] != '/')
+        return 126;
+    const char *directory = argv[4];
+    char *const gate[] = {
+        argv[1], "-N", "-S", argv[2], "wait-for", "--", argv[3], NULL
+    };
+    int error = run_tmux_client(gate);
+    if (error != 0)
+        return report_launch_error(argv[1], argv[2], argv[5], 'G', error);
+    int channel = start_exec_observer(argv[1], argv[2], argv[5]);
+    if (channel < 0)
+        return report_launch_error(argv[1], argv[2], argv[5], 'B', -channel);
+    unsigned char failure[5] = {'D'};
+    if (chdir(directory) == 0 && setenv("PWD", directory, 1) == 0) {
+        failure[0] = 'X';
+        execv(argv[6], argv + 6);
+    }
+    put32(failure + 1, (uint32_t)errno);
+    ssize_t written;
+    do {
+        written = write(channel, failure, sizeof failure);
+    } while (written < 0 && errno == EINTR);
+    close(channel);
+    return written == sizeof failure ? 125 : 126;
+}
+
+static int hold_program_tty(const char *path) {
+    const char prefix[] = "/dev/pts/";
+    if (strncmp(path, prefix, sizeof prefix - 1) != 0) return 126;
+    const char *number = path + sizeof prefix - 1;
+    if (!*number || number[strspn(number, "0123456789")]) return 126;
+
+    int fd = open(path, O_RDONLY | O_NOCTTY | O_NONBLOCK | O_CLOEXEC | O_NOFOLLOW);
+    if (fd < 0) return 126;
+    struct statfs device;
+    int status = 126;
+    if (fstatfs(fd, &device) == 0 && device.f_type == DEVPTS_SUPER_MAGIC && isatty(fd) &&
+        write(STDOUT_FILENO, "R", 1) == 1) {
+        /* Keep the slave index allocated without consuming terminal data. */
+        unsigned char byte;
+        ssize_t count;
+        do {
+            count = read(STDIN_FILENO, &byte, 1);
+        } while (count < 0 && errno == EINTR);
+        if (count == 0) status = 0;
+    }
+    close(fd);
+    return status;
+}
+
 int main(int argc, char **argv) {
     /* tmux treats one command argument as shell text; preserve singleton argv. */
     if (argc != 1) {
         if (argc == 3 && strcmp(argv[1], "--exec-one") == 0 && argv[2][0] &&
             strnlen(argv[2], 65536) < 65536)
             execvp(argv[2], argv + 2);
+        if (strcmp(argv[1], "--exec-program") == 0)
+            return exec_program(argc - 1, argv + 1);
+        if (argc == 3 && strcmp(argv[1], "--hold-program-tty") == 0)
+            return hold_program_tty(argv[2]);
         _exit(1);
     }
 

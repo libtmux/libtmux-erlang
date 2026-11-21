@@ -7,7 +7,7 @@
       "source": "c_src/owned_io.c",
       "file": "owned_io.c",
       "sha256": "d123aff332fd4d187094be1a80018db36811d04be7f10e5d470bbb85100009ff",
-      "local_sha256": "d952f807ca47c18f8c8fc4393030bec8cd937f67984ce56c8a1f1cecb769617e"
+      "local_sha256": "246fc6e16b7b031cf39df1e29c21eb49a999c596dfb8020d9d36e610492e7ff4"
     },
     {
       "source": "LICENSE",
@@ -21,6 +21,10 @@
       "protocol_version": 4,
       "failure_kind": 5,
       "qualification": "Erlang helper and adapter require independent qualification; upstream source digest is retained."
+    },
+    {
+      "description": "Add literal program launch and keep the slave PTY allocated through final capture.",
+      "protocol_version": 4
     }
   ]
 }
