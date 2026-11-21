@@ -1,0 +1,160 @@
+{
+  "capabilities": [
+    {
+      "apis": [
+        "tmux_control:attach/3"
+      ],
+      "commands": [
+        {
+          "command": "attach-session",
+          "flags": [
+            "-f"
+          ]
+        }
+      ],
+      "fallback": "omit-no-detach-on-destroy",
+      "handling": "fallback",
+      "id": "control-no-detach-on-destroy",
+      "name": "Control session switching",
+      "since": "3.6",
+      "summary": "Keep a control client attached when its session is destroyed."
+    },
+    {
+      "apis": [
+        "tmux_capability:require/2"
+      ],
+      "commands": [
+        {
+          "command": "list-keys",
+          "flags": [
+            "-F"
+          ]
+        }
+      ],
+      "error": "unsupported_capability",
+      "handling": "refuse",
+      "id": "list-keys-format",
+      "name": "Formatted key listings",
+      "since": "3.7",
+      "summary": "Native list-keys -F custom formatting."
+    },
+    {
+      "apis": [
+        "tmux_window:select_layout/2",
+        "tmux_capability:require/2"
+      ],
+      "commands": [
+        {
+          "command": "select-layout",
+          "flags": []
+        }
+      ],
+      "error": "unsupported_capability",
+      "handling": "refuse",
+      "id": "layout-json",
+      "name": "JSON window layouts",
+      "since": "3.8",
+      "summary": "Native JSON layout parsing, including the v2 layout representation."
+    },
+    {
+      "apis": [
+        "tmux_capability:require/2"
+      ],
+      "commands": [
+        {
+          "command": "list-sessions",
+          "flags": [
+            "-f"
+          ]
+        },
+        {
+          "command": "list-windows",
+          "flags": [
+            "-f"
+          ]
+        },
+        {
+          "command": "list-panes",
+          "flags": [
+            "-f"
+          ]
+        }
+      ],
+      "error": "unsupported_capability",
+      "handling": "refuse",
+      "id": "native-list-filter",
+      "name": "Native list filters",
+      "since": "3.3",
+      "summary": "Native -f filters on session, window and pane list commands."
+    },
+    {
+      "apis": [
+        "tmux_buffer:paste/3"
+      ],
+      "commands": [
+        {
+          "command": "paste-buffer",
+          "flags": [
+            "-S"
+          ]
+        }
+      ],
+      "error": "unsupported_capability",
+      "handling": "refuse",
+      "id": "paste-sanitize",
+      "name": "Paste sanitization",
+      "since": "3.7",
+      "summary": "Request native paste sanitization; raw paste uses -S on newer daemons."
+    },
+    {
+      "apis": [
+        "tmux_capability:require/2"
+      ],
+      "commands": [
+        {
+          "command": "send-keys",
+          "flags": [
+            "-K",
+            "-c"
+          ]
+        }
+      ],
+      "error": "unsupported_capability",
+      "handling": "refuse",
+      "id": "send-client-keys",
+      "name": "Client-directed keys",
+      "since": "3.4",
+      "summary": "Native send-keys -K and -c for client-directed key input."
+    },
+    {
+      "apis": [
+        "tmux_buffer:delete/2",
+        "tmux_buffer:rename/3"
+      ],
+      "commands": [
+        {
+          "command": "delete-buffer",
+          "flags": [
+            "-b"
+          ]
+        },
+        {
+          "command": "set-buffer",
+          "flags": [
+            "-b",
+            "-n"
+          ]
+        }
+      ],
+      "fallback": "show-buffer-before-named-operation",
+      "handling": "fallback",
+      "id": "strict-named-target",
+      "name": "Strict named buffers",
+      "since": "3.4",
+      "summary": "Return an error when a named buffer is missing."
+    }
+  ],
+  "floor": { "minimum": "3.3a" },
+  "port": "erlang",
+  "schema": "libtmux-capabilities/1"
+}

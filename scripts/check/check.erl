@@ -85,6 +85,7 @@ plan(mid, _) ->
      ["escript", "tools/check_api_docs.escript", "--test"],
      ["escript", "scripts/docs/check_docs.erl"],
      ["escript", "scripts/generate/generate_commands.erl", "--check"],
+     ["escript", "scripts/generate/generate_capabilities.erl", "--check"],
      ["git", "diff", "--check"]];
 plan(outer, _) ->
     [["rebar3", "compile"],

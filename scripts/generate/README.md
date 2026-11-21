@@ -1,15 +1,15 @@
 # generate
 
-Generators for the tmux source catalogues. Each one turns a checked-in JSON
-schema into an Erlang data module and a Markdown reference, and can rebuild
-that schema from the pinned tmux sources.
+Generate command and option catalogues from pinned tmux sources. Generate the
+capability manifest from the registry the library uses at runtime.
 
 | Script | Schema | Generated files |
 | --- | --- | --- |
 | `generate_commands.erl` | `schema/commands.json` | `tmux_capability_data.erl`, `docs/commands-reference.md` |
 | `generate_options.erl` | `schema/options.json` | `tmux_option_data.erl`, `docs/options-reference.md` |
+| `generate_capabilities.erl` | `tmux_capability:manifest/0` | `capabilities.json` |
 
-Both read the pinned tmux commits from
+The catalogue generators read the pinned tmux commits from
 [schema/tmux-sources.json](../../schema/tmux-sources.json) and refuse a schema
 whose sources differ from those pins. Maintainers run them after changing a
 schema or the pins. The mid-loop check runs `--check`; package consumers need
@@ -24,8 +24,8 @@ so compile first:
 $ mise exec -- rebar3 compile
 ```
 
-`--check` exits 1 and names the first generated file that differs from its
-schema. It reads no tmux checkout.
+`--check` exits 1 and names the first stale or missing generated file. It
+reads no tmux checkout.
 
 ```console
 $ mise exec -- escript scripts/generate/generate_commands.erl --check
@@ -35,13 +35,21 @@ $ mise exec -- escript scripts/generate/generate_commands.erl --check
 $ mise exec -- escript scripts/generate/generate_options.erl --check
 ```
 
+```console
+$ mise exec -- escript scripts/generate/generate_capabilities.erl --check
+```
+
 ## Regenerate
 
-Without a flag, each script validates its schema and rewrites its generated
-files. Never edit the generated files by hand.
+Without a flag, each script rewrites its generated files. Change and compile
+the registry first when updating feature gates.
 
 ```console
 $ mise exec -- escript scripts/generate/generate_commands.erl
+```
+
+```console
+$ mise exec -- escript scripts/generate/generate_capabilities.erl
 ```
 
 ## Refresh the schema from tmux
@@ -72,8 +80,8 @@ fixtures instead of a tmux clone.
 
 ## Tests
 
-The unit tests in `tests/` cover the writer's text, every rejected source shape
-and schema, and the drift check. One test reads a temporary Git repository and
+The unit tests in `tests/` cover source validation, generator output, and
+manifest drift. One test reads a temporary Git repository and
 runs `cc`. `rebar3 eunit` alone skips `scripts/`; select it with `--dir`:
 
 ```console

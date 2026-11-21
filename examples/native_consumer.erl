@@ -46,6 +46,8 @@ run() ->
         ok = tmux_capability:require(Floor, native_list_filter),
         {error, #{code := unsupported_capability}} =
             tmux_capability:require(Floor, layout_json),
+        #{schema := <<"libtmux-capabilities/1">>,
+          floor := #{minimum := <<"3.3a">>}} = tmux_capability:manifest(),
         ok = ct_doctest:module(?MODULE),
         ok
     end, fun() ->
@@ -57,6 +59,9 @@ run_endpoint(Socket, Executable) ->
     Endpoint = #{socket_path => Socket, executable => Executable},
     {ok, Server} = tmux_server:open(Endpoint),
     tmux_scope:run_or_error(fun() ->
+        {ok, Version} = tmux_server:version(Server),
+        {ok, #{minimum := <<"3.3">>, supported := true}} =
+            tmux_capability:decision(Version, native_list_filter),
         {ok, Message} = tmux_command:raw(<<"display-message">>,
                                         [<<"-p">>, <<"archive consumer">>]),
         {ok, #{stdout := <<"archive consumer\n">>, cleanup := complete}} =
@@ -126,7 +131,6 @@ run_endpoint(Socket, Executable) ->
             {ok, Current} = tmux_window:get(Server, tmux_model:get(id, Window)),
             <<"consumer-#{pane_id};">> = tmux_model:get(name, Current),
             OriginalLayout = tmux_model:get(layout, Current),
-            {ok, Version} = tmux_server:version(Server),
             case tmux_version:at_least(Version, {3, 8}) of
                 true ->
                     {ok, #{<<"V">> := 2, <<"L">> := LayoutRoot}} =

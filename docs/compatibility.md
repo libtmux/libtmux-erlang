@@ -3,8 +3,8 @@
 Get the released core on [Hex](https://hex.pm/packages/libtmux_erlang) and
 its API documentation on [HexDocs](https://libtmux-erlang.hexdocs.pm/readme.html).
 
-- **tmux:** 3.3a is the floor. Tested: 3.3a through 3.8, including
-  intermediate releases, on Linux x86_64 and arm64.
+- **tmux:** Supports 3.3a through 3.8 on Linux x86_64 and arm64. The table
+  below lists the routine CI tests.
 - **Erlang/OTP:** 29 only. The application refuses to start on another release,
   and older-OTP branches are not maintained.
 - **Native records:** experimental in OTP 29. Do not persist their internals or
@@ -24,6 +24,18 @@ its API documentation on [HexDocs](https://libtmux-erlang.hexdocs.pm/readme.html
   use. A minimum-version check does not prove support on every newer release.
 - Tracking builds, macOS, native Windows and psmux are not advertised as
   supported.
+
+## Check a feature before use
+
+Read the endpoint's daemon version with `tmux_server:version/1`. Pass that
+version to `tmux_capability:decision/2` to learn the feature's minimum and
+what happens below it. For example, JSON layouts require tmux 3.8. Before
+3.6, control attachment omits the option that keeps the client attached
+when its session is destroyed.
+
+The [capability manifest](../capabilities.json) lists each gate's minimum,
+APIs, commands, and refusal or fallback behavior. The endpoint caches its
+observed version. Commands recheck endpoint identity before dispatch.
 
 ## Linux process interface
 
@@ -101,7 +113,7 @@ Storing rows:
 - Control command submission, command groups and output subscriptions or
   streams.
 - Complete performance qualification.
-- Typed command coverage, a generated capability inventory, public cross-port
+- Complete typed command coverage, public cross-port
   filter conformance and independent implementation reviews.
 
 ## Source installation
