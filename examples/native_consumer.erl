@@ -218,14 +218,14 @@ run_endpoint(Socket, Executable) ->
             {ok, _} = tmux_pane:send_text(InputPane, <<"archive input">>),
             {ok, _} = tmux_pane:send_keys(
                 InputPane, [enter, {control, <<"d">>}]),
-            {ok, #{exit := Exit, pane := CompletedInput}} =
-                tmux_pane:wait_exit(InputPane, #{deadline_ms => 5000}),
-            true = tmux_model:get(dead, CompletedInput),
-            case Exit of
-                {status, 0} -> ok;
-                _ -> error({unexpected_pane_exit,
-                            exit_report(Server, InputPane, Exit)})
+            CompletedInput = case tmux_pane:wait_exit(InputPane, #{deadline_ms => 5000}) of
+                {ok, #{exit := {status, 0}, pane := Completed}} -> Completed;
+                {ok, #{exit := Exit}} ->
+                    error({unexpected_pane_exit, exit_report(Server, InputPane, Exit)});
+                {error, _} = Failure ->
+                    error({unexpected_pane_exit, exit_report(Server, InputPane, Failure)})
             end,
+            true = tmux_model:get(dead, CompletedInput),
             {ok, _} = tmux_pane:kill(CompletedInput),
             {error, #{code := target_gone}} = tmux_pane:get(
                 Server, tmux_model:get(id, InputPane)),
@@ -255,8 +255,7 @@ run_endpoint(Socket, Executable) ->
         ok = tmux_server:close(Server)
     end).
 
-%% What finding the sender of an unexpected signal needs: the pane process,
-%% tmux's own view of the exit, the clients on the server and the verbose log.
+%% Read the pane, clients and logs before the consumer closes the fixture.
 exit_report(Server, Pane, Exit) ->
     {ok, Probe} = tmux_command:raw(<<"display-message">>,
         [<<"-p">>, <<"-t">>, tmux_model:get(id, Pane),
