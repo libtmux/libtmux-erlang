@@ -78,11 +78,12 @@ run(Socket, Executable) ->
 ```
 
 - The output is `build complete` and a newline. The exit status is zero.
-- A separate `wait-for` operation that nobody signals shows the operation
-  calls. The zero-duration await shows that abandoning a wait leaves the
-  operation usable.
-- Cancelling that wait reports an unknown tmux outcome and complete client
-  cleanup. Cancellation does not undo submitted work.
+- The second operation waits for a channel that nobody signals. Its
+  zero-duration `tmux_operation:await/2` returns `await_timeout` while the
+  operation can still run. Call `tmux_operation:status/1` or await it again
+  before you submit more work.
+- The example cancels the operation, then awaits the result. It reports an
+  unknown tmux outcome and complete client cleanup.
 
 ## Start a job in a prepared pane
 

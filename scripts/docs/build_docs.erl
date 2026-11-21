@@ -468,11 +468,12 @@ build(Root0) ->
     Diff = diff_sha256(Root),
     Output = filename:join(Root, "_build/docs/core"),
     ok = clean_directory(Output),
-    Extras = [<<"README.md">> | docs_util:wildcard(Root, "docs/*.md")] ++ [<<"LICENSE">>],
+    Groups = guide_groups(Root),
+    Extras = lists:append([Pages || {_, Pages} <- Groups]),
     Context = context(Root, Extras),
     #{head := Head} = Context,
     {Staged, Staging} = stage_guides(Context, Extras),
-    ok = write_config(Root, Staged),
+    ok = write_config(Root, Staged, Groups),
     Dirty = Status =/= <<>>,
     ok = run_exdoc(Root, Executable, Environment, Head, Dirty),
     Media = maps:get(media, Staging),
@@ -513,20 +514,33 @@ clean_directory(Directory) ->
     end,
     filelib:ensure_path(Directory).
 
+guide_groups(Root) ->
+    Start = [<<"README.md">>, <<"docs/first-task.md">>, <<"docs/installation.md">>,
+             <<"docs/guides.md">>],
+    Reference = [<<"docs/api.md">>, <<"docs/fields.md">>, <<"docs/options-reference.md">>,
+                 <<"docs/commands-reference.md">>, <<"docs/compatibility.md">>],
+    Project = [<<"docs/project-policy.md">> | docs_util:wildcard(Root, "docs/adr-*.md")]
+        ++ [<<"docs/branding.md">>, <<"LICENSE">>],
+    Tasks = docs_util:wildcard(Root, "docs/*.md") -- (Start ++ Reference ++ Project),
+    [{'Start here', Start}, {'Tasks', Tasks}, {'Reference', Reference}, {'Project', Project}].
+
 stage_guides(#{root := Root} = Context, Extras) ->
     lists:mapfoldl(fun(Page, State) ->
         {Text, Next} = stage_page(Context, Page, State),
-        Destination = filename:join("_build/docs/pages", Page),
+        Destination = staged_page(Page),
         docs_util:write_file(filename:join(Root, Destination), Text),
         {Destination, Next}
     end, new_state(), Extras).
 
-write_config(Root, Staged) ->
-    Extras = lists:join($,, [[<<"<<\"">>, Page, <<"\">>">>] || Page <- Staged]),
+staged_page(Page) -> filename:join("_build/docs/pages", Page).
+
+write_config(Root, Staged, Groups) ->
+    StagedGroups = [{Group, [staged_page(Page) || Page <- Pages]} || {Group, Pages} <- Groups],
+    Config = [{proglang, erlang}, {main, <<"readme">>},
+              {source_url_pattern, list_to_binary(?SOURCE_PATTERN)},
+              {extras, Staged}, {groups_for_extras, StagedGroups}],
     docs_util:write_file(filename:join(Root, "_build/docs/ex_doc.config"),
-        [<<"{proglang, erlang}.\n{main, <<\"readme\">>}.\n"
-           "{source_url_pattern, <<\"">>, ?SOURCE_PATTERN, <<"\">>}.\n{extras, [">>,
-         Extras, <<"]}.\n">>]).
+                         [io_lib:format("~tp.~n", [Term]) || Term <- Config]).
 
 run_exdoc(Root, Executable, Environment, Head, Dirty) ->
     Source = filename:join(Root, "apps/libtmux_erlang/src/libtmux_erlang.app.src"),

@@ -15,8 +15,9 @@ $ mise exec -- rebar3 compile
 `apps/*/README.md`.
 
 - Relative links resolve inside the checkout and name existing headings.
-- A `<!-- example: path -->` block equals its source file, and an
-  `example-input` block equals its JSON file.
+- A `<!-- example: path -->` block equals its source file. Use `path#region`
+  to display the lines between `% docs:begin region` and `% docs:end region`
+  in an Erlang example. An `example-input` block equals its JSON file.
 - Every other code block is classified: Erlang terms are read with
   `file:consult/1`, JSON output carries an `example-output` marker, and a
   `console` block holds one command.

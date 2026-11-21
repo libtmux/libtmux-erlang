@@ -10,7 +10,8 @@ $ escript scripts/docs/check_docs.erl
 ```
 
 Run it from the repository root. It verifies relative links and heading
-anchors, `<!-- example: path -->` excerpts against their source files,
+anchors, `<!-- example: path -->` excerpts against their source files or
+named regions selected with `path#region`,
 `example-input` and `example-output` JSON blocks, one command per `console`
 block, Erlang term blocks with `file:consult/1`, and the width of numbered
 prompts in native `-moduledoc` examples. `--examples-receipt FILE` also
@@ -376,13 +377,7 @@ marker(Before, Kind) ->
 erlang_block(Root, File, Before, Body, #{programs := Programs, terms := Terms} = State) ->
     case marker(Before, "example") of
         {ok, Source} ->
-            Path = filename:join(Root, Source),
-            Current = case file:read_file_info(Path) of
-                {ok, #file_info{type = regular}} ->
-                    {ok, Bytes} = file:read_file(Path),
-                    Bytes;
-                _ -> missing
-            end,
+            Current = example_source(Root, Source),
             (Current =/= missing andalso trim(Body) =:= trim(Current))
                 orelse fail(File, {example_drift, Source}),
             State#{programs := [Source | Programs]};
@@ -391,6 +386,31 @@ erlang_block(Root, File, Before, Body, #{programs := Programs, terms := Terms} =
                 orelse fail(File, unclassified_erlang_block),
             State#{terms := [Body | Terms]}
     end.
+
+example_source(Root, Reference) ->
+    [Source | Region] = binary:split(Reference, <<"#">>, [global]),
+    Path = filename:join(Root, Source),
+    case file:read_file_info(Path) of
+        {ok, #file_info{type = regular}} ->
+            {ok, Bytes} = file:read_file(Path),
+            example_region(Bytes, Region);
+        _ -> missing
+    end.
+
+example_region(Bytes, []) -> Bytes;
+example_region(Bytes, [Name]) when Name =/= <<>> ->
+    Begin = <<"% docs:begin ", Name/binary>>,
+    End = <<"% docs:end ", Name/binary>>,
+    Lines = docs_util:splitlines(Bytes),
+    Markers = [{Number, Text} || {Number, Line} <- lists:enumerate(Lines),
+                                Text <- [string:trim(Line)],
+                                Text =:= Begin orelse Text =:= End],
+    case Markers of
+        [{First, Begin}, {Last, End}] when Last > First + 1 ->
+            iolist_to_binary(lists:join($\n, lists:sublist(Lines, First + 1, Last - First - 1)));
+        _ -> missing
+    end;
+example_region(_, _) -> missing.
 
 ends_with(Binary, Suffix) ->
     Size = byte_size(Suffix),

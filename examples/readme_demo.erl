@@ -17,12 +17,14 @@ run(Executable) ->
             launch => #{argv => [<<"/bin/cat">>]}}),
         {ok, _} = tmux_window:select_layout(Worker, even_horizontal),
         {ok, _} = tmux_pane:resize(Right, #{width => 40}),
+        % docs:begin capture
         {ok, Snapshot} = tmux_server:snapshot(Server),
         Windows = tmux_select:windows(Snapshot),
         Workers = #{name => <<"workers">>, panes => #{count => 2,
             every => #{current_command => <<"cat">>}}},
         {ok, Captured} = tmux_select:one(Workers, Windows),
         {ok, Children} = tmux_snapshot:related(panes, Captured, Snapshot),
+        % docs:end capture
         Ids = [Id || #pane{id = Id} <:- Children],
         2 = length(Ids),
         Criteria = #{width => #{gte => 20},
@@ -30,12 +32,14 @@ run(Executable) ->
         Query = tmux_query:where(Criteria, tmux_query:panes(Server)),
         {ok, Fetched} = tmux_query:fetch(Query),
         2 = tmux_select:size(Fetched),
+        % docs:begin refresh
         {ok, _} = tmux_window:rename(Worker, <<"finished">>),
         <<"workers">> = tmux_model:get(name, Captured),
         {ok, Fresh} = tmux_query:fetch(tmux_query:where(
             #{name => <<"finished">>}, tmux_query:windows(Server))),
         {ok, Renamed} = tmux_select:one(Fresh),
         <<"finished">> = tmux_model:get(name, Renamed),
+        % docs:end refresh
         1 = length(tmux_snapshot:sessions(Snapshot)),
         2 = length(tmux_snapshot:windows(Snapshot)),
         3 = length(tmux_snapshot:panes(Snapshot)),

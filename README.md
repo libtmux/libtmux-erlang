@@ -71,77 +71,51 @@ Rebar3 project, or
 
 ### [`tmux_server:with_owned/2`][api-with-owned]: create a private tmux graph
 
-The example below uses four modules:
-
-- [`tmux_server`][tmux-server]: owns the connection and the server's lifetime.
-- [`tmux_snapshot`][tmux-snapshot]: holds captured rows.
-- [`tmux_select`][tmux-select]: filters those rows locally.
-- [`tmux_query`][tmux-query]: asks tmux again when fetched.
-
-From a checkout of this repository, compile it:
+The [complete program](examples/readme_demo.erl) creates a session with an
+editor window and a two-pane worker window. Compile from a checkout.
 
 ```console
 $ mise exec -- rebar3 compile
 ```
 
-Run it on a private tmux server:
+Run it on a private tmux server.
 
 ```console
 $ mise exec -- escript tools/run_examples.escript readme
 ```
 
-It starts an empty daemon on its own socket, then stops that daemon and its
-clients. Your existing sessions are untouched. To reuse the program, save it as
-`readme_demo.erl`.
+`with_owned/2` stops the private daemon when the program finishes. A cleanup
+error keeps the callback's outcome and the ownership token.
 
-<!-- example: examples/readme_demo.erl -->
+### [`tmux_select`][tmux-select] filters the captured worker window
+
+The program captures the graph, then reads the window and its related panes
+from memory.
+
+<!-- example: examples/readme_demo.erl#capture -->
 
 ```erlang
--module(readme_demo).
--moduledoc "Create a workspace, query its graph and preserve captured values.".
--export([run/1]).
--import_record(tmux_model, [pane]).
-
--spec run(binary()) -> map().
-run(Executable) ->
-    Options = #{executable => Executable},
-    {ok, Result} = tmux_server:with_owned(Options, fun(Server) ->
-        {ok, Session} = tmux_session:create(Server, #{name => <<"workspace">>,
-            window_name => <<"editor">>, width => 120, height => 30,
-            launch => #{argv => [<<"/bin/cat">>]}}),
-        {ok, Worker} = tmux_window:create(Session,
-            #{name => <<"workers">>,
-              launch => #{argv => [<<"/bin/cat">>]}}),
-        {ok, Right} = tmux_pane:split(Worker, #{direction => horizontal,
-            launch => #{argv => [<<"/bin/cat">>]}}),
-        {ok, _} = tmux_window:select_layout(Worker, even_horizontal),
-        {ok, _} = tmux_pane:resize(Right, #{width => 40}),
         {ok, Snapshot} = tmux_server:snapshot(Server),
         Windows = tmux_select:windows(Snapshot),
         Workers = #{name => <<"workers">>, panes => #{count => 2,
             every => #{current_command => <<"cat">>}}},
         {ok, Captured} = tmux_select:one(Workers, Windows),
         {ok, Children} = tmux_snapshot:related(panes, Captured, Snapshot),
-        Ids = [Id || #pane{id = Id} <:- Children],
-        2 = length(Ids),
-        Criteria = #{width => #{gte => 20},
-            window => #{is => #{name => <<"workers">>}}},
-        Query = tmux_query:where(Criteria, tmux_query:panes(Server)),
-        {ok, Fetched} = tmux_query:fetch(Query),
-        2 = tmux_select:size(Fetched),
+```
+
+### [`tmux_query:fetch/1`][api-fetch] reads the renamed window
+
+The captured row keeps `workers`. Fetch asks tmux again and finds `finished`.
+
+<!-- example: examples/readme_demo.erl#refresh -->
+
+```erlang
         {ok, _} = tmux_window:rename(Worker, <<"finished">>),
         <<"workers">> = tmux_model:get(name, Captured),
         {ok, Fresh} = tmux_query:fetch(tmux_query:where(
             #{name => <<"finished">>}, tmux_query:windows(Server))),
         {ok, Renamed} = tmux_select:one(Fresh),
         <<"finished">> = tmux_model:get(name, Renamed),
-        1 = length(tmux_snapshot:sessions(Snapshot)),
-        2 = length(tmux_snapshot:windows(Snapshot)),
-        3 = length(tmux_snapshot:panes(Snapshot)),
-        #{sessions => 1, windows => 2, panes => 3, matched_panes => 2,
-          captured_name => <<"workers">>, immutable => true}
-    end),
-    Result.
 ```
 
 It returns:
@@ -158,10 +132,6 @@ It returns:
   "immutable": true
 }
 ```
-
-- Captured rows keep their values after the rename. Actions and `fetch` do I/O.
-- `with_owned/2` returns after verified cleanup. If cleanup fails, the error
-  keeps the callback's outcome and the ownership token.
 
 More: [Daemon ownership](docs/ownership.md).
 

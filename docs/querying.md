@@ -1,13 +1,11 @@
-# Capture locally; fetch explicitly
+# Filter captured rows and fetch fresh state
 
-- A **snapshot** is observed data.
-- A **selection** is ordered rows plus their captured context.
-- A **filter** is portable predicate data.
-- A **query** describes a future tmux observation. Only `fetch` runs it.
+A snapshot holds rows captured from tmux. A selection filters those rows in
+memory and keeps their captured context. Both work after the server closes.
+A query describes what to read next. Call `tmux_query:fetch/1` to ask tmux.
 
-The [README program](../examples/readme_demo.erl) shows both paths on real
-tmux: it keeps a captured name after renaming the live window, then runs a
-fresh query. Snapshot and selection reads stay local, even after close.
+The [README program](../examples/readme_demo.erl) renames a live window. The
+captured row keeps the old name and a fresh query finds the new name.
 
 ## Criteria
 

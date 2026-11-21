@@ -1,30 +1,41 @@
 # Guides
 
-[Project policy](project-policy.md) defines the package boundary and OTP
-runtime dependencies.
+- [Start a private server and count its panes](first-task.md) in a fresh
+  Rebar3 project.
+- [Inspect an existing socket](installation.md#inspect-an-existing-server).
+- [Create, capture and query a workspace](../README.md#create-capture-and-query)
+  with sessions, windows and panes.
+- [Install the core application](installation.md) from Hex or source.
 
-Start with the [complete README program](../README.md#create-capture-and-query).
-It creates sessions, windows and panes, traverses a captured graph, queries the
-source, checks immutability and cleans up.
+## Read and filter server state
 
-- [Installation](installation.md): native Rebar3 dependency and runtime setup.
-- [Daemon ownership](ownership.md): private startup, borrowed close and explicit retirement.
-- [Command values](commands.md): prepare origin-bound actions and submit them explicitly.
-- [Control attachments](control.md): connection identity, attachment effects and cleanup.
-- [Shared-window graph](graph.md): physical entities, memberships and quantifiers.
-- [Jobs and operations](jobs.md): real completion events, output capture and cancellation.
-- [Runtime diagnostics](diagnostics.md): bounded Logger reports and flow-control evidence.
-- [Scoped options](options.md): workspace ownership, inheritance and sparse arrays.
-- [Buffers and paste](buffers.md): binary artifacts, observed names and input delivery.
-- [Rearrange panes](panes.md): isolate and rejoin a process, with explicit window links.
-- [Configuration and signals](configuration.md): load session settings and await an explicit event.
-- [Pipe terminal output](pipe.md): save bytes and wait for the consumer's acknowledgement.
-- [Hooks and completion](hooks.md): store native commands and await their actual effect.
-- [Key tables](keys.md): register application bindings and remove owned tables.
-- [Option catalogue](options-reference.md): versioned canonical names, scopes and parser types.
-- [Native command catalogue](commands-reference.md): parser declarations and feature minimums.
-- [Querying](querying.md): local values, portable criteria and explicit source plans.
-- [Fields](fields.md): generated entity/relationship/operator reference.
-- [API browser](api.md): native source docs, types, specs and source links.
-- [Architecture decision record](adr-0001-architecture.md): selected design, alternatives and consequences.
-- [Support and gaps](compatibility.md): tested cells, current capabilities and open gates.
+- [Query captured rows or fetch fresh state](querying.md).
+- [Traverse a shared-window graph](graph.md).
+- [Read runtime diagnostics](diagnostics.md).
+
+## Act on tmux
+
+- [Own a daemon or open a borrowed handle](ownership.md).
+- [Prepare and submit command values](commands.md).
+- [Attach a control client](control.md).
+- [Wait for a job and capture its output](jobs.md).
+- [Read and write scoped options](options.md).
+- [Store bytes and paste into a pane](buffers.md).
+- [Rearrange panes](panes.md).
+- [Load configuration and wait for an event](configuration.md).
+- [Pipe terminal output](pipe.md).
+- [Install hooks and wait for completion](hooks.md).
+- [Register bindings in a key table](keys.md).
+
+## Reference
+
+- [Native API browser](api.md).
+- [Fields and operators](fields.md).
+- [Option catalogue](options-reference.md).
+- [Command catalogue and feature minimums](commands-reference.md).
+- [Supported versions and open gaps](compatibility.md).
+
+## Project
+
+- [Application boundaries and runtime dependencies](project-policy.md).
+- [Architecture decisions](adr-0001-architecture.md).

@@ -143,8 +143,7 @@ tasks first, each API linked, an example under it.
 - **Sections:** each `##` heading is a task in the reader's words, such as
   "Find and filter".
 - **API headings:** each `###` heading is the function or module in code font,
-  linked to its libtmux.org reference page, then a colon and its job in plain
-  words.
+  linked to its reference page and followed by its job in plain words.
 - **Under a heading:** a line or two linking sibling APIs, the executed
   example, what it prints, at most one short note and a `More:` link to the
   guide.
@@ -164,10 +163,10 @@ tasks first, each API linked, an example under it.
 - **Headline features:** show queries and filters, the planner, batching,
   optimisation and control mode, each under an API-linked heading with an
   executed example. Leave out a feature the library lacks.
-- **Examples:** each comes from a file CI compiles and runs and starts with its
-  `-module`, `-export` and `-import_record` lines. An example sets up and
-  cleans up through the library, such as `tmux_server:with_owned/2`, never with
-  shell `tmux` commands.
+- **Examples:** each comes from a file CI compiles and runs. Show the module
+  declarations in a complete example. Link the complete source beside a named
+  excerpt. Use library calls for setup and cleanup, such as
+  `tmux_server:with_owned/2`.
 - Link the published package and its HexDocs in each README. Link guides to
   the file or heading the reader needs.
 
