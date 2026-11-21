@@ -5,20 +5,87 @@ main([Executable, Version]) ->
     ok = code:add_pathsa([filename:join(Build, Path) || Path <-
         ["lib/libtmux_erlang/ebin", "extras/test", "extras/scripts"]]),
     {ok, _} = application:ensure_all_started(libtmux_erlang),
-    Cases = tmux_test_sandbox:with(fun() ->
-        [run(Executable, list_to_binary(Version), Method) || Method <- [stdout, buffer_file]]
+    {Cases, Guard} = tmux_test_sandbox:with(fun() ->
+        Compared = [run(Executable, list_to_binary(Version), Method)
+            || Method <- [stdout, buffer_file]],
+        {Compared, verify_read_guard(list_to_binary(Executable))}
     end),
     Equal = same_output(Cases),
     Receipt = "_build/checks/pane-text-probe.json",
     ok = filelib:ensure_dir(Receipt),
-    Output = json:format(#{cases => Cases, same_output => Equal, sandbox_retired => true}),
+    Output = json:format(#{cases => Cases, same_output => Equal, guard => Guard,
+                          sandbox_retired => true}),
     ok = file:write_file(Receipt, Output),
     io:put_chars(Output),
-    halt(case Equal of true -> 0; false -> 1 end).
+    halt(case Equal andalso maps:get(result, Guard) =:= 'PASS' of
+        true -> 0;
+        false -> 1
+    end).
 
 same_output([#{result := 'PASS', entry_capture := Before, observed := Bytes},
              #{result := 'PASS', entry_capture := Before, observed := Bytes}]) -> true;
 same_output(_) -> false.
+
+verify_read_guard(Executable) ->
+    try tmux_test_fixture:with_server(Executable, fun(Server, Fixture) ->
+        Cat = #{argv => [<<"/bin/cat">>]},
+        {Pane, Id, Pid, Daemon} = query_fixture(Server, Fixture, Cat),
+        {ok, Expected} = tmux_pane:capture(Pane, #{}),
+        true = byte_size(Expected) > 0,
+        Prefix = <<"libtmux-capture-checked\n">>,
+        Size = byte_size(Prefix),
+        Capture = checked_capture(Daemon, Id, Pid),
+        {ok, #{stdout := <<Prefix:Size/binary, Expected/binary>>}} =
+            tmux_server:command(Server, Capture, #{max_stdout => 1024}),
+        {error, #{code := output_limit, cleanup := complete}} =
+            tmux_server:command(Server, Capture, #{max_stdout => Size}),
+        tmux_test_fixture:with_server(Executable, fun(Other, OtherFixture) ->
+            {OtherPane, Id, OtherPid, OtherDaemon} = query_fixture(Other, OtherFixture, Cat),
+            true = OtherDaemon =/= Daemon,
+            {ok, Expected} = tmux_pane:capture(OtherPane, #{}),
+            {ok, #{stdout := <<>>}} = tmux_server:command(Other, Capture, #{}),
+            {ok, #{stdout := <<Prefix:Size/binary, Expected/binary>>}} =
+                tmux_server:command(Other, checked_capture(OtherDaemon, Id, OtherPid), #{})
+        end),
+        {ok, _} = tmux_pane:respawn(Pane, #{force => true, launch => Cat}),
+        {ok, NewPane} = tmux_pane:get(Server, Id),
+        NewPid = tmux_model:get(pid, NewPane),
+        true = NewPid =/= Pid,
+        ok = tmux_test_fixture:track_process(Fixture, NewPid),
+        {ok, #{stdout := <<>>}} = tmux_server:command(Server, Capture, #{}),
+        {ok, #{stdout := <<Prefix:Size/binary, Expected/binary>>}} =
+            tmux_server:command(Server, checked_capture(Daemon, Id, NewPid), #{}),
+        #{result => 'PASS', cross_daemon => refused, same_id_respawn => refused,
+          capture_limit => complete}
+    end) of
+        Result -> Result#{fixture_retired => true}
+    catch Class:Error:Stack ->
+        #{result => 'FAIL',
+          failure => iolist_to_binary(io_lib:format("~tp", [{Class, Error, Stack}]))}
+    end.
+
+query_fixture(Server, Fixture, Launch) ->
+    {ok, _} = tmux_session:create(Server,
+        #{name => <<"visibility">>, width => 70, height => 8, launch => Launch}),
+    {ok, Snapshot} = tmux_server:snapshot(Server),
+    [Pane] = tmux_snapshot:panes(Snapshot),
+    Pid = tmux_model:get(pid, Pane),
+    ok = tmux_test_fixture:track_process(Fixture, Pid),
+    #{server_pid := Daemon} = tmux_test_fixture:info(Fixture),
+    {Pane, tmux_model:get(id, Pane), Pid, Daemon}.
+
+checked_capture(Daemon, Id, Child) ->
+    ServerPid = integer_to_binary(Daemon),
+    ChildPid = integer_to_binary(Child),
+    Compare = <<"#{&&:#{==:#{pid},", ServerPid/binary, "},",
+        "#{&&:#{==:#{pane_id},", Id/binary, "},#{==:#{pane_pid},", ChildPid/binary, "}}}">>,
+    {ok, Mark} = tmux_command:raw(<<"display-message">>,
+        [<<"-p">>, <<"-t">>, Id, <<"libtmux-capture-checked">>]),
+    {ok, Read} = tmux_command:raw(<<"capture-pane">>, [<<"-p">>, <<"-t">>, Id]),
+    {ok, OnMatch} = tmux_command:to_config([Mark, Read]),
+    {ok, Command} = tmux_command:raw(<<"if-shell">>,
+        [<<"-F">>, <<"-t">>, Id, <<"--">>, Compare, OnMatch]),
+    Command.
 
 run(Executable, Version, Method) ->
     try
