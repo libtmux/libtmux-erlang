@@ -1,6 +1,6 @@
 -module(docs_util).
 -moduledoc """
-Path, URL, HTML and JSON helpers shared by `check_docs` and `build_docs`.
+Path, URL, HTML and JSON helpers for the documentation checks and build.
 
 Paths and text are UTF-8 binaries. A JSON object whose key order matters is
 `{object, [{Key, Value}]}`. `json_text/1` writes it with two-space indentation
@@ -8,7 +8,7 @@ and ASCII-only strings, so receipts stay diffable against earlier ones.
 """.
 -export([wildcard/2, resolve/1, is_within/2, relative_to/2, relative_path/2, urlsplit/1,
          unquote/1, quote/2, escape/1, unescape/1, splitlines/1, replace/4,
-         json_text/1, read_ordered_json/1, write_file/2]).
+         json_text/1, read_ordered_json/1, write_file/2, fail/2]).
 -export_type([json/0, url/0]).
 
 -type json() :: null | boolean() | integer() | float() | binary() | [json()]
@@ -17,6 +17,10 @@ and ASCII-only strings, so receipts stay diffable against earlier ones.
                  query := binary(), fragment := binary()}.
 
 -define(MAX_LINKS, 40).
+
+-doc "Raise a documentation check error with its source or rendered page.".
+-spec fail(binary(), term()) -> no_return().
+fail(Where, Reason) -> error({docs_check, Where, Reason}).
 
 -doc "Paths below `Root` that match `Pattern`, relative to `Root` and ordered by component.".
 -spec wildcard(file:filename_all(), string()) -> [binary()].

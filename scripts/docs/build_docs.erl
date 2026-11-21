@@ -62,7 +62,7 @@ main(Arguments) ->
 run(["--prepare"], Root) -> prepare(Root);
 run([], Root) ->
     ok = code:add_pathsa([filename:join(Root, "_build/default/extras/scripts")]),
-    case [Module || Module <- [docs_util, script_util, check_docs],
+    case [Module || Module <- [docs_util, script_util, check_docs, check_rendered_docs],
                     code:ensure_loaded(Module) =/= {module, Module}] of
         [] -> ok;
         Missing -> fail(iolist_to_binary(io_lib:format(

@@ -29,9 +29,9 @@ $ escript scripts/docs/check_docs.erl
 ```
 
 `--examples-receipt _build/checks/examples.json` also compares displayed JSON
-output with what the examples printed. `--html-directory _build/docs/core`
-checks a rendered tree: links, anchors, resources and source links. A source
-link into this repository must name an object that exists in the Git checkout.
+with what the examples printed. `--html-directory _build/docs/core` uses
+`check_rendered_docs` to check links, anchors and resources in the rendered
+tree. Source links into this repository must name objects in the checkout.
 
 The receipt is printed and written to `_build/checks/`: `docs-corpus.json`,
 `docs-corpus-runtime.json` or `docs-rendered.json`. The terms read by

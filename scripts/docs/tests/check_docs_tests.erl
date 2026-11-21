@@ -209,14 +209,14 @@ scan_html_test() ->
                    resources => [<<"dist/app.css">>, <<"dist/app.js">>, <<"i.png">>, <<"i.png">>,
                                  <<"j.png">>, <<"a.png">>],
                    anchors => #{<<"top">> => true, <<"a1">> => true, <<"a2">> => true}},
-                 check_docs:scan_html(Html)).
+                 check_rendered_docs:scan(Html)).
 
 page(Body) -> <<"<!doctype html><html><body>", Body/binary, "</body></html>">>.
 
 html_failure(Pages, Directory) ->
     docs_fixture:with_tree([{filename:join(Directory, Name), page(Body)} || {Name, Body} <- Pages],
         fun(Root) ->
-            try check_docs:check_html(filename:join(Root, Directory), Root) of
+            try check_rendered_docs:check(filename:join(Root, Directory), Root) of
                 Result -> {passed, Result}
             catch error:{docs_check, Where, Reason} -> {Where, Reason}
             end
@@ -251,7 +251,7 @@ html_source_links() ->
         Commit = docs_fixture:git(Root, ["rev-parse", "HEAD"]),
         Check = fun(Body) ->
             ok = docs_util:write_file(filename:join(Root, "out/a.html"), page(Body)),
-            try check_docs:check_html(filename:join(Root, "out"), Root) of
+            try check_rendered_docs:check(filename:join(Root, "out"), Root) of
                 Result -> {passed, Result}
             catch error:{docs_check, Where, Reason} -> {Where, Reason}
             end

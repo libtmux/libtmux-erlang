@@ -22,17 +22,12 @@ The receipt goes to `_build/checks/docs-corpus.json`,
 `docs-corpus-runtime.json` or `docs-rendered.json` and to standard output.
 The exit status is 1 when a check fails.
 """.
--export([main/1, check/2, check_html/2, scan_html/1, columns/1]).
--export_type([options/0, page/0]).
+-export([main/1, check/2, columns/1]).
+-export_type([options/0]).
 -include_lib("kernel/include/file.hrl").
 
 -type options() :: #{examples_receipt => file:filename_all(),
                      html_directory => file:filename_all()}.
--type page() :: #{links := [binary()], resources := [binary()],
-                  anchors := #{binary() => true}}.
-
--define(COMMIT_REPOSITORY, "/libtmux/libtmux-erlang/blob/").
--define(BATCH, 2000).
 
 -doc "Entry point: `[--examples-receipt FILE] [--html-directory DIR]`.".
 -spec main([string()]) -> no_return().
@@ -43,7 +38,9 @@ main(Arguments) ->
         {ok, Options} ->
             ok = code:add_pathsa([filename:join(Root, "_build/default/extras/scripts")]),
             case maps:is_key(html_directory, Options) of
-                true -> ok = require([docs_util, script_util]), ok = script_util:boot(Root);
+                true ->
+                    ok = require([docs_util, script_util, check_rendered_docs]),
+                    ok = script_util:boot(Root);
                 false -> ok = require([docs_util])
             end,
             try check(Root, Options) of
@@ -81,9 +78,6 @@ parse(["--html-directory", Path | Rest], Options) ->
     parse(Rest, Options#{html_directory => Path});
 parse(_, _) -> error.
 
--spec fail(binary(), term()) -> no_return().
-fail(Where, Reason) -> error({docs_check, Where, Reason}).
-
 -doc """
 Check the corpus below `Root` and write and return its receipt. Raises
 `{docs_check, Where, Reason}` for the first failed check.
@@ -105,7 +99,7 @@ check(Root0, Options) ->
     docs_util:write_file(TermsFile, lists:join(<<"\n">>, Terms)),
     case file:consult(TermsFile) of
         {ok, _} -> ok;
-        {error, Error} -> fail(<<"doc-terms.config">>, {invalid_erlang_terms, Error})
+        {error, Error} -> docs_util:fail(<<"doc-terms.config">>, {invalid_erlang_terms, Error})
     end,
     Receipt = [{<<"result">>, <<"PASS">>},
                {<<"files">>, length(Files)},
@@ -122,7 +116,7 @@ check(Root0, Options) ->
                {<<"seconds">>, seconds(Started)}],
     {Name, Final} = case maps:find(html_directory, Options) of
         {ok, Directory} ->
-            Rendered = check_html(filename:absname(Directory, Root), Root),
+            Rendered = check_rendered_docs:check(filename:absname(Directory, Root), Root),
             {<<"docs-rendered.json">>,
              lists:keystore(<<"seconds">>, 1, Receipt, {<<"seconds">>, seconds(Started)})
                  ++ [{<<"rendered">>, Rendered}]};
@@ -145,9 +139,9 @@ examples_receipt(Root, #{examples_receipt := Path}) ->
     {ok, Binary} = file:read_file(filename:absname(Path, Root)),
     Receipt = json:decode(Binary),
     Result = maps:get(<<"result">>, Receipt, missing),
-    Result =:= <<"PASS">> orelse fail(<<"examples receipt">>, {result_not_pass, Result}),
+    Result =:= <<"PASS">> orelse docs_util:fail(<<"examples receipt">>, {result_not_pass, Result}),
     lists:foldl(fun(#{<<"module">> := Module, <<"output">> := Output} = Example, Acc) ->
-        complete(Example) orelse fail(<<"examples receipt">>, {incomplete_cleanup, Module}),
+        complete(Example) orelse docs_util:fail(<<"examples receipt">>, {incomplete_cleanup, Module}),
         Acc#{Module => Output}
     end, #{}, maps:get(<<"examples">>, Receipt));
 examples_receipt(_, _) -> none.
@@ -172,7 +166,7 @@ native_lines(Root) ->
                 case prompt(Line) of
                     true ->
                         columns(Line) =< 80
-                            orelse fail(Source, {native_example_wider_than_80, Line}),
+                            orelse docs_util:fail(Source, {native_example_wider_than_80, Line}),
                         Lines + 1;
                     false -> Lines
                 end
@@ -301,7 +295,7 @@ check_link(Root, File, Target, State) ->
             Resolved = docs_util:resolve(filename:join([Root, filename:dirname(File), Name])),
             (docs_util:is_within(Root, Resolved) andalso
                  element(1, file:read_file_info(Resolved)) =:= ok)
-                orelse fail(File, {missing_link_target, Target}),
+                orelse docs_util:fail(File, {missing_link_target, Target}),
             case Fragment =/= <<>> andalso filename:extension(Resolved) =:= <<".md">> of
                 true -> check_fragment(File, Target, Fragment, Resolved, State);
                 false -> State
@@ -316,7 +310,7 @@ check_fragment(File, Target, Fragment, Resolved, #{slugs := Cache} = State) ->
             Computed = slugs(Text),
             {Computed, Cache#{Resolved => Computed}}
     end,
-    lists:member(Fragment, Slugs) orelse fail(File, {missing_fragment, Target}),
+    lists:member(Fragment, Slugs) orelse docs_util:fail(File, {missing_fragment, Target}),
     State#{slugs := Cached}.
 
 slugs(Text) ->
@@ -336,9 +330,9 @@ check_block(Root, File, Text, Start, Language, Body, Outputs, State) ->
         <<"erlang">> -> erlang_block(Root, File, Before, Body, State);
         <<"json">> -> json_block(Root, File, Before, Body, Outputs, State);
         <<"console">> ->
-            console_unit(Body) orelse fail(File, {console_unit, Body}),
+            console_unit(Body) orelse docs_util:fail(File, {console_unit, Body}),
             State#{console := maps:get(console, State) + 1};
-        _ -> fail(File, {unclassified_code_block, Language})
+        _ -> docs_util:fail(File, {unclassified_code_block, Language})
     end.
 
 % One shell command per block: the block starts with a prompt and no line after
@@ -379,11 +373,11 @@ erlang_block(Root, File, Before, Body, #{programs := Programs, terms := Terms} =
         {ok, Source} ->
             Current = example_source(Root, Source),
             (Current =/= missing andalso trim(Body) =:= trim(Current))
-                orelse fail(File, {example_drift, Source}),
+                orelse docs_util:fail(File, {example_drift, Source}),
             State#{programs := [Source | Programs]};
         error ->
             ends_with(Before, <<"<!-- erlang-term -->">>)
-                orelse fail(File, unclassified_erlang_block),
+                orelse docs_util:fail(File, unclassified_erlang_block),
             State#{terms := [Body | Terms]}
     end.
 
@@ -424,9 +418,9 @@ json_block(Root, File, Before, Body, Outputs, State) ->
         {ok, Source} ->
             Input = case file:read_file(filename:join(Root, Source)) of
                 {ok, Bytes} -> Bytes;
-                {error, Error} -> fail(File, {input_unreadable, Source, Error})
+                {error, Error} -> docs_util:fail(File, {input_unreadable, Source, Error})
             end,
-            trim(Body) =:= trim(Input) orelse fail(File, {input_drift, Source}),
+            trim(Body) =:= trim(Input) orelse docs_util:fail(File, {input_drift, Source}),
             _ = decode(File, Body),
             State#{inputs := [Source | maps:get(inputs, State)]};
         error ->
@@ -436,257 +430,15 @@ json_block(Root, File, Before, Body, Outputs, State) ->
                     case Outputs of
                         none -> ok;
                         #{Module := Actual} ->
-                            Actual == Expected orelse fail(File, {output_drift, Module});
-                        _ -> fail(File, {output_not_recorded, Module})
+                            Actual == Expected orelse docs_util:fail(File, {output_drift, Module});
+                        _ -> docs_util:fail(File, {output_not_recorded, Module})
                     end,
                     State#{displayed := [Module | maps:get(displayed, State)]};
-                error -> fail(File, unclassified_json_block)
+                error -> docs_util:fail(File, unclassified_json_block)
             end
     end.
 
 decode(File, Body) ->
     try json:decode(Body)
-    catch error:Reason -> fail(File, {invalid_json, Reason})
-    end.
-
--doc """
-Check every `.html` page below `Directory`: relative links, resources and
-heading anchors must resolve, and `github.com` links into this repository must
-name an object that exists in the Git checkout at `Root` (`HEAD` unless the
-link names a commit). Returns the page, link and resource counts and raises
-`{docs_check, Page, Reason}` for the first failure. Needs the application
-started, because it runs `git`.
-""".
--spec check_html(file:filename_all(), file:filename_all()) -> docs_util:json().
-check_html(Directory, Root0) ->
-    Root = docs_util:resolve(Root0),
-    Found = filelib:fold_files(unicode:characters_to_list(Directory), ".*\\.html$", true,
-                               fun(Path, Acc) -> [Path | Acc] end, []),
-    Pages = maps:from_list([begin
-        Resolved = docs_util:resolve(Path),
-        {ok, Html} = file:read_file(Resolved),
-        {Resolved, scan_html(Html)}
-    end || Path <- Found]),
-    Ordered = lists:sort(maps:to_list(Pages)),
-    Targets = [{Path, Target} || {Path, #{links := Links, resources := Resources}} <- Ordered,
-                                 Target <- Links ++ Resources],
-    Classified = [{Path, Target, classify(Target)} || {Path, Target} <- Targets],
-    Exist = existing_sources(Root, [Name || {_, _, {source, Name}} <- Classified]),
-    Checked = lists:foldl(fun({Path, Target, Kind}, Count) ->
-        check_target(filename:basename(Path), Path, Target, Kind, Pages, Exist, Count)
-    end, 0, Classified),
-    Resources = lists:sum([length(Resources) || #{resources := Resources} <- maps:values(Pages)]),
-    {object, [{<<"pages">>, map_size(Pages)}, {<<"links">>, Checked},
-              {<<"resources">>, Resources}]}.
-
-classify(Target) ->
-    #{scheme := Scheme, netloc := Netloc, path := Path, fragment := Fragment} =
-        docs_util:urlsplit(Target),
-    case {Netloc, Path} of
-        {<<"github.com">>, <<?COMMIT_REPOSITORY, After/binary>>} ->
-            {Revision, Source} = case binary:split(After, <<"/">>) of
-                [R, S] -> {R, S};
-                [R] -> {R, <<>>}
-            end,
-            Tree = case re:run(Revision, "^[0-9a-f]{7,40}$", [{capture, none}]) of
-                match -> Revision;
-                nomatch -> <<"HEAD">>
-            end,
-            {source, <<Tree/binary, ":", (docs_util:unquote(Source))/binary>>};
-        _ when Scheme =:= <<>>, Netloc =:= <<>> -> {local, Path, Fragment};
-        _ -> external
-    end.
-
-% One `git cat-file --batch-check` per chunk answers `<revision>:<path>` for all
-% source links at once; `cat-file -e` would start a process per link.
-existing_sources(Root, Names) ->
-    maps:from_list(lists:append([batch_check(Root, Chunk)
-                                 || Chunk <- chunks(lists:usort(Names), ?BATCH)])).
-
-chunks([], _) -> [];
-chunks(List, Size) when length(List) =< Size -> [List];
-chunks(List, Size) ->
-    {Chunk, Rest} = lists:split(Size, List),
-    [Chunk | chunks(Rest, Size)].
-
-batch_check(Root, Names) ->
-    Input = [[Name, $\n] || Name <- Names],
-    #{status := Status, stdout := Output} = script_util:run("git", ["cat-file", "--batch-check"],
-        #{cwd => unicode:characters_to_binary(Root), stdin => iolist_to_binary(Input)}),
-    Lines = binary:split(Output, <<"\n">>, [global, trim]),
-    (Status =:= 0 andalso length(Lines) =:= length(Names))
-        orelse fail(<<"git cat-file">>, {batch_check_failed, Status}),
-    [{Name, not lists:suffix(" missing", binary_to_list(Line))}
-     || {Name, Line} <- lists:zip(Names, Lines)].
-
-check_target(Name, _, Target, {source, Source}, _, Exist, Count) ->
-    maps:get(Source, Exist) orelse fail(Name, {missing_source_at_revision, Target}),
-    Count + 1;
-check_target(Name, Page, Target, {local, Path, Fragment}, Pages, _, Count) ->
-    Resolved = case Path of
-        <<>> -> Page;
-        _ -> docs_util:resolve(filename:join(filename:dirname(Page), docs_util:unquote(Path)))
-    end,
-    element(1, file:read_file_info(Resolved)) =:= ok
-        orelse fail(Name, {missing_rendered_target, Target}),
-    case {Fragment, Pages} of
-        {<<>>, _} -> ok;
-        {_, #{Resolved := #{anchors := Anchors}}} ->
-            maps:is_key(docs_util:unquote(Fragment), Anchors)
-                orelse fail(Name, {missing_anchor, Target});
-        _ -> ok
-    end,
-    Count + 1;
-check_target(_, _, _, external, _, _, Count) -> Count.
-
--doc """
-Collect what the link checker needs from an HTML page: `a` links, resources
-(`img` and `script` sources, `link` references, `srcset` candidates) and every
-`id`. Script, style, title and textarea contents and comments are skipped.
-""".
--spec scan_html(binary()) -> page().
-scan_html(Html) ->
-    #{links := Links, resources := Resources} = Page =
-        scan(Html, #{links => [], resources => [], anchors => #{}}),
-    Page#{links := lists:reverse(Links), resources := lists:reverse(Resources)}.
-
-scan(Html, Page) ->
-    case binary:match(Html, <<"<">>) of
-        nomatch -> Page;
-        {Position, _} ->
-            <<_:Position/binary, Markup/binary>> = Html,
-            markup(Markup, Page)
-    end.
-
-markup(<<"<!--", Rest/binary>>, Page) -> after_first(Rest, <<"-->">>, Page);
-markup(<<"<!", Rest/binary>>, Page) -> after_first(Rest, <<">">>, Page);
-markup(<<"<?", Rest/binary>>, Page) -> after_first(Rest, <<">">>, Page);
-markup(<<"</", Rest/binary>>, Page) -> after_first(Rest, <<">">>, Page);
-markup(<<"<", Letter, _/binary>> = Tag, Page)
-  when Letter >= $a, Letter =< $z; Letter >= $A, Letter =< $Z -> start_tag(Tag, Page);
-markup(<<"<", Rest/binary>>, Page) -> scan(Rest, Page).
-
-after_first(Html, Delimiter, Page) ->
-    case binary:match(Html, Delimiter) of
-        nomatch -> Page;
-        {Position, Length} ->
-            Skip = Position + Length,
-            scan(binary:part(Html, Skip, byte_size(Html) - Skip), Page)
-    end.
-
-start_tag(<<"<", Html/binary>>, Page) ->
-    {Name, Rest} = split_name(Html, 0),
-    case attributes(Rest, []) of
-        incomplete -> Page;
-        {Attributes, SelfClosing, Remaining} ->
-            Tag = string:lowercase(Name),
-            Next = record_tag(Tag, Attributes, Page),
-            case (not SelfClosing) andalso raw_text(Tag) of
-                true -> raw_text(Remaining, Tag, Next);
-                false -> scan(Remaining, Next)
-            end
-    end.
-
-split_name(Html, Length) ->
-    case Html of
-        <<Name:Length/binary, C, _/binary>> when C =:= $\s; C =:= $\t; C =:= $\n; C =:= $\r;
-                                                 C =:= $\f; C =:= $/; C =:= $> ->
-            {Name, binary:part(Html, Length, byte_size(Html) - Length)};
-        <<_:Length/binary, _, _/binary>> -> split_name(Html, Length + 1);
-        _ -> {Html, <<>>}
-    end.
-
-attributes(<<>>, _) -> incomplete;
-attributes(<<">", Rest/binary>>, Acc) -> {Acc, false, Rest};
-attributes(<<"/>", Rest/binary>>, Acc) -> {Acc, true, Rest};
-attributes(<<C, Rest/binary>>, Acc) when C =:= $\s; C =:= $\t; C =:= $\n; C =:= $\r;
-                                         C =:= $\f; C =:= $/ -> attributes(Rest, Acc);
-attributes(<<First, Html/binary>>, Acc) ->
-    {Tail, Rest} = split_attribute(Html, 0),
-    Name = string:lowercase(<<First, Tail/binary>>),
-    case skip_space(Rest) of
-        <<"=", Value/binary>> ->
-            case attribute_value(skip_space(skip_equals(Value))) of
-                incomplete -> incomplete;
-                {Text, After} -> attributes(After, [{Name, docs_util:unescape(Text)} | Acc])
-            end;
-        Other -> attributes(Other, [{Name, none} | Acc])
-    end.
-
-split_attribute(Html, Length) ->
-    case Html of
-        <<Name:Length/binary, C, _/binary>> when C =:= $\s; C =:= $\t; C =:= $\n; C =:= $\r;
-                                                 C =:= $\f; C =:= $/; C =:= $=; C =:= $> ->
-            {Name, binary:part(Html, Length, byte_size(Html) - Length)};
-        <<_:Length/binary, _, _/binary>> -> split_attribute(Html, Length + 1);
-        _ -> {Html, <<>>}
-    end.
-
-skip_space(<<C, Rest/binary>>) when C =:= $\s; C =:= $\t; C =:= $\n; C =:= $\r; C =:= $\f ->
-    skip_space(Rest);
-skip_space(Html) -> Html.
-
-skip_equals(<<"=", Rest/binary>>) -> skip_equals(Rest);
-skip_equals(Html) -> Html.
-
-attribute_value(<<Quote, Html/binary>>) when Quote =:= $"; Quote =:= $' ->
-    case binary:match(Html, <<Quote>>) of
-        nomatch -> incomplete;
-        {Length, _} -> {binary:part(Html, 0, Length),
-                        binary:part(Html, Length + 1, byte_size(Html) - Length - 1)}
-    end;
-attribute_value(Html) ->
-    case re:run(Html, "^[^>\\s]*", [{capture, first, index}]) of
-        {match, [{0, Length}]} ->
-            {binary:part(Html, 0, Length), binary:part(Html, Length, byte_size(Html) - Length)}
-    end.
-
-record_tag(Tag, Attributes, Page) ->
-    Value = fun(Name) ->
-        case lists:keyfind(Name, 1, Attributes) of
-            {_, Text} when is_binary(Text), Text =/= <<>> -> Text;
-            _ -> undefined
-        end
-    end,
-    Anchored = case Value(<<"id">>) of
-        undefined -> Page;
-        Id -> Page#{anchors := (maps:get(anchors, Page))#{Id => true}}
-    end,
-    Linked = case {Tag, Value(<<"href">>)} of
-        {<<"a">>, Href} when Href =/= undefined ->
-            Anchored#{links := [Href | maps:get(links, Anchored)]};
-        {<<"link">>, Href} when Href =/= undefined -> resource(Href, Anchored);
-        _ -> Anchored
-    end,
-    Sourced = case {Tag, Value(<<"src">>)} of
-        {T, Src} when (T =:= <<"img">> orelse T =:= <<"script">>), Src =/= undefined ->
-            resource(Src, Linked);
-        _ -> Linked
-    end,
-    case {Tag, Value(<<"srcset">>)} of
-        {T2, Set} when (T2 =:= <<"img">> orelse T2 =:= <<"source">>), Set =/= undefined ->
-            case Set of
-                <<"data:", _/binary>> -> Sourced;
-                _ -> lists:foldl(fun resource/2, Sourced, candidates(Set))
-            end;
-        _ -> Sourced
-    end.
-
-resource(Url, Page) -> Page#{resources := [Url | maps:get(resources, Page)]}.
-
-candidates(Set) ->
-    [hd(string:lexemes(Part, " \t\n\r\f")) || Part <- binary:split(Set, <<",">>, [global]),
-                                              string:trim(Part) =/= <<>>].
-
-raw_text(<<"script">>) -> true;
-raw_text(<<"style">>) -> true;
-raw_text(<<"title">>) -> true;
-raw_text(<<"textarea">>) -> true;
-raw_text(_) -> false.
-
-raw_text(Html, Tag, Page) ->
-    case re:run(Html, ["</", Tag], [caseless, {capture, first, index}]) of
-        nomatch -> Page;
-        {match, [{Position, _}]} ->
-            scan(binary:part(Html, Position, byte_size(Html) - Position), Page)
+    catch error:Reason -> docs_util:fail(File, {invalid_json, Reason})
     end.
