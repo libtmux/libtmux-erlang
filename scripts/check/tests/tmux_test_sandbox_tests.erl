@@ -121,6 +121,36 @@ remaining_socket_prevents_directory_removal_test() ->
         ok = file:del_dir_r(Directory)
     end.
 
+callback_failure_survives_cleanup_failure_test() ->
+    tmux_test_sandbox:with([], fun(Environment) ->
+        Parent = proplists:get_value("LIBTMUX_TEST_SANDBOX", Environment),
+        with_environment([{"TMPDIR", Parent}, {"LIBTMUX_TEST_SANDBOX", false},
+                          {"TMUX", "outside"}], fun() ->
+            try
+                ?assertException(error, #{code := test_sandbox_cleanup_failed,
+                                          reason := unretired_socket,
+                                          callback := {raised, error, {badmatch, {error, enoent}}, _}},
+                    tmux_test_sandbox:with(fun() ->
+                        Directory = os:getenv("LIBTMUX_TEST_SANDBOX"),
+                        {ok, Socket} = socket:open(local, stream, default),
+                        ok = socket:bind(Socket, #{family => local,
+                            path => filename:join(Directory, "left.sock")}),
+                        self() ! {socket, Directory, Socket},
+                        {ok, Contents} = file:read_file(filename:join(Directory, "missing")),
+                        Contents
+                    end)),
+                ?assertEqual(false, os:getenv("LIBTMUX_TEST_SANDBOX")),
+                ?assertEqual("outside", os:getenv("TMUX"))
+            after
+                receive {socket, Kept, Open} ->
+                    ok = socket:close(Open),
+                    ok = file:del_dir_r(Kept)
+                after 0 -> ok
+                end
+            end
+        end)
+    end).
+
 empty_tmpdir_uses_an_owned_default_test() ->
     Result = tmux_test_sandbox:with([{"TMPDIR", ""}], fun(Environment) ->
         Directory = proplists:get_value("LIBTMUX_TEST_SANDBOX", Environment),

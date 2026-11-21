@@ -156,8 +156,7 @@ exercise_consumer(Root, Temp, InstalledEbin, Options) ->
         true -> plt(Root);
         false -> none
     end,
-    {ok, Sandbox} = tmux_test_sandbox:init(consumer, []),
-    try
+    tmux_test_sandbox:with(fun() ->
         ok = stage_consumer(Root, Temp),
         Tmux = tmux_executable(),
         Env = (consumer_env(Temp, Tmux))#{
@@ -173,8 +172,7 @@ exercise_consumer(Root, Temp, InstalledEbin, Options) ->
                 ok = stage_type_consumer(Root, Temp),
                 Commands ++ lists:map(Run, dialyzer_commands(Temp, InstalledEbin, Plt))
         end
-    after ok = tmux_test_sandbox:terminate(Sandbox)
-    end.
+    end).
 
 -doc """
 Files the consumer receives from the checkout, as `{Source, Destination}` paths

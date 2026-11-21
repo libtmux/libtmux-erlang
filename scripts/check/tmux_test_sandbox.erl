@@ -5,7 +5,7 @@ The CT hook reuses an already prepared environment. Cleanup checks the
 directory's identity and leaves it in place if a socket remains.
 """.
 -include_lib("kernel/include/file.hrl").
--export([with/2, require/0, fixture_directory/0,
+-export([with/1, with/2, require/0, fixture_directory/0,
          id/1, init/2, pre_init_per_suite/3, pre_init_per_testcase/4, terminate/1]).
 -export_type([environment/0]).
 
@@ -13,14 +13,24 @@ directory's identity and leaves it in place if a socket remains.
 -define(SELECTORS, ["TMUX", "TMUX_PANE", "LIBTMUX_SOCKET", "LIBTMUX_SOCKET_PATH"]).
 -define(CONTEXT, ["TMUX_TMPDIR", "LIBTMUX_TEST_SANDBOX" | ?SELECTORS]).
 
+-doc "Run a callback in the prepared environment, or prepare one for this VM.".
+-spec with(fun(() -> Result)) -> Result.
+with(Function) ->
+    State = local_environment(),
+    with_cleanup(Function, fun() -> retire(State) end).
+
 -doc "Run a child-environment callback and remove its fresh private directory.".
 -spec with(environment(), fun((environment()) -> Result)) -> Result.
 with(Environment, Function) ->
     {Directory, _} = Owned = create(Environment),
-    Outcome = try {returned, Function(environment(Environment, Directory))}
+    with_cleanup(fun() -> Function(environment(Environment, Directory)) end,
+                 fun() -> cleanup(Owned) end).
+
+with_cleanup(Function, Cleanup) ->
+    Outcome = try {returned, Function()}
               catch Class:CallbackReason:Stack -> {raised, Class, CallbackReason, Stack}
               end,
-    case cleanup(Owned) of
+    case Cleanup() of
         ok -> finish(Outcome);
         {error, Reason} -> error(#{code => test_sandbox_cleanup_failed,
                                   reason => Reason, callback => Outcome})
@@ -57,17 +67,7 @@ id(_) -> ?MODULE.
 
 -doc "Reuse a prepared sandbox, or prepare one for direct rebar3 ct.".
 -spec init(term(), term()) -> {ok, map()}.
-init(_, _) ->
-    case os:getenv("LIBTMUX_TEST_SANDBOX") of
-        false ->
-            {Directory, _} = Owned = create([]),
-            Previous = [{Name, os:getenv(Name)} || Name <- ?CONTEXT],
-            set_environment(environment([], Directory)),
-            {ok, #{owned => Owned, previous => Previous}};
-        _ ->
-            require_ok(),
-            {ok, #{owned => none}}
-    end.
+init(_, _) -> {ok, local_environment()}.
 
 -doc "Verify isolation before a suite can start fixtures.".
 -spec pre_init_per_suite(atom(), list(), map()) -> {list(), map()}.
@@ -83,13 +83,27 @@ pre_init_per_testcase(_, _, Config, State) ->
 
 -doc "Restore the caller environment and remove only a hook-owned directory.".
 -spec terminate(map()) -> ok.
-terminate(#{owned := none}) -> ok;
-terminate(#{owned := Owned, previous := Previous}) ->
-    try
-        case cleanup(Owned) of
-            ok -> ok;
-            {error, Reason} -> error(#{code => test_sandbox_cleanup_failed, reason => Reason})
-        end
+terminate(State) ->
+    case retire(State) of
+        ok -> ok;
+        {error, Reason} -> error(#{code => test_sandbox_cleanup_failed, reason => Reason})
+    end.
+
+local_environment() ->
+    case os:getenv("LIBTMUX_TEST_SANDBOX") of
+        false ->
+            {Directory, _} = Owned = create([]),
+            Previous = [{Name, os:getenv(Name)} || Name <- ?CONTEXT],
+            set_environment(environment([], Directory)),
+            #{owned => Owned, previous => Previous};
+        _ ->
+            require_ok(),
+            #{owned => none}
+    end.
+
+retire(#{owned := none}) -> ok;
+retire(#{owned := Owned, previous := Previous}) ->
+    try cleanup(Owned)
     after set_environment(Previous)
     end.
 
