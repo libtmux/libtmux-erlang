@@ -16,7 +16,7 @@ main([]) ->
     ok = code:add_pathsa([filename:join(Root, "_build/default/extras/scripts")]),
     ok = script_util:boot(Root),
     Started = erlang:monotonic_time(millisecond),
-    Native = json:decode(script_util:run_ok("escript", ["tools/regex_fixture.escript"],
+    Native = json:decode(script_util:run_ok("escript", ["scripts/regex/regex_fixture.escript"],
         #{timeout_ms => 20000})),
     Patterns = maps:get(<<"patterns">>, Native),
     Expected = expected(Patterns),

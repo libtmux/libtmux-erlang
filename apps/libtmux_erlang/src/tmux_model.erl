@@ -1,4 +1,4 @@
-%% Generated from schema/entities.json by tools/generate_schema.escript.
+%% Generated from schema/entities.json by scripts/generate/generate_schema.escript.
 -module(tmux_model).
 -moduledoc """
 Validated native domain records. Constructors perform no tmux I/O.

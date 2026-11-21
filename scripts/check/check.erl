@@ -77,12 +77,12 @@ plan(inner, Module) ->
     [["rebar3", "eunit", "--module", Module]];
 plan(mid, _) ->
     [["rebar3", "compile"],
-     ["escript", "tools/generate_schema.escript", "--check"],
+     ["escript", "scripts/generate/generate_schema.escript", "--check"],
      ["escript", "scripts/generate/generate_options.erl", "--check"],
      ["escript", "scripts/regex/generate_fixture.erl", "--check"],
      ["rebar3", "eunit"],
-     ["escript", "tools/generate_reference.escript", "--test", "--check"],
-     ["escript", "tools/check_api_docs.escript", "--test"],
+     ["escript", "scripts/generate/generate_reference.escript", "--test", "--check"],
+     ["escript", "scripts/docs/check_api_docs.escript", "--test"],
      ["escript", "scripts/docs/check_docs.erl"],
      ["escript", "scripts/generate/generate_commands.erl", "--check"],
      ["escript", "scripts/generate/generate_capabilities.erl", "--check"],

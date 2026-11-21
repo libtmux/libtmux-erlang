@@ -1,4 +1,4 @@
-%% Generated from schema/entities.json by tools/generate_schema.escript.
+%% Generated from schema/entities.json by scripts/generate/generate_schema.escript.
 -module(tmux_schema_data).
 -moduledoc false.
 -export([entities/0, fields/1, relations/1, wire_entity/1]).

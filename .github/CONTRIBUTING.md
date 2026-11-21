@@ -123,7 +123,7 @@ tools directly; the local runner uses mise.
 Edit schema/entities.json, then regenerate the native records and registry:
 
 ```console
-$ mise exec -- escript tools/generate_schema.escript
+$ mise exec -- escript scripts/generate/generate_schema.escript
 ```
 
 The generator uses OTP JSON. Generated files are checked in so package

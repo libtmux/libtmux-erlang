@@ -219,9 +219,9 @@ jobs:
       - name: Prepare pinned documentation renderer
         run: escript scripts/docs/build_docs.erl --prepare
       - name: Verify the public API contracts
-        run: escript tools/check_api_docs.escript > _build/api-docs.json
+        run: escript scripts/docs/check_api_docs.escript > _build/api-docs.json
       - name: Check the generated reference
-        run: escript tools/generate_reference.escript --check
+        run: escript scripts/generate/generate_reference.escript --check
       - name: Verify the guide corpus
         run: escript scripts/docs/check_docs.erl
       - name: Render warnings-free API browser

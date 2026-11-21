@@ -63,7 +63,7 @@ output(Path, Data, ["--check"]) ->
     end.
 
 header(Module) ->
-    ["%% Generated from schema/entities.json by tools/generate_schema.escript.\n",
+    ["%% Generated from schema/entities.json by scripts/generate/generate_schema.escript.\n",
      "-module(", Module, ").\n"].
 
 schema(Entities) ->
