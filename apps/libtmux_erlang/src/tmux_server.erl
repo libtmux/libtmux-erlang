@@ -225,6 +225,9 @@ Open a borrowed socket endpoint and start its supervised library owner. The
 caller owns that handle. This probes the executable, daemon version and
 observed Linux process incarnation; it never starts a tmux server or attaches
 a control client. Pass an absolute socket_path and optionally an executable.
+
+An unsupported release returns `component` (`client` or `daemon`), the
+`found` and `required` releases, and a `hint`.
 """.
 -spec open(open_options()) -> {ok, t()} | {error, map()}.
 open(Options) ->
@@ -232,7 +235,7 @@ open(Options) ->
         {ok, Config} ?= endpoint_options(Options),
         {ok, #{stdout := Raw}} ?= successful(tmux_transport:run(maps:get(executable, Config),
             [<<"-V">>], #{max_stdout => 64, max_stderr => 4096})),
-        {ok, _} ?= require_version(Raw),
+        {ok, _} ?= require_version(Raw, client),
         {ok, Result} ?= successful(tmux_transport:run(maps:get(executable, Config),
             endpoint_args(Config, probe_args()), #{max_stdout => 128, max_stderr => 4096})),
         {ok, Pid, Version} ?= parse_probe(maps:get(stdout, Result)),
@@ -739,18 +742,29 @@ submission(_, _, _) -> {error, #{code => invalid_operation_options}}.
 endpoint_args(Config, Args) -> [<<"-u">>, <<"-N">>, <<"-S">>, maps:get(socket_path, Config) | Args].
 probe_args() -> [<<"display-message">>, <<"-p">>, <<"#{pid}\t#{version}">>].
 
-require_version(Raw) ->
+require_version(Raw, Component) ->
     case tmux_version:require(Raw) of
         {ok, Version} -> {ok, Version};
-        {error, {Code, _}} -> {error, #{code => Code}}
+        {error, {unsupported_tmux_version, Version}} ->
+            Error = version_error(unsupported_tmux_version, Component),
+            {error, Error#{found => tmux_version:format(Version)}};
+        {error, {invalid_tmux_version, _}} ->
+            {error, version_error(invalid_tmux_version, Component)}
     end.
+
+version_error(Code, Component) ->
+    Hint = case Component of
+        client -> <<"Select a tmux executable at or above the required release.">>;
+        daemon -> <<"Use a socket served by tmux at or above the required release.">>
+    end,
+    #{code => Code, component => Component, required => tmux_version:floor(), hint => Hint}.
 
 parse_probe(Bytes) ->
     case binary:split(Bytes, <<"\t">>, [global]) of
         [Pid, Version] when byte_size(Pid) < 11 ->
             try binary_to_integer(Pid) of
                 Number when is_integer(Number, 1, 2147483647) ->
-                    case require_version(<<"tmux ", Version/binary>>) of
+                    case require_version(<<"tmux ", Version/binary>>, daemon) of
                         {ok, Parsed} -> {ok, Number, Parsed};
                         Error -> Error
                     end;

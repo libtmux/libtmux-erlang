@@ -133,6 +133,11 @@ run("announce", [Socket]) ->
 %% the real one, or after replacing the socket directory by a symlink; the
 %% startup client prints a partial line, never answers, claims a socket it did
 %% not create, or runs the real tmux unchanged.
+fake_tmux(_, ["-V"]) ->
+    Root = filename:dirname(filename:absname(escript:script_name())),
+    {ok, Mode} = file:read_file(filename:join(Root, "mode")),
+    Release = case Mode of <<"older-client">> -> "3.2a"; _ -> "3.3a" end,
+    io:format("tmux ~s~n", [Release]);
 fake_tmux(Real, Arguments) ->
     Root = filename:dirname(filename:absname(escript:script_name())),
     Socket = hd(tl(lists:dropwhile(fun(A) -> A =/= "-S" end, Arguments))),
@@ -155,6 +160,8 @@ fake_probe(Real, Arguments, Root, Socket, Mode) ->
     ok = file:write_file(filename:join(Root, "probe"),
                          json:encode(#{pid => Process, start => lists:nth(20, Fields)})),
     case Mode of
+        <<"older-daemon">> ->
+            ok = emit(output(), <<Pid/binary, "\t3.2a\n">>);
         <<"directory">> ->
             Parent = filename:dirname(Socket),
             ok = file:rename(Parent, Parent ++ ".original"),

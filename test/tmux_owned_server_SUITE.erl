@@ -327,10 +327,8 @@ startup_errors(Config) ->
     {error, #{code := invalid_executable}} = tmux_server:start_owned(#{executable => <<"tmux">>}),
     {error, #{cleanup := complete}} = tmux_server:start_owned(
         #{executable => <<"/no-such-owned-tmux">>}),
-    Suffix = binary:encode_hex(crypto:strong_rand_bytes(12), lowercase),
-    Directory = <<"/tmp/ltm-owned-fault-", Suffix/binary>>,
-    ok = file:make_dir(Directory),
-    ok = file:change_mode(Directory, 8#700),
+    {ok, DirectoryName} = tmux_test_sandbox:fixture_directory(),
+    Directory = unicode:characters_to_binary(DirectoryName),
     Fake = <<Directory/binary, "/tmux">>,
     Script = iolist_to_binary([<<"#!">>, tmux_test_child:escript(), <<"\nmain(Arguments) ->\n">>,
         io_lib:format("    ok = code:add_pathsa([~w]),~n", [filename:dirname(code:which(tmux_test_child))]),
@@ -338,6 +336,23 @@ startup_errors(Config) ->
     ok = file:write_file(Fake, Script),
     ok = file:change_mode(Fake, 8#700),
     try
+        ModePath = <<Directory/binary, "/mode">>,
+        ok = file:write_file(ModePath, <<"older-client">>),
+        {error, #{code := unsupported_tmux_version, component := client,
+                  found := <<"3.2a">>, required := <<"3.3a">>, hint := ClientHint}} =
+            tmux_server:open(#{executable => Fake, socket_path => <<Directory/binary, "/s">>}),
+        true = byte_size(ClientHint) > 0,
+        {error, enoent} = file:read_link_info(<<Directory/binary, "/socket">>),
+        ok = file:write_file(ModePath, <<"older-daemon">>),
+        tmux_test_fixture:with_server(Executable, fun(_Server, Fixture) ->
+            #{socket := Socket, server_pid := Pid, server_identity := Identity} =
+                tmux_test_fixture:info(Fixture),
+            {error, #{code := unsupported_tmux_version, component := daemon,
+                      found := <<"3.2a">>, required := <<"3.3a">>, hint := DaemonHint}} =
+                tmux_server:open(#{executable => Fake, socket_path => Socket}),
+            true = byte_size(DaemonHint) > 0,
+            true = tmux_test_fixture:same_process(Pid, Identity)
+        end),
         lists:foreach(fun(Mode) ->
             ok = file:write_file(<<Directory/binary, "/mode">>, Mode),
             Options = #{executable => Fake, startup_timeout_ms => 6000},
