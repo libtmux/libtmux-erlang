@@ -135,7 +135,7 @@ consumer_files() ->
     ++ [{"examples/terminal_job.erl", "examples/terminal_job.erl"}].
 
 demos() ->
-    ["quickstart", "filter_demo", "inspect_demo", "readme_demo", "linked_graph", "job_demo",
+    ["quickstart", "filter_demo", "inspect_demo", "readme_demo", "linked_graph", "job_demo", "program_demo",
      "options_demo", "buffer_demo", "pane_demo", "config_demo", "pipe_demo", "hook_demo",
      "key_demo", "command_demo", "control_demo", "plan_demo", "batch_demo", "typing_demo"].
 
@@ -408,9 +408,8 @@ receipt(ArchiveSha256, Commands, Seconds) ->
                                   "cardinality and prepared context">>,
       public_option_consumer => <<"PASS: local ownership, sparse arrays and inherited "
                                   "restoration">>,
-      documentation_examples => <<"PASS: first program, graph, jobs, options, buffers, "
-                                  "pane topology, configuration, pipe consumer, hooks, "
-                                  "keys and command builders from the installed archive">>,
+      documentation_examples => <<"PASS: installed guide examples, including managed "
+                                  "programs or their version refusal">>,
       public_tmux_command_api => <<"PARTIAL: command values, operations and initial "
                                    "domain facades">>,
       publication => <<"UNVERIFIED">>}.

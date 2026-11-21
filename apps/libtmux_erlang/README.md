@@ -117,6 +117,7 @@ It returns a map with the `sessions`, `windows` and `panes` counts.
   session links.
 - [Filter captured data](../../docs/querying.md): map criteria, Boolean
   functions, quantifiers and source queries.
+- [Run and stop a private terminal program](../../docs/programs.md) on tmux 3.8.
 - [Submit and cancel work](../../docs/jobs.md): await completion, exit status
   and output bytes.
 - [Build the API browser](../../docs/api.md): module, function and type docs

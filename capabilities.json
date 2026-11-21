@@ -108,6 +108,34 @@
     },
     {
       "apis": [
+        "tmux_program:run/3",
+        "tmux_program:start/3"
+      ],
+      "commands": [
+        {
+          "command": "display-message",
+          "flags": [
+            "-F"
+          ]
+        },
+        {
+          "command": "capture-pane",
+          "flags": [
+            "-C",
+            "-P",
+            "-S"
+          ]
+        }
+      ],
+      "error": "unsupported_capability",
+      "handling": "refuse",
+      "id": "program-history",
+      "name": "Program history counters",
+      "since": "3.8",
+      "summary": "Report discarded lines in an owned program's final screen."
+    },
+    {
+      "apis": [
         "tmux_capability:require/2"
       ],
       "commands": [

@@ -20,7 +20,8 @@ verify the endpoint before dispatch. A minimum check compares versions only.
 
 -doc "Native capabilities described by this library.".
 -type feature() :: native_list_filter | send_client_keys | key_list_format | layout_json |
-    paste_sanitize | cleaned_names | rename_replaces | strict_named_target | control_no_detach.
+    paste_sanitize | cleaned_names | rename_replaces | strict_named_target | control_no_detach |
+    program_history.
 -doc """
 The minimum release, public APIs and native commands. `handling` reports
 refusal, fallback, or a native behavior difference. `versions` lists the
@@ -203,6 +204,12 @@ registry() ->
           [<<"tmux_capability:require/2">>], #{<<"list-keys">> => [<<"-F">>]}),
       layout_json => native_feature(layout_json, <<"JSON window layouts">>,
           [<<"tmux_window:select_layout/2">>, <<"tmux_capability:require/2">>], #{}),
+      program_history => #{minimum => <<"3.8">>, name => <<"Program history counters">>,
+          description => <<"Report discarded lines in an owned program's final screen.">>,
+          commands => [<<"display-message">>, <<"capture-pane">>],
+          flags => #{<<"display-message">> => [<<"-F">>], <<"capture-pane">> => [<<"-C">>, <<"-P">>, <<"-S">>]},
+          apis => [<<"tmux_program:run/3">>, <<"tmux_program:start/3">>],
+          handling => refuse, versions => [<<"3.8">>]},
       paste_sanitize => #{minimum => <<"3.7">>, name => <<"Paste sanitization">>,
           description => <<"Request native paste sanitization; raw paste uses -S on newer daemons.">>,
           commands => [<<"paste-buffer">>], flags => #{<<"paste-buffer">> => [<<"-S">>]},

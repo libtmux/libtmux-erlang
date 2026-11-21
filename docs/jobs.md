@@ -1,6 +1,8 @@
 # Wait for a terminal job, then read its screen
 
 See [wait for visible text](#wait-for-visible-text) to observe a running pane.
+Use [managed programs](programs.md) to own the application and capture its
+final screen on a private tmux server.
 
 A successful send does not prove a terminal program processed the input. This
 program runs a job that acknowledges terminal parsing, waits for its exit with

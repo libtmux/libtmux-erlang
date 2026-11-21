@@ -35,7 +35,7 @@ run(Arguments, Root) ->
         false -> os:find_executable("tmux"); Path -> Path
     end,
     Modules = case Selected of
-        [] -> [quickstart, filter_demo, inspect_demo, readme_demo, linked_graph, job_demo,
+        [] -> [quickstart, filter_demo, inspect_demo, readme_demo, linked_graph, job_demo, program_demo,
                options_demo, buffer_demo, pane_demo, config_demo, pipe_demo,
                hook_demo, key_demo, command_demo, control_demo, plan_demo,
                batch_demo, typing_demo];
@@ -45,6 +45,7 @@ run(Arguments, Root) ->
         ["readme"] -> [readme_demo];
         ["graph"] -> [linked_graph];
         ["job"] -> [job_demo];
+        ["program"] -> [program_demo];
         ["options"] -> [options_demo];
         ["buffers"] -> [buffer_demo];
         ["panes"] -> [pane_demo];
@@ -103,6 +104,18 @@ example(quickstart, Executable) ->
     #{module => quickstart,
       output => quickstart:run(#{executable => list_to_binary(Executable)}),
       sessions_removed => true, owned_cleanup => complete};
+example(program_demo, Executable) ->
+    Tmux = list_to_binary(Executable),
+    {ok, #{exit_status := 0, stdout := Raw}} =
+        tmux_transport:run(Tmux, [<<"-V">>], #{timeout_ms => 900, max_stdout => 64}),
+    {ok, Version} = tmux_version:parse(Raw),
+    Output = program_demo:run(Tmux),
+    case tmux_capability:require(Version, program_history) of
+        ok -> #{literal := _, interactive := _, stopped := complete} = Output;
+        {error, #{found := Found, required := Required}} ->
+            #{found := Found, required := Required} = Output
+    end,
+    #{module => program_demo, output => Output, sessions_removed => true, owned_cleanup => complete};
 example(Module, Executable) when Module =:= readme_demo;
                                  Module =:= plan_demo;
                                  Module =:= batch_demo;

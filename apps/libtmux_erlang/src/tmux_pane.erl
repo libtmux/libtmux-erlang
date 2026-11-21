@@ -108,6 +108,7 @@ server until its current screen contains the requested bytes. Use
          capture/2, break/4, join/3, move/3, swap/3, pipe/3, stop_pipe/1, wait_exit/2]).
 -export([resize_command/2]).
 -export([wait_for_text/3]).
+-export([literal_keys/1, wait_exit/3]).
 
 -export_type([split_options/0, capture_options/0, resize_options/0, respawn_options/0,
               coordinate/0, key/0, break_options/0, join_options/0, swap_options/0,
@@ -292,14 +293,20 @@ any I/O:
 """.
 -spec wait_exit(tmux_model:pane(), wait_exit_options()) ->
     {ok, wait_exit_result()} | {error, map()}.
-wait_exit(Pane, Options) ->
+wait_exit(Pane, Options) -> wait_exit(Pane, Options, none).
+
+-doc false.
+-spec wait_exit(tmux_model:pane(), wait_exit_options(), none | fun(() -> ok | {error, map()})) ->
+    {ok, wait_exit_result()} | {error, map()}.
+wait_exit(Pane, Options, Start) ->
     maybe
         {ok, Deadline} ?= exit_deadline(Options),
         {ok, Server, Target} ?= tmux_target:resolve(pane, Pane),
         {ok, State} ?= exit_state(Server, Target),
         {ok, Outcome} ?= case State of
-            {exited, Ended} -> {ok, Ended};
-            awaiting_exit -> await_exit(Server, Target, Deadline)
+            {exited, Ended} when Start =:= none -> {ok, Ended};
+            {exited, _} -> {error, #{code => target_already_exited, outcome => not_started}};
+            awaiting_exit -> await_exit(Server, Target, Deadline, Start)
         end,
         {ok, Current} ?= get(Server, tmux_model:get(id, Pane)),
         {ok, #{exit => Outcome, pane => Current}}
@@ -354,7 +361,7 @@ parse_exit(<<>>, Signal) ->
     end;
 parse_exit(_, _) -> {error, #{code => invalid_pane_state}}.
 
-await_exit(Server, Target, Deadline) ->
+await_exit(Server, Target, Deadline, Start) ->
     Suffix = binary:encode_hex(crypto:strong_rand_bytes(8), lowercase),
     Channel = <<"libtmux-exit-", Suffix/binary>>,
     Hook = <<"pane-died[", (integer_to_binary(1000000000 + rand:uniform(1000000000)))/binary, "]">>,
@@ -364,6 +371,7 @@ await_exit(Server, Target, Deadline) ->
         try
             maybe
                 ok ?= signal_on_exit(Server, Target, Channel, Hook),
+                ok ?= start_after_watch(Start),
                 {ok, _} ?= tmux_operation:await(Operation, infinity),
                 {ok, State} ?= exit_state(Server, Target),
                 case State of
@@ -378,6 +386,9 @@ await_exit(Server, Target, Deadline) ->
                 [<<"-p">>, <<"-u">>, <<"-t">>, Target, <<"--">>, Hook])
         end
     end.
+
+start_after_watch(none) -> ok;
+start_after_watch(Start) -> Start().
 
 %% Register and check published status together, including an exit status of 0.
 signal_on_exit(Server, Target, Channel, Hook) ->
@@ -592,11 +603,18 @@ rejected before partial submission. Completion does not prove that a terminal
 program processed the input.
 """.
 -spec send_text(tmux_model:pane(), binary()) -> {ok, map()} | {error, map()}.
-send_text(Pane, Bytes) when is_binary(Bytes), byte_size(Bytes) =< 2000 ->
-    Hex = [integer_to_binary(Byte, 16) || <<Byte>> <= Bytes],
-    send(Pane, [<<"-H">>], Hex);
-send_text(_, Bytes) when is_binary(Bytes) -> {error, #{code => command_limit}};
-send_text(_, _) -> {error, #{code => invalid_text}}.
+send_text(Pane, Bytes) ->
+    maybe
+        {ok, Keys} ?= literal_keys(Bytes),
+        send(Pane, [<<"-H">>], Keys)
+    end.
+
+-doc false.
+-spec literal_keys(binary()) -> {ok, [binary()]} | {error, map()}.
+literal_keys(Bytes) when is_binary(Bytes), byte_size(Bytes) =< 2000 ->
+    {ok, [integer_to_binary(Byte, 16) || <<Byte>> <= Bytes]};
+literal_keys(Bytes) when is_binary(Bytes) -> {error, #{code => command_limit}};
+literal_keys(_) -> {error, #{code => invalid_text}}.
 
 -doc """
 Send at most 256 validated key tokens. Named keys, single UTF-8 characters,
