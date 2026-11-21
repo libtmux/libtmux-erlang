@@ -1,105 +1,60 @@
-# package
+# Check an installed package
 
-Scripts that qualify `libtmux_erlang` as an installed package. Each one
-installs the library outside the checkout and runs the public consumers
-against the installed copy, so a file that only exists in the checkout fails
-the check.
+Run these checks from the repository root after `mise exec -- rebar3 compile`.
+They run the public examples and native consumers outside the checkout. Set
+`LIBTMUX_TEST_TMUX` to an absolute executable path to select a tmux release.
+Without it the checks use `tmux` from `PATH`.
 
-Run them from the repository root after `rebar3 compile`. Set
-`LIBTMUX_TEST_TMUX` to an absolute tmux path to choose the release under test;
-otherwise `tmux` on `PATH` is used. The checks clear `TMUX`, `TMUX_PANE` and
-`ERL_LIBS` for every child, and run each child command with a 30 second
-deadline.
+## Check the compiled OTP archive
 
-## check_package
-
-Uses `package_archive` to assemble a compiled OTP archive from
-`_build/default/lib/libtmux_erlang`,
-unpacks it into a private directory and runs the installed consumers there:
-the example programs against the installed `ebin`, the native consumer, the
-retained-model check, the packaged helper, the transport, a relative code path
-whose child working directory differs, and a borrowed tmux endpoint.
-
-Developers run it before a change, and the outer check runs it. It writes
-`_build/package-check/receipt.json` and the archive beside it.
+The outer loop runs this check. It builds the archive from the compiled
+application, unpacks it and runs the consumers against the installed `ebin`
+and packaged C helper.
 
 ```console
 $ mise exec -- escript scripts/package/check_package.erl
 ```
 
-`--dialyzer` adds two checks: the consumer modules against the project's
-Dialyzer table, and the constructor-type consumer, which must produce exactly
-four Dialyzer diagnostics for its deliberate misuses. Run
-`rebar3 dialyzer` first so the table exists.
+The archive and `receipt.json` are in `_build/package-check/`. Add `--dialyzer`
+to check the installed types after `mise exec -- rebar3 dialyzer` prepares the
+project's PLT.
 
-```console
-$ mise exec -- escript scripts/package/check_package.erl --dialyzer
-```
+## Check the Hex source before publishing
 
-`check_package:exercise_consumer/4` is the one function that runs the
-installed consumers. The scripts below call it too.
-
-## check_source_package
-
-Builds the Hex source artifact for `libtmux_erlang` and installs it the way a
-user would, without publishing anything. It serves the artifact from a private,
-signed registry on a loopback socket, builds a consumer whose only dependency
-is the core, proves that a missing C compiler fails before the helper is
-installed, and runs the same installed consumers as `check_package`.
-
-Two commands run it. CI runs both on every matrix cell, and the release
-workflow reads the receipt's `result`, `source.head`, `source.status` and
-`packages.libtmux_erlang.sha256` to bind the published tarball to a passing
-run. `--prepare` downloads the pinned `rebar3_hex`, `hex_core` and `verl`
-archives from `tools/package-tool.json`, checks their digests and compiles
-`hex_core` under `_build/source-package-tools`. It needs the network and runs
-once, outside any timed check.
+Prepare the tooling once per runtime and pin set. This step downloads and
+verifies the archives in [tools/package-tool.json](../../tools/package-tool.json).
 
 ```console
 $ mise exec -- escript scripts/package/check_source_package.erl --prepare
 ```
 
-The run itself uses a private loopback registry. The `source_package_registry`
-module is a small `gen_tcp` file server
-that adds an `ETag` header, records every request path, answers `429` after
-256 requests and shuts down before the script exits.
-`scripts/package/sign_source_registry.escript` signs the registry files.
+Build and install the artifact through a private loopback registry. The check
+verifies that installation builds the C helper from source and that a missing
+C compiler gives the expected build failure.
 
 ```console
 $ mise exec -- escript scripts/package/check_source_package.erl
 ```
 
-The receipt is `_build/source-package-check/receipt.json`. Each run also keeps
-its logs, the Hex tarball and the consumer's `rebar.lock` in
-`_build/source-package-check/run-<time>/`. The receipt records
-`registry_retired`, which is `true` only when the listening socket and every
-registry process are gone.
+Find the receipt, artifact, consumer lockfile and command logs under
+`_build/source-package-check/`. The receipt binds the artifact digest to the
+source revision and records registry and consumer cleanup.
 
-## check_hex_install
+## Check a published Hex version
 
-Installs the public Hex release in a clean consumer and runs the same installed
-consumers against it. The release workflow runs it after publishing, with the
-released version. It writes `_build/checks/hex-install.json`; the file says
-`UNVERIFIED` until the install finishes, so a failed run never leaves a `PASS`.
-
-Pass the released version as `VERSION`:
+Run this from the checkout matching the published release. Replace `VERSION`
+with that version. Release CI runs this command after publishing and checks
+`_build/checks/hex-install.json` for the install result.
 
 ```console
 $ mise exec -- escript scripts/package/check_hex_install.erl VERSION
 ```
 
-## Tests
+## Run package unit tests
 
-The EUnit modules in [tests](tests) run in the mid loop without network or
-tmux. They check the archive bytes, members and modes, the consumer file list,
-the environment scrubbing, contents validation, tool digests, the local
-registry server, the version check and the receipts, each with cases that must
-fail.
+The [mid loop](../check/README.md) includes the package tests. For an archive
+change, run its test module on its own.
 
 ```console
 $ mise exec -- rebar3 eunit --module check_package_tests
 ```
-
-The `check_source_package_tests` and `check_hex_install_tests` modules take
-the same command. The full flows need the network, a C compiler and tmux, so
-run them by hand or in CI.

@@ -7,9 +7,12 @@ Each mode is one small program with a byte-exact contract; `command/2` builds
 the argv that starts it in a fresh Erlang VM. Raw terminal modes read and write
 the standard descriptors directly, so every byte value passes through.
 
-The suites' accept, first-read and start-up waits are far longer than a VM
-start. Each ends on its event, so a prompt child costs nothing extra and a
-loaded runner still starts one in time.
+The suites' accept, first-read and fake-tmux startup waits end on their events.
+On Ubuntu x86_64 with OTP 29.1.2 and four schedulers, twelve probes per launcher
+measured medians of 114 ms for `erl`, 183 ms for interpreted escript and 181 ms
+for compiled escript. The fixture deadlines also cover the child's I/O after
+launch.
+[CI measurement](https://github.com/libtmux/libtmux-erlang/actions/runs/44932455607/job/136931840193).
 """.
 -export([command/2, shell_command/2, escript/0, main/1, fake_tmux/2]).
 

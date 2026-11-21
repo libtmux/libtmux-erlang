@@ -1,89 +1,47 @@
-# generate
+# Update generated files
 
-Generate command and option catalogues from pinned tmux sources. Generate the
-capability manifest from the registry the library uses at runtime.
+Edit the source for the change, then run its generator from the repository root.
+Each generator also accepts `--check` to report a missing or stale output.
 
-| Script | Schema | Generated files |
-| --- | --- | --- |
-| `generate_commands.erl` | `schema/commands.json` | `tmux_capability_data.erl`, `docs/commands-reference.md` |
-| `generate_options.erl` | `schema/options.json` | `tmux_option_data.erl`, `docs/options-reference.md` |
-| `generate_capabilities.erl` | `tmux_capability:manifest/0` | `capabilities.json` |
+| Change | Source | Generator | Output |
+| --- | --- | --- | --- |
+| Entity fields and relationships | `schema/entities.json` | `generate_schema.escript` | `tmux_schema_data.erl`, `tmux_model.erl` |
+| Field and operator reference | Compiled entity schema and validator | `generate_reference.escript` | `docs/fields.md` |
+| tmux commands | `schema/commands.json` | `generate_commands.erl` | `tmux_capability_data.erl`, `docs/commands-reference.md` |
+| tmux options and named hooks | `schema/options.json` | `generate_options.erl` | `tmux_option_data.erl`, `docs/options-reference.md` |
+| Operation support and minimum versions | `tmux_capability:manifest/0` | `generate_capabilities.erl` | `capabilities.json` |
 
-The catalogue generators read the pinned tmux commits from
-[schema/tmux-sources.json](../../schema/tmux-sources.json) and refuse a schema
-whose sources differ from those pins. Maintainers run them after changing a
-schema or the pins. The mid-loop check runs `--check`; package consumers need
-neither the generators nor a tmux checkout.
-
-## Check for drift
-
-The scripts load the compiled library and their helper modules from `_build`,
-so compile first:
+Run the entity generator before compiling when you change `schema/entities.json`.
+The field reference, catalogues and capability manifest read compiled modules.
 
 ```console
 $ mise exec -- rebar3 compile
 ```
 
-`--check` exits 1 and names the first stale or missing generated file. It
-reads no tmux checkout.
-
-```console
-$ mise exec -- escript scripts/generate/generate_commands.erl --check
-```
-
-```console
-$ mise exec -- escript scripts/generate/generate_options.erl --check
-```
-
-```console
-$ mise exec -- escript scripts/generate/generate_capabilities.erl --check
-```
-
-## Regenerate
-
-Without a flag, each script rewrites its generated files. Change and compile
-the registry first when updating feature gates.
-
-```console
-$ mise exec -- escript scripts/generate/generate_commands.erl
-```
+After updating an operation gate and compiling, write the manifest.
 
 ```console
 $ mise exec -- escript scripts/generate/generate_capabilities.erl
 ```
 
-## Refresh the schema from tmux
+The [mid loop](../check/README.md) runs the drift checks. It uses the tracked
+schemas and compiled modules, so it needs no tmux checkout.
 
-`--refresh-from` rebuilds the schema from the pinned commits in a local tmux
-Git clone, then regenerates. Each pinned commit must exist in the clone;
-`git -C <clone> cat-file -e <commit>` checks one. The options generator also
-needs a C preprocessor (`cc -E -P`) to expand hook macros.
+```console
+$ mise exec -- escript scripts/check/check.erl mid
+```
+
+## Refresh command and option schemas from tmux
+
+The catalogue generators read the commits in
+[schema/tmux-sources.json](../../schema/tmux-sources.json). Use a local tmux
+Git clone containing those commits. The option generator also uses a C
+preprocessor to expand hook macros.
 
 ```console
 $ mise exec -- escript scripts/generate/generate_options.erl \
     --refresh-from /path/to/tmux
 ```
 
-A refresh that leaves the schema unchanged proves the pins and the extraction
-agree. A changed schema is a review item: the diff must match the pin change.
-
-## Modules
-
-- `generate_catalogue`: the manifest, command line, schema round trip, drift
-  check and the readers for tmux's C sources, shared by both generators.
-- `generate_json`: JSON that keeps object key order and indents by two spaces,
-  so schema diffs stay small. An object is a list of `{Key, Value}` pairs
-  because Erlang maps do not keep order.
-
-`refresh/2` in each generator takes its source reader as a fun, so tests supply
-fixtures instead of a tmux clone.
-
-## Tests
-
-The unit tests in `tests/` cover source validation, generator output, and
-manifest drift. One test reads a temporary Git repository and
-runs `cc`. `rebar3 eunit` alone skips `scripts/`; select it with `--dir`:
-
-```console
-$ mise exec -- rebar3 eunit --dir=scripts
-```
+`generate_commands.erl` accepts the same flag. Review the schema and generated
+file changes together when updating a pin.
