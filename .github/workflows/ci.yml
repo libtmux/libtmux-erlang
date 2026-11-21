@@ -56,6 +56,9 @@ jobs:
         run: '"$LIBTMUX_TEST_TMUX" -V'
       - name: Print the tmux binary checksum
         run: sha256sum "$LIBTMUX_TEST_TMUX"
+      - name: Measure Erlang launcher startup
+        if: matrix.runner == 'ubuntu-24.04' && matrix.tmux == '3.8'
+        run: escript scripts/check/measure_startup.erl 12
       - name: Prepare test dependencies
         run: rebar3 as test compile
       - name: Check example width
