@@ -2,8 +2,8 @@
 
 ## Unreleased
 
-- Install the core from Hex in a fresh Rebar3 project. The quickstart opens a
-  private tmux server, prints its pane count and stops it.
+- Install the core from Hex in a fresh Rebar3 project. The quickstart counts
+  panes in a private tmux server, stops the server and prints the count.
 - Find installation and first tasks together in the native docs. Examples link
   to the Erlang APIs they use, and the compatibility guide links the generated
   capability manifest.
