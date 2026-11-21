@@ -268,9 +268,9 @@ stop_pipe(Pane) -> tmux_target:act(pane, Pane, <<"pipe-pane">>, []).
 
 -doc """
 Wait until this registered pane's process exits and report how it ended.
-Performs I/O. The result carries `exit` (`t:exit/0`: an exit status or a
-signal) and the dead `pane`, freshly observed. An already published exit
-returns at once.
+Performs I/O. `exit` (`t:exit/0`) is the observed status or signal. `pane` is a
+fresh observation of the pane ID. A concurrent respawn can change its process.
+An already published exit returns at once.
 
 tmux keeps a dead pane's status only when `remain-on-exit` is `on` for it, set
 on the pane or inherited from its window, before the process exits. Any other
