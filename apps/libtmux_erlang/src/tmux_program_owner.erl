@@ -265,7 +265,8 @@ handle_info({tmux_transport, Holder, _}, #{terminal_holder := Holder, terminal_r
     {noreply, terminal_notice({error, #{code => program_terminal_unavailable}}, State)};
 handle_info({Token, Input, input_result, Result}, #{token := Token, input := {Input, _, _, _}} = State) ->
     advance(input_done(Result, State));
-handle_info({Token, Worker, result, Result}, #{token := Token, worker := Worker} = State) ->
+handle_info({Token, Worker, result, Result},
+            #{token := Token, worker := Worker, primary := none, result := none} = State) ->
     primary_done(Result, State);
 handle_info({'DOWN', Monitor, process, _, _},
             #{owner_monitor := Monitor, activation := Activation} = State) when Activation =/= none ->
@@ -274,7 +275,8 @@ handle_info({'DOWN', Monitor, process, _, _}, #{owner_monitor := Monitor, result
     advance(request_stop(program_owner_exited, State#{owner_alive => false}));
 handle_info({'DOWN', Monitor, process, _, _}, #{owner_monitor := Monitor} = State) ->
     advance(forget_result(State));
-handle_info({'DOWN', Monitor, process, _, _}, #{worker_monitor := Monitor, primary := none} = State) ->
+handle_info({'DOWN', Monitor, process, _, _},
+            #{worker_monitor := Monitor, primary := none, result := none} = State) ->
     primary_done({error, #{code => program_worker_failed}}, State);
 handle_info({'DOWN', Monitor, process, _, _}, #{input := {_, Monitor, _, _}} = State) ->
     advance(input_done(input_unknown(), State));
@@ -288,7 +290,7 @@ handle_info({timeout, Timer, cleanup}, #{cleanup_timer := Timer, cleanup := Clea
         (_, pending) -> {error, #{code => cleanup_timeout, cleanup => unverified}};
         (_, Reply) -> Reply
     end, Cleanup),
-    advance(State#{cleanup => Unconfirmed, cleanup_timer => none});
+    cleanup_elapsed(State#{cleanup => Unconfirmed, cleanup_timer => none});
 handle_info({timeout, Timer, expire}, #{expiry := Timer} = State) -> advance(forget_result(State));
 handle_info(Message, #{requests := Requests} = State) ->
     case gen_server:check_response(Message, Requests, true) of
@@ -363,14 +365,28 @@ terminal_notice(Reply, #{token := Token, worker := Worker, terminal_holder := Ho
     Worker ! {Token, Holder, Reply},
     State#{terminal_ready => true}.
 
-request_stop(Reason, #{stopping := none, terminal_holder := Holder, terminal_ready := Ready} = State) ->
+probe_notice(Reply, #{token := Token, worker := Worker} = State) ->
+    Worker ! {Token, probe_version, Reply},
+    State.
+
+request_stop(Reason, #{stopping := none, version_probe := Probe,
+                       terminal_holder := Holder, terminal_ready := Ready} = State) ->
     Stopped = close_input(State#{stopping => Reason, target => none}),
-    Next = case Holder =/= none andalso not Ready of
-        true -> terminal_notice({error, #{code => Reason, outcome => not_started}}, Stopped);
-        false -> Stopped
+    Cancelled = {error, #{code => Reason, outcome => not_started}},
+    Next = if
+        Probe =/= none -> probe_notice(Cancelled, Stopped);
+        Holder =/= none, not Ready -> terminal_notice(Cancelled, Stopped);
+        true -> Stopped
     end,
     begin_cleanup(Next);
 request_stop(_, State) -> State.
+
+cleanup_elapsed(#{stopping := Reason, primary := none, worker := Worker, ownership := Ownership} = State)
+  when Reason =/= none ->
+    exit(Worker, shutdown),
+    Outcome = case Ownership of none -> not_started; _ -> unknown end,
+    primary_done({error, #{code => Reason, outcome => Outcome}}, State);
+cleanup_elapsed(State) -> advance(State).
 
 primary_done(Result, #{timer := Timer} = State) ->
     ok = cancel_timer(Timer),
@@ -417,16 +433,15 @@ track(Request, Label, #{requests := Requests} = State) ->
 response(terminal_ack, Reply, #{terminal_ready := false} = State) ->
     {noreply, terminal_notice(Reply, State)};
 response(terminal_ack, _, State) -> {noreply, State};
-response(probe_result, Reply, #{token := Token, worker := Worker, version_probe := Probe,
-                                cleanup := Cleanup} = State) ->
+response(probe_result, Reply, #{version_probe := Probe, cleanup := none} = State) ->
     Next = case Reply of
-        {_, #{cleanup := complete}} when Cleanup =:= none ->
+        {_, #{cleanup := complete}} ->
             ok = tmux_transport:close_async(Probe),
             State#{version_probe => none};
         _ -> State
     end,
-    Worker ! {Token, probe_version, Reply},
-    {noreply, Next};
+    {noreply, probe_notice(Reply, Next)};
+response(probe_result, _, State) -> {noreply, State};
 response({retired, Resource}, Reply, State) ->
     case {Resource, Reply} of
         {ownership, ok} -> advance(confirmed(Resource, State));

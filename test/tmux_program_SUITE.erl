@@ -2,14 +2,15 @@
 -compile(nowarn_missing_spec).
 -export([all/0, groups/0, init_per_suite/1, end_per_suite/1, init_per_group/2,
          end_per_group/2, version_gate/1, exit_results/1, capture_limits/1,
-         replaced_capture/1, retained_slots/1, controller_crash/1, setup_retirement/1]).
+         replaced_capture/1, retained_slots/1, controller_crash/1, setup_retirement/1,
+         running_stop/1]).
 
 %% Outer: the program cases exercise a private native tmux and real PTYs.
 all() -> [version_gate, {group, programs}].
 
 groups() ->
     [{programs, [], [exit_results, capture_limits, replaced_capture,
-                     retained_slots, controller_crash, setup_retirement]}].
+                     retained_slots, controller_crash, setup_retirement, running_stop]}].
 
 init_per_suite(Config) ->
     {ok, _} = application:ensure_all_started(libtmux_erlang),
@@ -230,30 +231,53 @@ setup_retirement(Config) ->
         Compiler, [<<"-std=c11">>, <<"-Wall">>, <<"-Wextra">>, <<"-Werror">>,
                    Source, <<"-o">>, Fixture], #{timeout_ms => 900}),
     lists:foreach(fun(Mode) -> setup_case(Executable, Fixture, Mode) end, [stop, owner_exit]),
+    with_probe(Executable, Fixture, fun stop_probe/3),
     probe_crash(Executable, Fixture).
 
 probe_crash(Executable, Fixture) ->
     Argv = [<<"/usr/bin/true">>],
     Retained = [retain(Executable, Argv) || _ <- lists:seq(1, 7)],
     try
-        {ok, Dir} = tmux_test_sandbox:fixture_directory(),
-        Fifo = list_to_binary(filename:join(Dir, "probe-ready")),
-        {ok, #{exit_status := 0}} =
-            tmux_transport:run(<<"/usr/bin/mkfifo">>, [Fifo], #{timeout_ms => 900}),
-        Env = [{"LIBTMUX_TEST_PROGRAM_BLOCK", "-V"},
-               {"LIBTMUX_TEST_PROGRAM_READY", binary_to_list(Fifo)},
-               {"LIBTMUX_TEST_PROGRAM_REAL", binary_to_list(Executable)}],
-        with_env(Env, fun() -> check_probe_slot(Executable, Fixture, Argv, Fifo) end)
+        with_probe(Executable, Fixture, fun(Program, Probe, Identities) ->
+            check_probe_slot(Program, Probe, Identities, Executable, Argv)
+        end)
     after lists:foreach(fun(Program) -> ok = tmux_program:release(Program) end, Retained)
     end.
 
-check_probe_slot(Executable, Fixture, Argv, Fifo) ->
-    {ok, {program, Controller, _, _}} = tmux_program:start(Fixture, Argv, #{}),
-    {ok, #{exit_status := 0, stdout := Ready}} =
-        tmux_transport:run(<<"/bin/cat">>, [Fifo], #{timeout_ms => 900, max_stdout => 200}),
-    [Leader, Child, Leader, <<"-">>] = binary:split(string:trim(Ready), <<"\t">>, [global]),
-    Identities = [observe(Pid) || Pid <- [Leader, Child]],
-    #{version_probe := {transport, Probe, _}, ownership := none} = sys:get_state(Controller),
+with_probe(Executable, Fixture, Check) ->
+    {ok, Dir} = tmux_test_sandbox:fixture_directory(),
+    Fifo = list_to_binary(filename:join(Dir, "probe-ready")),
+    Marker = list_to_binary(filename:join(Dir, "application-ran")),
+    {ok, #{exit_status := 0}} =
+        tmux_transport:run(<<"/usr/bin/mkfifo">>, [Fifo], #{timeout_ms => 900}),
+    Env = [{"LIBTMUX_TEST_PROGRAM_BLOCK", "-V"},
+           {"LIBTMUX_TEST_PROGRAM_READY", binary_to_list(Fifo)},
+           {"LIBTMUX_TEST_PROGRAM_REAL", binary_to_list(Executable)}],
+    with_env(Env, fun() ->
+        {ok, {program, Controller, _, _} = Program} =
+            tmux_program:start(Fixture, [<<"/usr/bin/touch">>, Marker], #{deadline_ms => 120000}),
+        {ok, #{exit_status := 0, stdout := Ready}} =
+            tmux_transport:run(<<"/bin/cat">>, [Fifo], #{timeout_ms => 900, max_stdout => 200}),
+        [Leader, Child, Leader, <<"-">>] = binary:split(string:trim(Ready), <<"\t">>, [global]),
+        Identities = [observe(Pid) || Pid <- [Leader, Child]],
+        #{version_probe := {transport, Probe, _}, ownership := none} = sys:get_state(Controller),
+        ok = Check(Program, Probe, Identities),
+        {error, enoent} = file:read_file(Marker),
+        ok
+    end).
+
+stop_probe({program, Controller, _, _} = Program, Probe, Identities) ->
+    ControllerMonitor = monitor(process, Controller),
+    ProbeMonitor = monitor(process, Probe),
+    ok = sys:suspend(Probe),
+    try await_cleanup_timeout(Program, Controller, version_probe, not_started)
+    after ok = sys:resume(Probe)
+    end,
+    wait_probe_retirement(ProbeMonitor, Probe, Identities),
+    ok = tmux_program:release(Program),
+    wait_exit(ControllerMonitor, Controller).
+
+check_probe_slot({program, Controller, _, _}, Probe, Identities, Executable, Argv) ->
     Monitor = monitor(process, Probe),
     {ok, Pool} = tmux_registry:program_pool(),
     ok = sys:suspend(Probe),
@@ -264,11 +288,49 @@ check_probe_slot(Executable, Fixture, Argv, Fifo) ->
             tmux_program:start(Executable, Argv, #{})
     after ok = sys:resume(Probe)
     end,
+    wait_probe_retirement(Monitor, Probe, Identities),
+    readmit(Executable, Argv, erlang:monotonic_time(millisecond) + 700).
+
+wait_probe_retirement(Monitor, Probe, Identities) ->
     wait_exit(Monitor, Probe),
     lists:foreach(fun({Pid, Identity}) ->
         {error, #{code := stale_server}} = tmux_identity:check(Identity, Pid)
-    end, Identities),
-    readmit(Executable, Argv, erlang:monotonic_time(millisecond) + 700).
+    end, Identities).
+
+running_stop(Config) ->
+    Executable = proplists:get_value(executable, Config),
+    {ok, {program, Controller, _, _} = Program} =
+        tmux_program:start(Executable, [<<"/bin/cat">>], #{deadline_ms => 120000}),
+    {ok, #{state := released}} = tmux_program:await_started(Program, 900),
+    #{ownership := {owned_server, Owned, _},
+      target := #{daemon := DaemonBytes, server := Server}} = sys:get_state(Controller),
+    {ok, #{endpoint := #{socket_path := Socket}}} = tmux_server:observation_context(Server),
+    {Daemon, Identity} = observe(DaemonBytes),
+    OwnerMonitor = monitor(process, Owned),
+    ControllerMonitor = monitor(process, Controller),
+    ok = sys:suspend(Owned),
+    try
+        await_cleanup_timeout(Program, Controller, ownership, unknown),
+        ok = tmux_identity:check(Identity, Daemon),
+        {ok, _} = file:read_link_info(Socket)
+    after ok = sys:resume(Owned)
+    end,
+    ok = tmux_program:release(Program),
+    wait_exit(ControllerMonitor, Controller),
+    wait_exit(OwnerMonitor, Owned),
+    {error, #{code := stale_server}} = tmux_identity:check(Identity, Daemon),
+    {error, enoent} = file:read_link_info(Socket).
+
+await_cleanup_timeout(Program, Controller, Resource, Outcome) ->
+    {ok, stop_requested} = tmux_program:stop(Program),
+    #{cleanup_timer := Timer} = sys:get_state(Controller),
+    %% Deliver the cleanup timer while the native resource is still held.
+    Controller ! {timeout, Timer, cleanup},
+    {error, #{code := program_cleanup_incomplete, cleanup := incomplete,
+              primary := {error, #{code := program_stopped, outcome := Outcome}},
+              causes := #{Resource := {error, #{code := cleanup_timeout}}}}} =
+        tmux_program:await(Program, 900),
+    ok.
 
 setup_case(Executable, Fixture, Mode) ->
     {ok, Dir} = tmux_test_sandbox:fixture_directory(),
