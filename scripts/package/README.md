@@ -13,7 +13,8 @@ deadline.
 
 ## check_package
 
-Assembles the compiled OTP archive from `_build/default/lib/libtmux_erlang`,
+Uses `package_archive` to assemble a compiled OTP archive from
+`_build/default/lib/libtmux_erlang`,
 unpacks it into a private directory and runs the installed consumers there:
 the example programs against the installed `ebin`, the native consumer, the
 retained-model check, the packaged helper, the transport, a relative code path
@@ -58,7 +59,8 @@ once, outside any timed check.
 $ mise exec -- escript scripts/package/check_source_package.erl --prepare
 ```
 
-The run itself needs no network. The registry is a small `gen_tcp` file server
+The run itself uses a private loopback registry. The `source_package_registry`
+module is a small `gen_tcp` file server
 that adds an `ETag` header, records every request path, answers `429` after
 256 requests and shuts down before the script exits.
 `tools/source_package_registry.escript` signs the registry files.

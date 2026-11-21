@@ -324,7 +324,7 @@ registry_records_every_request_path_in_order_test() ->
         _ = get(Registry, "/missing"),
         _ = get(Registry, "/names?x=1"),
         ?assertEqual([<<"/names">>, <<"/missing">>, <<"/names?x=1">>],
-                     check_source_package:registry_requests(Registry))
+                     source_package_registry:requests(Registry))
     end).
 
 registry_answers_404_for_missing_files_and_directories_test() ->
@@ -351,7 +351,7 @@ registry_decodes_percent_escapes_test() ->
     with_registry(#{}, fun(Registry, Public) ->
         ok = write(Public, "tarballs/a.b.tar", <<"dot">>),
         ?assertMatch({200, _, <<"dot">>}, get(Registry, "/tarballs/a%2Eb.tar")),
-        ?assertEqual([<<"/tarballs/a%2Eb.tar">>], check_source_package:registry_requests(Registry))
+        ?assertEqual([<<"/tarballs/a%2Eb.tar">>], source_package_registry:requests(Registry))
     end).
 
 registry_refuses_requests_past_the_limit_test() ->
@@ -361,7 +361,7 @@ registry_refuses_requests_past_the_limit_test() ->
         ?assertMatch({404, _, _}, get(Registry, "/other")),
         ?assertMatch({429, _, _}, get(Registry, "/names")),
         ?assertMatch({429, _, _}, get(Registry, "/names")),
-        ?assertEqual([<<"/names">>, <<"/other">>], check_source_package:registry_requests(Registry))
+        ?assertEqual([<<"/names">>, <<"/other">>], source_package_registry:requests(Registry))
     end).
 
 registry_default_limit_is_256_requests_test() ->
@@ -369,7 +369,7 @@ registry_default_limit_is_256_requests_test() ->
         ok = write(Public, "names", <<"n">>),
         lists:foreach(fun(_) -> {200, _, _} = get(Registry, "/names") end, lists:seq(1, 256)),
         ?assertMatch({429, _, _}, get(Registry, "/names")),
-        ?assertEqual(256, length(check_source_package:registry_requests(Registry)))
+        ?assertEqual(256, length(source_package_registry:requests(Registry)))
     end).
 
 registry_serves_only_get_and_head_test() ->
@@ -377,17 +377,17 @@ registry_serves_only_get_and_head_test() ->
         ok = write(Public, "names", <<"names">>),
         {405, #{<<"allow">> := <<"GET, HEAD">>}, _} =
             exchange(Registry, <<"POST /names HTTP/1.1\r\nContent-Length: 0\r\n\r\n">>),
-        ?assertEqual([], check_source_package:registry_requests(Registry)),
+        ?assertEqual([], source_package_registry:requests(Registry)),
         {200, #{<<"content-length">> := <<"5">>}, Body} =
             exchange(Registry, <<"HEAD /names HTTP/1.1\r\n\r\n">>),
         ?assertEqual(<<>>, Body),
-        ?assertEqual([<<"/names">>], check_source_package:registry_requests(Registry))
+        ?assertEqual([<<"/names">>], source_package_registry:requests(Registry))
     end).
 
 registry_rejects_a_malformed_request_test() ->
     with_registry(#{}, fun(Registry, _Public) ->
         ?assertMatch({400, _, _}, exchange(Registry, <<"nonsense\r\n\r\n">>)),
-        ?assertEqual([], check_source_package:registry_requests(Registry))
+        ?assertEqual([], source_package_registry:requests(Registry))
     end).
 
 registry_answers_concurrent_clients_test() ->
@@ -400,25 +400,25 @@ registry_answers_concurrent_clients_test() ->
         lists:foreach(fun(Pid) ->
             receive {Pid, Reply} -> ?assertMatch({200, _, Body}, Reply) end
         end, Pids),
-        ?assertEqual(8, length(check_source_package:registry_requests(Registry)))
+        ?assertEqual(8, length(source_package_registry:requests(Registry)))
     end).
 
 registry_stops_cleanly_test() ->
     with_tmp(fun(Temp) ->
-        Registry = check_source_package:start_registry(Temp, #{}),
+        Registry = source_package_registry:start(Temp, #{}),
         Port = port(Registry),
         ?assertMatch({404, _, _}, get(Registry, "/x")),
-        ?assertEqual({[<<"/x">>], true}, check_source_package:stop_registry(Registry)),
+        ?assertEqual({[<<"/x">>], true}, source_package_registry:stop(Registry)),
         ?assertEqual({error, econnrefused}, gen_tcp:connect({127, 0, 0, 1}, Port, [])),
-        ?assertError({registry_down, _}, check_source_package:registry_requests(Registry))
+        ?assertError({registry_down, _}, source_package_registry:requests(Registry))
     end).
 
 registry_stop_closes_idle_connections_test() ->
     with_tmp(fun(Temp) ->
-        Registry = check_source_package:start_registry(Temp, #{}),
+        Registry = source_package_registry:start(Temp, #{}),
         {ok, Socket} = gen_tcp:connect({127, 0, 0, 1}, port(Registry), [binary, {active, false}]),
         ok = gen_tcp:send(Socket, <<"GET /partial">>),
-        ?assertMatch({_, true}, check_source_package:stop_registry(Registry)),
+        ?assertMatch({_, true}, source_package_registry:stop(Registry)),
         ?assertMatch({error, Reason} when Reason =:= closed; Reason =:= econnreset,
                      gen_tcp:recv(Socket, 0, 5000))
     end).
@@ -551,14 +551,14 @@ with_registry(Options, Fun) ->
     with_tmp(fun(Temp) ->
         Public = filename:join(Temp, "public"),
         ok = filelib:ensure_path(Public),
-        Registry = check_source_package:start_registry(Public, Options),
+        Registry = source_package_registry:start(Public, Options),
         try Fun(Registry, Public)
-        after {_, true} = check_source_package:stop_registry(Registry)
+        after {_, true} = source_package_registry:stop(Registry)
         end
     end).
 
 port(Registry) ->
-    "http://127.0.0.1:" ++ Port = check_source_package:registry_url(Registry),
+    "http://127.0.0.1:" ++ Port = source_package_registry:url(Registry),
     list_to_integer(Port).
 
 get(Registry, Target) ->
