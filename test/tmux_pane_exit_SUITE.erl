@@ -2,12 +2,13 @@
 -compile(nowarn_missing_spec).
 -export([all/0, init_per_suite/1, end_per_suite/1,
          exit_status/1, waits_for_a_running_pane/1, killed_by_signal/1,
-         retention_required/1, deadline/1, vanished_pane/1, invalid_options/1,
-         hook_removed/1]).
+         waits_after_pty_closes/1, retention_required/1, deadline/1,
+         vanished_pane/1, invalid_options/1, hook_removed/1]).
 
 %% Outer: a pane's exit status and signal exist only on an owned native server.
 all() -> [exit_status, waits_for_a_running_pane, killed_by_signal,
-          retention_required, deadline, vanished_pane, invalid_options, hook_removed].
+          waits_after_pty_closes, retention_required, deadline, vanished_pane,
+          invalid_options, hook_removed].
 
 init_per_suite(Config) ->
     {ok, _} = application:ensure_all_started(libtmux_erlang),
@@ -47,6 +48,42 @@ waits_for_a_running_pane(Config) ->
         %% The pane is dead now, so a second call reads the same outcome.
         {ok, #{exit := {status, 0}}} = tmux_pane:wait_exit(Dead, #{})
     end).
+
+waits_after_pty_closes(Config) ->
+    with_window(Config, true, fun(_Server, Window, Fixture) ->
+        #{directory := Directory} = tmux_test_fixture:info(Fixture),
+        Ready = list_to_binary(filename:join(Directory, "ready")),
+        Release = list_to_binary(filename:join(Directory, "release")),
+        {ok, #{exit_status := 0}} = tmux_transport:run(
+            <<"/usr/bin/mkfifo">>, [Ready, Release], #{timeout_ms => 900}),
+        % Keep the child alive after it closes the terminal descriptors.
+        Script = <<"trap '' HUP; exec 0<&- 1>&- 2>&-; ",
+                   "printf '%s\\n' \"$$\" > \"$1\"; IFS= read -r token < \"$2\"; exit 7">>,
+        Pane = job(Window, Fixture, [<<"/bin/sh">>, <<"-c">>, Script, <<"exit-child">>,
+                                    Ready, Release], false),
+        {ok, #{exit_status := 0, stdout := PidLine}} = tmux_transport:run(
+            <<"/bin/cat">>, [Ready], #{timeout_ms => 900, max_stdout => 32}),
+        Pid = binary_to_integer(string:trim(PidLine)),
+        Identity = tmux_test_fixture:process_identity(Pid),
+        ok = tmux_test_fixture:track_process(Fixture, Pid),
+        Id = tmux_model:get(id, Pane),
+        ok = wait_for_pty_close(Fixture, Id, 32),
+        true = tmux_test_fixture:same_process(Pid, Identity),
+        {error, #{code := deadline}} = tmux_pane:wait_exit(Pane, #{deadline_ms => 100}),
+        {ok, #{exit_status := 0}} = tmux_transport:run(<<"/bin/sh">>,
+            [<<"-c">>, <<"printf 'done\\n' > \"$1\"">>, <<"exit-release">>, Release],
+            #{timeout_ms => 900}),
+        {ok, #{exit := {status, 7}}} = tmux_pane:wait_exit(Pane, #{deadline_ms => 5000})
+    end).
+
+wait_for_pty_close(Fixture, Id, Remaining) when Remaining > 0 ->
+    % A fresh pane has no pipe. With no command, tmux only checks the pane.
+    case tmux_test_fixture:command(Fixture, [<<"pipe-pane">>, <<"-t">>, Id]) of
+        {ok, #{exit_status := 1, stderr := <<"target pane has exited\n">>}} -> ok;
+        {ok, #{exit_status := 0}} -> wait_for_pty_close(Fixture, Id, Remaining - 1);
+        Other -> ct:fail({pty_close_probe_failed, Other})
+    end;
+wait_for_pty_close(_, _, 0) -> ct:fail(pty_still_open).
 
 killed_by_signal(Config) ->
     with_window(Config, true, fun(_Server, Window, Fixture) ->
