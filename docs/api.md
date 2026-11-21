@@ -1,5 +1,8 @@
 # Build and browse the native API
 
+The released API is on [HexDocs](https://libtmux-erlang.hexdocs.pm/readme.html).
+To read the API for your checkout, build it with ExDoc.
+
 Contracts live in Erlang `-moduledoc`, `-doc` and specs. ExDoc renders them
 from the compiler's EEP-48 chunks as searchable module, function and type
 pages.
@@ -28,7 +31,6 @@ $ mise exec -- escript scripts/docs/build_docs.erl
 
 Open `_build/docs/core/index.html`.
 
-- This is a local build, not a published HexDocs page.
 - The build refreshes compiled modules first, and warnings fail it.
 - It uses the OTP 29 build of ExDoc. It reads compiler chunks directly because
   the older EDoc source path rejects native-record attributes.

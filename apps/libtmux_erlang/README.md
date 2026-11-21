@@ -13,6 +13,7 @@
 
 <p>
   <a href="https://hex.pm/packages/libtmux_erlang">Hex.pm</a> ·
+  <a href="https://libtmux-erlang.hexdocs.pm/readme.html">HexDocs</a> ·
   <a href="https://libtmux.org/en/erlang/">Documentation</a> ·
   <a href="https://libtmux.org/en/erlang/latest/reference/">API reference</a> ·
   <a href="https://github.com/libtmux/libtmux-erlang/tree/master/examples">Examples</a>
@@ -30,6 +31,7 @@ Drive tmux from Erlang: create [sessions][tmux-session],
 [object graph][tmux-snapshot] as immutable data, filter it, ask tmux again.
 
 [Install](#install) ·
+[Start a private server](../../docs/first-task.md) ·
 [Inspect a captured graph](#inspect-a-captured-graph) ·
 [Server API][tmux-server] ·
 [Support](#support-and-status) ·
@@ -54,7 +56,9 @@ Add the published application to `rebar.config`:
 Commit `rebar.lock` and add `libtmux_erlang` to your application's
 `applications` list.
 
-More: [installation guide](../../docs/installation.md).
+[Start a private server and count its panes](../../docs/first-task.md) in a
+fresh Rebar3 project, or
+[inspect an existing socket](../../docs/installation.md#inspect-an-existing-server).
 
 ## Inspect a captured graph
 

@@ -168,8 +168,8 @@ tasks first, each API linked, an example under it.
   `-module`, `-export` and `-import_record` lines. An example sets up and
   cleans up through the library, such as `tmux_server:with_owned/2`, never with
   shell `tmux` commands.
-- **Links:** every link resolves. Link files, not directories, in guides. Do
-  not link HexDocs, which is not published.
+- Link the published package and its HexDocs in each README. Link guides to
+  the file or heading the reader needs.
 
 ## Erlang documentation
 

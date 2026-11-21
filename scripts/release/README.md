@@ -42,6 +42,13 @@ reads its output (`version`, `head`, `sha256`, `published`) from
 push event and checks no tag on any other event. Only HTTP 404 means a version
 is unpublished; any other registry answer or a different payload fails.
 
+After the public install check, the workflow requires HTTP 200 on the
+versioned HexDocs README. Run the same read-only check with a published version.
+
+```console
+$ escript scripts/release/check_release.erl --hexdocs 0.0.1
+```
+
 Compile the library first, then run from the repository root:
 
 ```console

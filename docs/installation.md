@@ -105,9 +105,8 @@ $ rebar3 shell \
 - The helper builds from its packaged C source. Installation fails if that
   build fails. Nothing is downloaded at runtime.
 - The helper's original license is kept apart from the project's MIT license.
-- Hex serves the core. HexDocs is not published. The
-  [API reference](https://libtmux.org/en/erlang/latest/reference/) lives on the
-  [shared documentation site](https://libtmux.org/en/erlang/), and
-  [API docs](api.md) describe the local build.
+- [HexDocs](https://libtmux-erlang.hexdocs.pm/readme.html) pairs the guides
+  and native API with published releases. [Build the API browser](api.md) to
+  read the docs for your checkout.
 
 [Compatibility](compatibility.md) lists the tested cells and the open gaps.

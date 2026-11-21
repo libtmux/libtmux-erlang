@@ -157,12 +157,14 @@ exercise_consumer(Root, Temp, InstalledEbin, Options) ->
         false -> none
     end,
     ok = stage_consumer(Root, Temp),
-    Env = (consumer_env(Temp, tmux_executable()))#{
+    Tmux = tmux_executable(),
+    Env = (consumer_env(Temp, Tmux))#{
         <<"LIBTMUX_ENDPOINT_TMUX_LOG">> => bin(filename:join(Root, "_build/tmux-log"))},
+    Quickstart = quickstart(Root, Temp, InstalledEbin, Tmux, Env),
     Run = fun({Kind, Command}) ->
         run_command(Root, Temp, Command, #{env => Env, json => Kind =:= json})
     end,
-    Commands = lists:map(Run, consumer_commands(Temp, InstalledEbin)),
+    Commands = [Quickstart | lists:map(Run, consumer_commands(Temp, InstalledEbin))],
     case Plt of
         none -> Commands;
         _ ->
@@ -177,6 +179,7 @@ relative to the repository root and the consumer directory.
 -spec consumer_files() -> [{string(), string()}].
 consumer_files() ->
     [{"examples/native_consumer.erl", "native_consumer.erl"},
+     {"examples/quickstart.erl", "quickstart.erl"},
      {"test/tmux_test_fixture.erl", "tmux_test_fixture.erl"},
      {"tools/run_examples.escript", "tools/run_examples.escript"},
      {"test/tmux_test_fixture.erl", "test/tmux_test_fixture.erl"}]
@@ -184,7 +187,7 @@ consumer_files() ->
     ++ [{"examples/terminal_job.erl", "examples/terminal_job.erl"}].
 
 demos() ->
-    ["filter_demo", "inspect_demo", "readme_demo", "linked_graph", "job_demo",
+    ["quickstart", "filter_demo", "inspect_demo", "readme_demo", "linked_graph", "job_demo",
      "options_demo", "buffer_demo", "pane_demo", "config_demo", "pipe_demo", "hook_demo",
      "key_demo", "command_demo", "control_demo", "plan_demo", "batch_demo", "typing_demo"].
 
@@ -201,6 +204,22 @@ stage_consumer(Root, Temp) ->
         copy(filename:join(Root, Source), filename:join(Temp, Destination))
     end, consumer_files()),
     ok = file:write_file(filename:join([Temp, "legacy", "tmux_model.erl"]), legacy_model()).
+
+quickstart(Root, Temp, InstalledEbin, Tmux, Env) ->
+    % The documented example finds tmux on PATH. Keep the matrix binary there.
+    Bin = filename:join(Temp, "bin"),
+    ok = file:make_dir(Bin),
+    ok = file:make_symlink(Tmux, filename:join(Bin, "tmux")),
+    Path = bin([Bin, $:, os:getenv("PATH", "")]),
+    Eval = "{ok, quickstart} = c:c(\"quickstart.erl\"),\n"
+           "        quickstart:main(), halt().",
+    Command = ["erl", "-noshell", "-pa", relative(InstalledEbin, Temp), "-eval", Eval],
+    #{output := Output} = Receipt =
+        run_command(Root, Temp, Command, #{env => Env#{<<"PATH">> => Path}, json => true}),
+    case Output =:= #{<<"panes">> => 1} of
+        true -> Receipt#{owned_cleanup => complete};
+        false -> fail("quickstart: expected one pane, got ~p", [Output])
+    end.
 
 stage_type_consumer(Root, Temp) ->
     TypeSources = filename:join(Temp, "type-consumer"),

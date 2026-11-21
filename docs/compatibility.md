@@ -1,5 +1,8 @@
 # Support and remaining gaps
 
+Get the released core on [Hex](https://hex.pm/packages/libtmux_erlang) and
+its API documentation on [HexDocs](https://libtmux-erlang.hexdocs.pm/readme.html).
+
 - **tmux:** 3.3a is the floor. Tested: 3.3a through 3.8, including
   intermediate releases, on Linux x86_64 and arm64.
 - **Erlang/OTP:** 29 only. The application refuses to start on another release,
@@ -100,8 +103,6 @@ Storing rows:
 - Complete performance qualification.
 - Typed command coverage, a generated capability inventory, public cross-port
   filter conformance and independent implementation reviews.
-- The core is on [Hex](https://hex.pm/packages/libtmux_erlang). HexDocs is not
-  published.
 
 ## Source installation
 
