@@ -17,9 +17,7 @@ when every command passed.
 run the same commands against a Hex source installation.
 """.
 -mode(compile).
--include_lib("kernel/include/file.hrl").
--export([main/1, assemble_archive/3, archive_members/2, extract_archive/2,
-         exercise_consumer/4, stage_consumer/2, consumer_files/0, consumer_commands/2,
+-export([main/1, exercise_consumer/4, stage_consumer/2, consumer_files/0, consumer_commands/2,
          dialyzer_commands/3, consumer_env/2, base_env/0, rebar_env/2, rebar_dirs/2,
          select_tmux/2, run_command/4, execute/3, receipt/3, run_script/1, write_json/2,
          encode_json/1, fail/2, bin/1, printable/1, round6/1, delete_file/1]).
@@ -77,9 +75,9 @@ run(Root, Options) ->
     ok = filelib:ensure_path(ArtifactDir),
     ReceiptFile = filename:join(ArtifactDir, "receipt.json"),
     ok = delete_file(ReceiptFile),
-    {Archive, Prefix} = assemble_archive(Root, ?APP, ArtifactDir),
+    {Archive, Prefix} = package_archive:assemble(Root, ?APP, ArtifactDir),
     {Commands, Temp} = script_util:with_tmp_dir("tmux-erlang-consumer", fun(Temp) ->
-        ok = extract_archive(Archive, Temp),
+        ok = package_archive:extract(Archive, Temp),
         Ebin = filename:join([Temp, Prefix, "ebin"]),
         {exercise_consumer(Root, Temp, Ebin, Options), Temp}
     end),
@@ -88,60 +86,6 @@ run(Root, Options) ->
     Receipt = receipt(script_util:sha256_hex({file, Archive}), Commands, round6(Seconds)),
     io:put_chars(write_json(ReceiptFile, Receipt)),
     0.
-
--doc """
-Assemble `App` from its compiled build output as a gzip-compressed tar archive in
-`ArtifactDir` and return its path and the top-level directory name. The bytes
-depend only on the input files and their executable bits.
-""".
--spec assemble_archive(file:filename(), string(), file:filename()) ->
-    {file:filename(), string()}.
-assemble_archive(Root, App, ArtifactDir) ->
-    Members = archive_members(Root, App),
-    Prefix = App ++ "-0.0.0+development",
-    Archive = filename:join(ArtifactDir, App ++ "-otp.tar.gz"),
-    Tar = script_util:with_tmp_dir("package-archive", fun(Directory) ->
-        Path = filename:join(Directory, "archive.tar"),
-        {ok, Descriptor} = erl_tar:open(Path, [write]),
-        Fixed = [{atime, 0}, {mtime, 0}, {ctime, 0}, {uid, 0}, {gid, 0}],
-        lists:foreach(fun({Name, Source, Mode}) ->
-            ok = erl_tar:add(Descriptor, {Prefix ++ "/" ++ Name, read(Source)},
-                             [{mode, Mode} | Fixed])
-        end, Members),
-        ok = erl_tar:close(Descriptor),
-        read(Path)
-    end),
-    ok = file:write_file(Archive, zlib:gzip(Tar)),
-    {Archive, Prefix}.
-
--doc """
-List the archive members as `{NameInArchive, SourcePath, Mode}`: the compiled
-`ebin` files, `LICENSE`, `CHANGELOG.md` and everything under `priv`. Fails when
-the application is not compiled.
-""".
--spec archive_members(file:filename(), string()) ->
-    [{string(), file:filename(), 8#644 | 8#755}].
-archive_members(Root, App) ->
-    Application = filename:join([Root, "_build", "default", "lib", App]),
-    Ebin = filename:join(Application, "ebin"),
-    Beams = [Name || Name <- list_sorted(Ebin), filelib:is_regular(filename:join(Ebin, Name))],
-    case Beams =/= [] andalso filelib:is_regular(filename:join(Ebin, App ++ ".app")) of
-        true -> ok;
-        false -> fail("Run mise exec -- rebar3 compile first", [])
-    end,
-    Compiled = [{"ebin/" ++ Name, filename:join(Ebin, Name)} || Name <- Beams],
-    Texts = [{Name, filename:join([Root, "apps", App, Name])}
-             || Name <- ["LICENSE", "CHANGELOG.md"]],
-    Priv = [{filename:join(["priv" | Relative]), Path}
-            || {Relative, Path} <- walk(filename:join(Application, "priv"), [])],
-    [{Name, Path, mode(Path)} || {Name, Path} <- Compiled ++ Texts ++ Priv].
-
--spec extract_archive(file:filename(), file:filename()) -> ok.
-extract_archive(Archive, Directory) ->
-    case erl_tar:extract(Archive, [compressed, {cwd, Directory}]) of
-        ok -> ok;
-        {error, Reason} -> fail("cannot unpack ~ts: ~p", [Archive, Reason])
-    end.
 
 -doc """
 Run the installed public consumers against the application in `InstalledEbin`.
@@ -517,37 +461,10 @@ delete_file(Path) ->
         Done when Done =:= ok; Done =:= {error, enoent} -> ok
     end.
 
-read(Path) ->
-    case file:read_file(Path) of
-        {ok, Data} -> Data;
-        {error, Reason} -> fail("cannot read ~ts: ~p", [Path, Reason])
-    end.
-
 copy(Source, Destination) ->
     case file:copy(Source, Destination) of
         {ok, _} -> ok;
         {error, Reason} -> fail("cannot copy ~ts: ~p", [Source, Reason])
-    end.
-
-list_sorted(Directory) ->
-    case file:list_dir(Directory) of
-        {ok, Names} -> lists:sort(Names);
-        {error, _} -> []
-    end.
-
-walk(Directory, Relative) ->
-    lists:flatmap(fun(Name) ->
-        Path = filename:join(Directory, Name),
-        case file:read_link_info(Path) of
-            {ok, #file_info{type = directory}} -> walk(Path, Relative ++ [Name]);
-            _ -> [{Relative ++ [Name], Path} || filelib:is_regular(Path)]
-        end
-    end, list_sorted(Directory)).
-
-mode(Path) ->
-    case file:read_file_info(Path) of
-        {ok, #file_info{mode = Mode}} when Mode band 8#100 =/= 0 -> 8#755;
-        _ -> 8#644
     end.
 
 relative(Path, Base) ->

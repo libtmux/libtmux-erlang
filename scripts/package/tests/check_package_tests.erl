@@ -11,7 +11,7 @@
 
 archive_lists_members_in_order_test() ->
     with_root(fun(Root, _Temp) ->
-        Names = [Name || {Name, _, _} <- check_package:archive_members(Root, ?APP)],
+        Names = [Name || {Name, _, _} <- package_archive:members(Root, ?APP)],
         ?assertEqual(["ebin/libtmux_erlang.app", "ebin/tmux_a.beam", "LICENSE",
                       "CHANGELOG.md", "priv/owned_io.LICENSE", "priv/tmux_owned_io"], Names)
     end).
@@ -22,7 +22,7 @@ archive_orders_nested_priv_files_by_path_component_test() ->
         ok = filelib:ensure_path(filename:join(Priv, "sub")),
         ok = file:write_file(filename:join([Priv, "sub", "x"]), <<"x">>),
         ok = file:write_file(filename:join(Priv, "sub.txt"), <<"t">>),
-        Names = [Name || {Name, _, _} <- check_package:archive_members(Root, ?APP)],
+        Names = [Name || {Name, _, _} <- package_archive:members(Root, ?APP)],
         ?assertEqual(["priv/owned_io.LICENSE", "priv/sub/x", "priv/sub.txt",
                       "priv/tmux_owned_io"], lists:nthtail(4, Names))
     end).
@@ -55,7 +55,7 @@ archive_keeps_the_executable_bit_test() ->
         {Archive, Prefix} = assemble(Root, Temp, "archive"),
         Out = filename:join(Temp, "out"),
         ok = file:make_dir(Out),
-        ok = check_package:extract_archive(Archive, Out),
+        ok = package_archive:extract(Archive, Out),
         Mode = fun(Name) ->
             {ok, #file_info{mode = M}} = file:read_file_info(filename:join([Out, Prefix, Name])),
             M band 8#777
@@ -297,7 +297,7 @@ with_env(Names, Fun) ->
 assemble(Root, Temp, Name) ->
     Directory = filename:join(Temp, Name),
     ok = file:make_dir(Directory),
-    check_package:assemble_archive(Root, ?APP, Directory).
+    package_archive:assemble(Root, ?APP, Directory).
 
 source(Root, Name) ->
     filename:join([Root, "apps", ?APP, Name]).
