@@ -40,6 +40,19 @@ geometry_validation_before_dispatch_test() ->
     end, [<<>>, <<"a">>, <<"-n">>, <<"t">>, <<"tiled;">>,
           <<"tiled; kill-server;">>, <<"not-a-layout">>, <<"1234,">>]).
 
+window_resize_validation_before_dispatch_test() ->
+    ?assertMatch({error, #{code := empty_resize}}, tmux_window:resize(invalid_row, #{})),
+    ?assertMatch({error, #{code := invalid_options, path := []}},
+        tmux_window:resize(invalid_row, [])),
+    ?assertMatch({error, #{code := unknown_option, path := [zoom]}},
+        tmux_window:resize(invalid_row, #{zoom => true})),
+    lists:foreach(fun(Value) ->
+        ?assertMatch({error, #{code := invalid_option, path := [width]}},
+            tmux_window:resize(invalid_row, #{width => Value})),
+        ?assertMatch({error, #{code := invalid_option, path := [height]}},
+            tmux_window:resize_command(invalid_row, #{height => Value}))
+    end, [0, -1, 10001, 65535, 1.5, <<"80">>, true, undefined]).
+
 link_validation_before_dispatch_test() ->
     ?assertMatch({error, #{code := missing_option, path := [index]}},
         tmux_window_link:link(invalid_row, invalid_row, #{})),

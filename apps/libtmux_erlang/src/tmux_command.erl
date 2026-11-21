@@ -45,7 +45,8 @@ Submit commands through `tmux_server:command/3` or `tmux_operation:start/3`.
 `sequence/1` combines flat command values for one-shot execution with combined
 output and a possible completed prefix on error.
 The [job guide](jobs.md) shows submission, completion and cancellation.
-`tmux_session:rename_command/2` and `tmux_pane:resize_command/2` build values
+`tmux_session:rename_command/2`, `tmux_pane:resize_command/2` and
+`tmux_window:resize_command/2` build values
 bound to their row's captured origin. Execution through another endpoint
 returns different_owner before native work. Construction does not validate
 endpoint liveness or authorize an automatic mutation retry.
@@ -86,7 +87,7 @@ Domain builders retain a captured endpoint origin; raw values are unbound.
 """.
 -opaque t() :: {tmux_command, binary(), [binary()]}
              | {tmux_command, binary(), [binary()],
-                #{origin := reference(), kind := session_rename | pane_resize}}
+                #{origin := reference(), kind := session_rename | pane_resize | window_resize}}
              | {tmux_sequence, nonempty_list(t())}.
 
 -doc """
@@ -261,13 +262,14 @@ validate({tmux_command, Name, Arguments, #{origin := Origin, kind := Kind} = Met
 validate(_) -> {error, #{code => invalid_command}}.
 
 -doc false.
--spec generated(session_rename | pane_resize, reference(), [binary()]) ->
+-spec generated(session_rename | pane_resize | window_resize, reference(), [binary()]) ->
     {ok, t()} | {error, map()}.
 generated(Kind, Origin, Arguments) when is_reference(Origin) ->
     maybe
         {ok, Name} ?= case Kind of
             session_rename -> {ok, <<"rename-session">>};
             pane_resize -> {ok, <<"resize-pane">>};
+            window_resize -> {ok, <<"resize-window">>};
             _ -> {error, #{code => invalid_command}}
         end,
         {ok, {tmux_command, Name, Words}} ?= raw(Name, Arguments),
@@ -279,7 +281,7 @@ generated(_, _, _) -> {error, #{code => invalid_command}}.
 %% shapes require separate qualification before a control dispatcher admits it.
 -doc false.
 -spec provenance(t()) -> none |
-    #{origin := reference(), kind := session_rename | pane_resize | sequence}.
+    #{origin := reference(), kind := session_rename | pane_resize | window_resize | sequence}.
 provenance({tmux_command, _, _}) -> none;
 provenance({tmux_command, _, _, Metadata}) -> Metadata;
 provenance({tmux_sequence, Commands}) ->

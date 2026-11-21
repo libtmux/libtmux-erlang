@@ -30,11 +30,13 @@ windows of a captured graph.
 
 `create/2`, `get/2`, `t:create_options/0` and `tmux_snapshot:windows/1`
 
-**Renaming and arranging.** `rename/2` sets a literal name. `select_layout/2`
+**Renaming and arranging.** `rename/2` sets a literal name. `resize/2` sets an
+absolute width, height or both before arranging panes. `select_layout/2`
 applies a built-in arrangement or restores a serialized layout, and unzooms the
 window. To add a pane, use `tmux_pane:split/2`.
 
-`rename/2`, `select_layout/2`, `t:layout/0` and `tmux_pane:split/2`
+`rename/2`, `resize/2`, `resize_command/2`, `t:resize_options/0`,
+`select_layout/2`, `t:layout/0` and `tmux_pane:split/2`
 
 **Restarting and removing.** `respawn/2` rebuilds the window around its first
 pane, which keeps its ID, and a running pane needs `force`. `kill/1` destroys
@@ -43,15 +45,19 @@ session's membership instead.
 
 `respawn/2`, `t:respawn_options/0`, `kill/1` and `tmux_window_link:unlink/2`
 """.
--export([create/2, get/2, rename/2, kill/1, respawn/2, select_layout/2]).
+-export([create/2, get/2, rename/2, kill/1, respawn/2, select_layout/2,
+         resize/2, resize_command/2]).
 
--export_type([create_options/0, respawn_options/0, layout/0]).
+-export_type([create_options/0, respawn_options/0, resize_options/0, layout/0]).
 -doc "Physical-window creation options; defaults to a detached window at the next free session index.".
 -type create_options() :: #{name => binary(), cwd => binary(), env => #{binary() => binary()},
     launch => tmux_command:launch_spec(), detach => boolean()}.
 -doc "Physical-window respawn options. Defaults: force false, launch previous, saved cwd. A forced respawn removes other panes.".
 -type respawn_options() :: #{force => boolean(), launch => tmux_command:respawn_spec(),
                              cwd => binary(), env => #{binary() => binary()}}.
+-doc "Absolute window dimensions in cells. Supply at least one; omitted dimensions retain their current value at execution.".
+-type resize_options() :: #{width := 1..10000, height => 1..10000} |
+                          #{width => 1..10000, height := 1..10000}.
 -doc "A built-in arrangement, its exact binary name, or a serialized layout. Native JSON v2 requires tmux 3.8.".
 -type layout() :: even_horizontal | even_vertical | main_horizontal | main_vertical |
                   tiled | binary().
@@ -124,6 +130,48 @@ respawn(Window, Options) ->
         {ok, Server, Target} ?= tmux_target:resolve(window, Window),
         tmux_target:run(Server, <<"respawn-window">>,
             Flags ++ [<<"-t">>, Target, <<"--">> | Launch])
+    end.
+
+-doc """
+Set an absolute width, height or both on this registered physical window.
+Dimensions are integers from 1 through 10000 cells. An omitted dimension keeps
+its current value at execution. tmux switches window-size to manual, so later
+client-size changes do not automatically resize the window. All session links
+share the change. Native layout constraints can clamp the requested size.
+
+Performs I/O after validation and returns the command result. Captured rows
+remain unchanged; use `get/2` or a fresh snapshot to read the actual geometry.
+
+An empty request is rejected before dispatch:
+
+```erlang
+1> tmux_window:resize(invalid_row, #{}).
+{error,#{code => empty_resize}}
+```
+""".
+-spec resize(tmux_model:window(), resize_options()) ->
+    {ok, tmux_operation:completed()} | {error, tmux_operation:failure()}.
+resize(Window, Options) ->
+    maybe
+        {ok, Command} ?= resize_command(Window, Options),
+        tmux_target:execute(Command)
+    end.
+
+-doc """
+Build the resize command without tmux I/O, preserving the row's captured origin
+and physical window ID. Uses `resize/2` validation. Execution checks endpoint
+liveness and native layout constraints. Submit through `tmux_server:command/3`
+or `tmux_operation:start/3`.
+""".
+-spec resize_command(tmux_model:window(), resize_options()) ->
+    {ok, tmux_command:t()} | {error, map()}.
+resize_command(Window, Options) ->
+    maybe
+        {ok, Flags} ?= tmux_args:options(Options,
+            [{width, window_dimension, <<"-x">>}, {height, window_dimension, <<"-y">>}]),
+        ok ?= case Flags of [] -> {error, #{code => empty_resize}}; _ -> ok end,
+        {ok, Origin, Target} ?= tmux_target:captured_target(window, Window),
+        tmux_command:generated(window_resize, Origin, Flags ++ [<<"-t">>, Target])
     end.
 
 -doc """

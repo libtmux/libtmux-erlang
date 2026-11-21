@@ -2,11 +2,11 @@
 -compile(nowarn_missing_spec).
 -export([all/0, init_per_suite/1, end_per_suite/1, creation_and_identity/1,
          launch_and_input/1, capture_bytes/1, linked_snapshot/1, snapshot_limits/1,
-         geometry/1, membership_actions/1, respawn/1, observed_identity/1]).
+         geometry/1, window_geometry/1, membership_actions/1, respawn/1, observed_identity/1]).
 
 %% Outer: public domain calls, literal values, explicit binding and owned teardown.
 all() -> [creation_and_identity, launch_and_input, capture_bytes,
-          linked_snapshot, snapshot_limits, geometry, membership_actions, respawn,
+          linked_snapshot, snapshot_limits, geometry, window_geometry, membership_actions, respawn,
           observed_identity].
 
 init_per_suite(Config) ->
@@ -205,6 +205,64 @@ geometry(Config) ->
         {ok, _} = tmux_session:kill(Session),
         {error, #{code := target_gone}} = tmux_pane:resize(Pane, #{width => 30})
     end).
+
+window_geometry(Config) ->
+    Info = with_server(Config, fun(Server, Fixture) ->
+        Launch = #{argv => [<<"/bin/cat">>]},
+        {ok, Session} = tmux_session:create(Server,
+            #{name => <<"window-geometry">>, width => 100, height => 30, launch => Launch}),
+        {ok, Initial} = tmux_server:snapshot(Server),
+        [Window] = tmux_snapshot:windows(Initial),
+        WindowId = tmux_model:get(id, Window),
+        {ok, Command} = tmux_window:resize_command(Window, #{width => 80, height => 24}),
+        {ok, Operation} = tmux_operation:start(Server, Command, #{}),
+        {ok, #{cleanup := complete}} = tmux_operation:await(Operation, 900),
+        {ok, Both} = tmux_window:get(Server, WindowId),
+        {80, 24} = dimensions(Both),
+        {ok, _} = tmux_window:resize(Window, #{width => 110}),
+        {ok, WidthOnly} = tmux_window:get(Server, WindowId),
+        {110, 24} = dimensions(WidthOnly),
+        {ok, _} = tmux_window:resize(Window, #{height => 31}),
+        {ok, HeightOnly} = tmux_window:get(Server, WindowId),
+        {110, 31} = dimensions(HeightOnly),
+        {100, 30} = dimensions(Window),
+        {ok, _} = tmux_pane:split(Window,
+            #{direction => horizontal, launch => Launch}),
+        {ok, _} = tmux_window:select_layout(Window, even_horizontal),
+        {ok, Arranged} = tmux_window:get(Server, WindowId),
+        {110, 31} = dimensions(Arranged),
+        {ok, Keeper} = tmux_window:create(Session, #{launch => Launch}),
+        KeeperId = tmux_model:get(id, Keeper),
+        {ok, KeeperBefore} = tmux_window:get(Server, KeeperId),
+        {ok, BeforeRemoval} = tmux_server:snapshot(Server),
+        lists:foreach(fun(Pane) ->
+            ok = tmux_test_fixture:track_process(Fixture, tmux_model:get(pid, Pane))
+        end, tmux_snapshot:panes(BeforeRemoval)),
+        Trace = trace:session_create(window_resize_validation, self(), []),
+        try
+            1 = trace:function(Trace, {tmux_server, command, 3}, true, [call_count]),
+            {error, #{code := invalid_option}} = tmux_window:resize(Window, #{width => 0}),
+            {error, #{code := invalid_option}} = tmux_window:resize(Window, #{width => 10001}),
+            {error, #{code := unknown_option}} = tmux_window:resize(Window, #{shrink => true}),
+            {error, #{code := wrong_target_kind}} = tmux_window:resize(Session, #{width => 80}),
+            {error, #{code := observation_mismatch}} = tmux_window:resize(
+                Window#tmux_model:window{id = KeeperId}, #{width => 80}),
+            {call_count, 0} = trace:info(Trace, {tmux_server, command, 3}, call_count)
+        after true = trace:session_destroy(Trace)
+        end,
+        {ok, _} = tmux_window:kill(Window),
+        {error, #{code := target_gone}} = tmux_window:resize(Window, #{width => 80}),
+        {ok, KeeperAfter} = tmux_window:get(Server, KeeperId),
+        true = dimensions(KeeperBefore) =:= dimensions(KeeperAfter),
+        ok = tmux_server:close(Server),
+        {error, #{code := stale_reference}} = tmux_window:resize(Keeper, #{height => 20}),
+        tmux_test_fixture:info(Fixture)
+    end),
+    false = filelib:is_dir(maps:get(directory, Info)),
+    ct:log("window resize fixture removed: ~ts; tracked processes: ~p",
+        [maps:get(directory, Info), maps:keys(maps:get(tracked_processes, Info))]).
+
+dimensions(Window) -> {tmux_model:get(width, Window), tmux_model:get(height, Window)}.
 
 membership_actions(Config) ->
     with_server(Config, fun(Server, Fixture) ->

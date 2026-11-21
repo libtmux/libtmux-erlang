@@ -144,3 +144,26 @@ captured_command_builders_test() ->
                  tmux_session:rename_command(Session0, <<"main">>)),
     ?assertMatch({error, #{code := wrong_target_kind}}, tmux_pane:resize_command(Session, #{width => 90})),
     ?assertMatch({error, #{code := empty_resize}}, tmux_pane:resize_command(Pane, #{})).
+
+captured_window_resize_command_test() ->
+    Origin = make_ref(),
+    {ok, Detached} = tmux_model:window(#{id => <<"@9">>}),
+    Window = tmux_model:bind(Detached, Origin, make_ref()),
+    {ok, Resize} = tmux_window:resize_command(Window, #{width => 110, height => 31}),
+    ?assertEqual([<<"resize-window">>, <<"-x">>, <<"110">>, <<"-y">>, <<"31">>,
+                  <<"-t">>, <<"@9">>], tmux_command:argv(Resize)),
+    ?assertEqual(#{origin => Origin, kind => window_resize}, tmux_command:provenance(Resize)),
+    ?assertEqual({ok, Resize}, tmux_command:validate(Resize)),
+    lists:foreach(fun(Dimension) ->
+        {ok, Width} = tmux_window:resize_command(Window, #{width => Dimension}),
+        ?assertEqual([<<"resize-window">>, <<"-x">>, integer_to_binary(Dimension),
+                      <<"-t">>, <<"@9">>], tmux_command:argv(Width)),
+        {ok, Height} = tmux_window:resize_command(Window, #{height => Dimension}),
+        ?assertEqual([<<"resize-window">>, <<"-y">>, integer_to_binary(Dimension),
+                      <<"-t">>, <<"@9">>], tmux_command:argv(Height))
+    end, [1, 10000]),
+    ?assertMatch({error, #{code := detached_reference}},
+        tmux_window:resize_command(Detached, #{width => 80})),
+    {ok, Pane} = tmux_model:pane(#{id => <<"%8">>}),
+    ?assertMatch({error, #{code := wrong_target_kind}},
+        tmux_window:resize_command(Pane, #{width => 80})).

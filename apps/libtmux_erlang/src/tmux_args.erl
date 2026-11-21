@@ -81,6 +81,8 @@ encode(format, Flag, Value) ->
     end;
 encode(dimension, Flag, Value) when is_integer(Value, 1, 65535) ->
     {ok, [Flag, integer_to_binary(Value)]};
+encode(window_dimension, Flag, Value) when is_integer(Value, 1, 10000) ->
+    {ok, [Flag, integer_to_binary(Value)]};
 encode(direction, _, horizontal) -> {ok, [<<"-h">>]};
 encode(direction, _, vertical) -> {ok, [<<"-v">>]};
 encode(pipe_direction, _, output) -> {ok, [<<"-O">>]};
