@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+## 0.0.2
+
+- Run literal argv in a private tmux 3.8 terminal with `tmux_program:run/3`.
+  Collect the application's exit, bounded screen and cleanup receipt. Use
+  `tmux_program:start/3` to send input or stop an interactive run.
+- Set absolute window width and height with `tmux_window:resize/2`.
 - Use `tmux_pane:wait_exit/2` to read a pane's exit status or signal after tmux
   publishes it. Set `remain-on-exit` to retain the pane.
 - Wait for literal screen text on an owned live pane with
