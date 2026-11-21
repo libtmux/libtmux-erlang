@@ -1,19 +1,21 @@
 -module(tmux_test_fixture).
 -compile(nowarn_missing_spec).
 -behaviour(gen_server).
--export([start/1, info/1, command/2, start_command/2, replace/1, close/1, ensure_closed/1,
+-export([start/1, start/2, info/1, command/2, start_command/2, replace/1, close/1, ensure_closed/1,
          process_identity/1, same_process/2, track_process/2, with_server/2, with_server/3,
          with_client/4, client_session/1]).
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2]).
 
 -define(READY_MS, 2500).
+-define(READY_FORMAT, <<"#{pid}\t#{version}">>).
 
 start(Executable) -> start(Executable, #{}).
 
 start(Executable, Options) ->
     Log = maps:get(log_directory, Options, os:getenv("LIBTMUX_TEST_TMUX_LOG")),
+    Session = maps:get(seed_session, Options, none),
     case tmux_test_sandbox:require() of
-        ok -> gen_server:start(?MODULE, {self(), Executable, Log}, []);
+        ok -> gen_server:start(?MODULE, {self(), Executable, Log, Session}, []);
         Error -> Error
     end.
 info(Fixture) -> gen_server:call(Fixture, info, 900).
@@ -149,10 +151,10 @@ client_exit(Port, Deadline, Budget) when Budget > 0 ->
     end;
 client_exit(_, _, _) -> error(client_output_limit).
 
-init({Owner, Executable, Log}) ->
+init({Owner, Executable, Log, Session}) ->
     Monitor = monitor(process, Owner),
     {ok, Directory} = tmux_test_sandbox:fixture_directory(),
-    try create(Executable, Directory, Log) of
+    try create(Executable, Directory, Log, Session) of
         State -> {ok, State#{owner_monitor => Monitor, cleaned => false,
                             tracked_processes => #{}}}
     catch Class:Reason:Stack ->
@@ -163,14 +165,11 @@ init({Owner, Executable, Log}) ->
 %% The client starts the daemon, prints its pid and version, then blocks on a
 %% channel nobody signals. That line proves the server accepted a command, and
 %% closing the channel retires the client, helper and daemon together.
-create(Executable, Directory, Log) ->
+create(Executable, Directory, Log, Session) ->
     Socket = list_to_binary(filename:join(Directory, "s")),
     {Verbose, Where} = verbose_log(Log),
-    Arguments = [<<"-u">> | Verbose] ++ [<<"-S">>, Socket, <<"-f">>, <<"/dev/null">>,
-                 <<"start-server">>, <<";">>,
-                 <<"set-option">>, <<"-s">>, <<"exit-empty">>, <<"off">>, <<";">>,
-                 <<"display-message">>, <<"-p">>, <<"#{pid}\t#{version}">>, <<";">>,
-                 <<"wait-for">>, <<"fixture-lifetime">>],
+    Arguments = [<<"-u">> | Verbose] ++ [<<"-S">>, Socket, <<"-f">>, <<"/dev/null">>]
+        ++ startup(Session) ++ [<<";">>, <<"wait-for">>, <<"fixture-lifetime">>],
     Deadline = erlang:monotonic_time(millisecond) + ?READY_MS,
     {ok, Handle} = tmux_transport:start_channel(Executable, Arguments,
         Where#{startup_timeout_ms => ?READY_MS}),
@@ -178,13 +177,22 @@ create(Executable, Directory, Log) ->
         {ok, #{helper_pid := HelperPid}} = tmux_transport:await_started(Handle, ?READY_MS),
         Pid = server_pid(ready_line(Handle, Deadline, <<>>)),
         #{executable => Executable, socket => Socket, directory => Directory,
-          log_directory => Log,
+          log_directory => Log, seed_session => Session,
           transport => Handle, server_pid => Pid, server_identity => process_identity(Pid),
           helper_pid => HelperPid, helper_identity => process_identity(HelperPid)}
     catch Class:Reason:Stack ->
         _ = tmux_transport:close(Handle),
         erlang:raise(Class, Reason, Stack)
     end.
+
+startup(none) ->
+    [<<"start-server">>, <<";">>,
+     <<"set-option">>, <<"-s">>, <<"exit-empty">>, <<"off">>, <<";">>,
+     <<"display-message">>, <<"-p">>, ?READY_FORMAT];
+startup(Session) ->
+    %% Old tmux releases need a session target to print a format.
+    [<<"new-session">>, <<"-d">>, <<"-s">>, Session, <<"/bin/cat">>, <<";">>,
+     <<"display-message">>, <<"-p">>, <<"-t">>, Session, ?READY_FORMAT].
 
 %% LIBTMUX_TEST_TMUX_LOG names a directory that receives tmux's -vv client and
 %% server logs, which CI keeps when a job fails.
@@ -217,13 +225,13 @@ server_pid(Line) ->
 
 handle_call(info, _From, State) -> {reply, maps:without([transport, owner_monitor], State), State};
 handle_call(replace, _From, #{executable := Executable, directory := Directory,
-                            socket := Socket, log_directory := Log} = State) ->
+                            socket := Socket, log_directory := Log, seed_session := Session} = State) ->
     ok = retire(State),
     case file:delete(Socket) of
         ok -> ok;
         {error, enoent} -> ok
     end,
-    try create(Executable, Directory, Log) of
+    try create(Executable, Directory, Log, Session) of
         Replacement ->
             Next = maps:merge(State, Replacement#{tracked_processes => #{}}),
             {reply, ok, Next}

@@ -89,6 +89,69 @@ jobs:
           if-no-files-found: warn
           retention-days: 14
 
+  daemon-floor:
+    name: Refuse tmux ${{ matrix.daemon }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        daemon: ['3.0a', '3.1c', '3.2a', '3.3']
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install the OTP and Rebar3 versions in .tool-versions
+        uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1.24.1
+        with:
+          version-file: .tool-versions
+          version-type: strict
+      - name: Build the older tmux daemon
+        id: daemon
+        uses: libtmux/.github/actions/build-tmux@30f81842b1e639ea4e25f93f1f2543504178e228
+        with:
+          ref: ${{ matrix.daemon }}
+      - name: Keep the daemon executable for the mixed-client test
+        env:
+          BUILT_TMUX: ${{ steps.daemon.outputs.binary }}
+        run: install -D -m 0755 "$BUILT_TMUX" "$RUNNER_TEMP/erlang-floor-daemon/tmux"
+      - name: Build the 3.3a client
+        id: client
+        uses: libtmux/.github/actions/build-tmux@30f81842b1e639ea4e25f93f1f2543504178e228
+        with:
+          ref: '3.3a'
+      - name: Print the tmux binary checksums
+        env:
+          BUILT_CLIENT: ${{ steps.client.outputs.binary }}
+        run: sha256sum "$RUNNER_TEMP/erlang-floor-daemon/tmux" "$BUILT_CLIENT"
+      - name: Compile the private fixture
+        run: rebar3 as test compile
+      - name: Check refusal and unchanged daemon state
+        env:
+          BUILT_CLIENT: ${{ steps.client.outputs.binary }}
+          DAEMON_RELEASE: ${{ matrix.daemon }}
+        run: >-
+          escript test/check_daemon_floor.erl
+          "$RUNNER_TEMP/erlang-floor-daemon/tmux"
+          "$BUILT_CLIENT" "$DAEMON_RELEASE" 3.3a
+      - name: Check refusal with a matching older client
+        if: matrix.daemon == '3.2a' || matrix.daemon == '3.3'
+        env:
+          DAEMON_RELEASE: ${{ matrix.daemon }}
+        run: >-
+          escript test/check_daemon_floor.erl
+          "$RUNNER_TEMP/erlang-floor-daemon/tmux"
+          "$RUNNER_TEMP/erlang-floor-daemon/tmux"
+          "$DAEMON_RELEASE" "$DAEMON_RELEASE"
+      - name: Preserve the refusal receipts
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: daemon-floor-${{ matrix.daemon }}
+          path: _build/checks/daemon-floor-*.json
+          if-no-files-found: warn
+          retention-days: 14
+
   native-helper:
     name: Native helper sanitizers / ${{ matrix.runner }}
     runs-on: ${{ matrix.runner }}

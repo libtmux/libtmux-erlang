@@ -38,3 +38,11 @@ Run its tests with:
 ```console
 $ rebar3 eunit --module=check_tests
 ```
+
+## Older tmux daemons
+
+The daemon floor jobs use the [test-profile checker](../../test/check_daemon_floor.erl)
+with a 3.3a client against private tmux 3.0a, 3.1c, 3.2a and 3.3 servers. The
+last two also use matching clients to check the client floor. The receipts
+record refusal, unchanged sessions, clients and pane process identity, and
+verified fixture cleanup.
