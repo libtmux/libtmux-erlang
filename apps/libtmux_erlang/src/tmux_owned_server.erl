@@ -2,33 +2,49 @@
 -moduledoc false.
 -behaviour(gen_server).
 -include_lib("kernel/include/file.hrl").
--export([start/1, stop/1, prepare_stop/0, start_link/3, init/1, handle_continue/2,
+-export([start/1, open/2, await_ready/2, stop/1, send_request/2, prepare_stop/0,
+         start_link/3, init/1, handle_continue/2,
          handle_call/3, handle_cast/2, handle_info/2, terminate/2, format_status/1]).
 
 -spec start(map()) -> {ok, tmux_server:t(), tmux_server:ownership()} | {error, map()}.
 start(Options) ->
     maybe
+        {ok, Handle, StartupTimeout} ?= open(Options, make_ref()),
+        await_ready(Handle, StartupTimeout + 1100)
+    end.
+
+-spec open(map(), term()) -> {ok, tmux_server:ownership(), pos_integer()} | {error, map()}.
+open(Options, ChildId) ->
+    maybe
         {ok, Config} ?= options(Options),
         {ok, _} ?= application:ensure_all_started(libtmux_erlang),
         Token = make_ref(),
-        Child = #{id => Token, start => {?MODULE, start_link, [self(), Token, Config]},
+        Child = #{id => ChildId, start => {?MODULE, start_link, [self(), Token, Config]},
                   restart => temporary, shutdown => 1000},
         case supervisor:start_child(tmux_sup, Child) of
             {ok, Pid} ->
-                Handle = {owned_server, Pid, Token},
-                case request(Handle, ready, maps:get(startup_timeout_ms, Config) + 1100) of
-                    {error, #{code := await_timeout}} ->
-                        gen_server:cast(Pid, {Token, abort}),
-                        {error, #{code => startup_timeout, cleanup => incomplete,
-                                  ownership => Handle, resources => unverified}};
-                    Result -> Result
-                end;
+                {ok, {owned_server, Pid, Token}, maps:get(startup_timeout_ms, Config)};
             {error, _} -> {error, #{code => owned_server_unavailable}}
         end
     end.
 
+-spec await_ready(tmux_server:ownership(), non_neg_integer()) ->
+    {ok, tmux_server:t(), tmux_server:ownership()} | {error, map()}.
+await_ready({owned_server, Pid, Token} = Handle, Timeout) ->
+    case request(Handle, ready, Timeout) of
+        {error, #{code := await_timeout}} ->
+            gen_server:cast(Pid, {Token, abort}),
+            {error, #{code => startup_timeout, cleanup => incomplete,
+                      ownership => Handle, resources => unverified}};
+        Result -> Result
+    end.
+
 -spec stop(tmux_server:ownership()) -> ok | {error, map()}.
 stop(Handle) -> request(Handle, stop, 1000).
+
+-spec send_request(tmux_server:ownership(), stop | retired) -> gen_server:request_id().
+send_request({owned_server, Pid, Token}, Kind) when Kind =:= stop; Kind =:= retired ->
+    gen_server:send_request(Pid, {Token, Kind, make_ref()}).
 
 request({owned_server, Pid, Token}, Kind, Timeout) when is_pid(Pid), is_reference(Token) ->
     Tag = make_ref(),
@@ -90,6 +106,13 @@ handle_call({Token, ready, _}, _, #{token := Token, ready_result := Result} = St
     {reply, Result, State};
 handle_call({Token, stop, Tag}, From, #{token := Token} = State) ->
     stop_call(Tag, From, State);
+handle_call({Token, retired, _}, _, #{token := Token, phase := stopped} = State) ->
+    {reply, ok, State};
+handle_call({Token, retired, Tag}, From, #{token := Token, waiters := Waiters} = State) ->
+    case map_size(Waiters) < 16 of
+        true -> {noreply, add_waiter(Tag, retired, From, State)};
+        false -> {reply, {error, #{code => too_many_waiters}}, State}
+    end;
 handle_call(shutdown, From, State) ->
     stop_call(make_ref(), From, State#{handoff_on_incomplete => true});
 handle_call(_, _, State) -> {reply, {error, #{code => invalid_ownership}}, State}.
@@ -360,7 +383,7 @@ advance(#{phase := stopping, channel_retired := true, endpoint_retired := true,
             Result = startup_failure(complete, State),
             Next = reply_kind(stop, ok, State#{phase => stopped, cleanup_timer => none,
                 stop_result => ok, expire_timer => erlang:start_timer(60000, self(), expire)}),
-            maybe_ready(Result, Next);
+            maybe_ready(Result, reply_kind(retired, ok, Next));
         {error, Reason} -> incomplete(State#{cleanup_timer => none,
                                              namespace_failure => Reason})
     end;

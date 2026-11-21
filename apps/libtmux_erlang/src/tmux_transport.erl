@@ -1,8 +1,8 @@
 -module(tmux_transport).
 -moduledoc false.
 -behaviour(gen_server).
--export([run/3, start/3, await/2, await_started/2, cancel/1, close/1, status/1]).
--export([start_channel/3, ack/3, write/2, ack_write/2, close_stdin/1]).
+-export([run/3, start/3, start/4, await/2, await_started/2, cancel/1, close/1, status/1]).
+-export([start_channel/3, start_channel/4, ack/3, write/2, ack_write/2, close_stdin/1]).
 -export([send_request/2, cancel_async/1, close_async/1]).
 -export([start_link/3, init/1, handle_continue/2, handle_call/3, handle_cast/2,
          handle_info/2, terminate/2, format_status/1]).
@@ -25,23 +25,31 @@ run(Executable, Arguments, Options) ->
 
 -spec start(binary(), [binary()], map()) -> {ok, t()} | {error, map()}.
 start(Executable, Arguments, Options) ->
-    start(Executable, Arguments, Options, oneshot).
+    start(Executable, Arguments, Options, make_ref()).
+
+-spec start(binary(), [binary()], map(), term()) -> {ok, t()} | {error, map()}.
+start(Executable, Arguments, Options, ChildId) ->
+    start(Executable, Arguments, Options, oneshot, ChildId).
 
 %% Private lifetime lane: one unacknowledged chunk per stream and one write
 %% completion awaiting consumption. Only the initiating process advances them.
 %% The startup deadline ends at exec acknowledgement, not application readiness.
 %% Callers own their later readiness deadline and public admission boundary.
 -spec start_channel(binary(), [binary()], map()) -> {ok, t()} | {error, map()}.
-start_channel(Executable, Arguments, Options) when is_map(Options) ->
+start_channel(Executable, Arguments, Options) ->
+    start_channel(Executable, Arguments, Options, make_ref()).
+
+-spec start_channel(binary(), [binary()], map(), term()) -> {ok, t()} | {error, map()}.
+start_channel(Executable, Arguments, Options, ChildId) when is_map(Options) ->
     case maps:without([startup_timeout_ms, cwd, env, inherit_env], Options) of
         Empty when map_size(Empty) =:= 0 ->
             Timeout = maps:get(startup_timeout_ms, Options, 900),
             Config = (maps:remove(startup_timeout_ms, Options))#{
                 timeout_ms => Timeout, max_stdout => 8192, max_stderr => 8192},
-            start(Executable, Arguments, Config, channel);
+            start(Executable, Arguments, Config, channel, ChildId);
         _ -> {error, #{code => invalid_argument, outcome => not_started}}
     end;
-start_channel(_, _, _) -> {error, #{code => invalid_argument, outcome => not_started}}.
+start_channel(_, _, _, _) -> {error, #{code => invalid_argument, outcome => not_started}}.
 
 -spec ack(t(), stdout | stderr, pos_integer()) -> ok | {error, map()}.
 ack({transport, _, _, Owner}, _, _) when Owner =/= self() ->
@@ -74,12 +82,12 @@ close_stdin({transport, _, _, Owner}) when Owner =/= self() ->
 close_stdin({transport, _, _, _} = Handle) -> request(Handle, close_stdin, ?CLEANUP_MS);
 close_stdin(_) -> {error, #{code => invalid_argument}}.
 
-start(Executable, Arguments, Options, Mode) ->
+start(Executable, Arguments, Options, Mode, ChildId) ->
     maybe
         {ok, Config} ?= prepare(Executable, Arguments, Options),
         {ok, _} ?= start_application(),
         Token = make_ref(),
-        Child = #{id => Token, start => {?MODULE, start_link, [self(), Token, Config#{mode => Mode}]},
+        Child = #{id => ChildId, start => {?MODULE, start_link, [self(), Token, Config#{mode => Mode}]},
                   restart => temporary, shutdown => 1000},
         case supervisor:start_child(tmux_sup, Child) of
             {ok, Pid} when Mode =:= channel -> {ok, {transport, Pid, Token, self()}};
@@ -104,9 +112,14 @@ close(Handle) ->
 -spec status(t()) -> result().
 status(Handle) -> request(Handle, status, ?CLEANUP_MS).
 
--spec send_request(t(), await | retired | started) -> gen_server:request_id().
+-spec send_request(t(), await | retired | started | close | {ack, stdout | stderr, pos_integer()}) ->
+    gen_server:request_id().
 send_request({transport, Pid, Token}, Kind)
-  when Kind =:= await; Kind =:= retired; Kind =:= started ->
+  when Kind =:= await; Kind =:= retired; Kind =:= started; Kind =:= close ->
+    gen_server:send_request(Pid, {Token, Kind, make_ref()});
+send_request({transport, Pid, Token, Owner}, {ack, Stream, Sequence} = Kind)
+  when Owner =:= self(), (Stream =:= stdout orelse Stream =:= stderr),
+       is_integer(Sequence, 1, 18446744073709551615) ->
     gen_server:send_request(Pid, {Token, Kind, make_ref()});
 send_request({transport, Pid, Token, _}, Kind) ->
     send_request({transport, Pid, Token}, Kind).

@@ -1,27 +1,31 @@
 -module(tmux_admission).
 -moduledoc false.
--export([new/1, reserve/4, deliver/4, claim/4, release/2, expire/1,
+-export([new/1, new/3, reserve/4, deliver/4, claim/4, release/2, expire/1,
          close/1, stats/1, lookup/2]).
 -export_type([t/0]).
 
 -opaque t() :: {admission, ets:tid(), reference()}.
 
 -spec new(reference()) -> t().
-new(Generation) when is_reference(Generation) ->
+new(Generation) -> new(Generation, 64, 262144).
+
+-spec new(reference(), 1..64, pos_integer()) -> t().
+new(Generation, Slots, ByteLimit) when is_reference(Generation),
+    is_integer(Slots, 1, 64), is_integer(ByteLimit, 1, 262144) ->
     Table = ets:new(?MODULE, [public, set, {read_concurrency, true}, {write_concurrency, true}]),
-    Free = [erlang:alias() || _ <- lists:seq(1, 64)],
+    Free = [erlang:alias() || _ <- lists:seq(1, Slots)],
     true = ets:insert(Table, {state, 0, #{generation => Generation, open => true,
-                                       bytes => 0, leases => #{}, free => Free}}),
+                                       byte_limit => ByteLimit, bytes => 0, leases => #{}, free => Free}}),
     {admission, Table, Generation}.
 
 -spec reserve(t(), pid(), non_neg_integer(), integer()) -> {ok, reference()} | {error, map()}.
-reserve(Admission, Owner, Bytes, Deadline)
+reserve({admission, _, _} = Admission, Owner, Bytes, Deadline)
   when is_pid(Owner), node(Owner) =:= node(), is_integer(Bytes, 0, 262144), is_integer(Deadline) ->
     Lease = make_ref(),
     edit(Admission, fun(State) ->
-        #{open := Open, bytes := Used, leases := Leases, free := Free} = State,
+        #{open := Open, byte_limit := Limit, bytes := Used, leases := Leases, free := Free} = State,
         Now = now_ms(),
-        case {Open, Deadline > Now andalso is_process_alive(Owner), Free =/= [] andalso Used + Bytes =< 262144} of
+        case {Open, Deadline > Now andalso is_process_alive(Owner), Free =/= [] andalso Used + Bytes =< Limit} of
             {false, _, _} -> {{error, #{code => server_closed}}, State};
             {_, false, _} -> {{error, #{code => admission_expired}}, State};
             {_, _, false} -> {{error, #{code => busy}}, State};
