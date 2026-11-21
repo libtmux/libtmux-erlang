@@ -218,7 +218,7 @@ run_endpoint(Socket, Executable) ->
             {ok, _} = tmux_pane:send_text(InputPane, <<"archive input">>),
             {ok, _} = tmux_pane:send_keys(
                 InputPane, [enter, {control, <<"d">>}]),
-            CompletedInput = case tmux_pane:wait_exit(InputPane, #{deadline_ms => 5000}) of
+            CompletedInput = case tmux_pane:wait_exit(InputPane, #{deadline_ms => 0}) of
                 {ok, #{exit := {status, 0}, pane := Completed}} -> Completed;
                 {ok, #{exit := Exit}} ->
                     error({unexpected_pane_exit, exit_report(Server, InputPane, Exit)});
