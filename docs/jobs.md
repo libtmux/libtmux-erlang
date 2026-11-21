@@ -1,5 +1,7 @@
 # Wait for a terminal job, then capture its output
 
+See [wait for visible text](#wait-for-visible-text) to observe a running pane.
+
 A successful send does not prove a terminal program processed the input. This
 program runs a job that acknowledges terminal parsing, waits for its exit with
 `tmux_pane:wait_exit/2` and captures the output.
@@ -10,6 +12,8 @@ program runs a job that acknowledges terminal parsing, waits for its exit with
   reading tmux's reply, which tmux sends after parsing the output. It writes
   nothing afterward.
 - The job needs the Erlang/OTP that runs the example, and nothing else.
+- The session and setup window run `cat` while `tmux_pane:split/2` starts the
+  job in a separate pane.
 - An exit is not an output-drain barrier on tmux 3.3. This protocol covers a
   cooperating job. It cannot reconstruct output that scrolled out of history.
 - The program changes two options on its new window only: `remain-on-exit`
@@ -85,20 +89,6 @@ run(Socket, Executable) ->
 - The example cancels the operation, then awaits the result. It reports an
   unknown tmux outcome and complete client cleanup.
 
-## Start a job in a prepared pane
-
-- The program prepares an empty pane with `tmux_pane:split/2` and an empty
-  shell command, then starts the job with `tmux_pane:respawn/2`. Respawn keeps
-  the pane ID.
-- Respawn's launch mode defaults to `previous`, which reuses tmux's saved
-  command. The program passes new argv instead. A running pane needs
-  `force => true`.
-- Judge the result with a job-specific completion condition and fresh
-  observations.
-- With an empty shell command, a new session (any version) or window (before
-  tmux 3.8) can finish at once and vanish. The program uses `/bin/cat` for its
-  session and window to avoid that.
-
 ## Read results
 
 - `await_started/2` returns lifecycle status, including for an operation that
@@ -113,8 +103,8 @@ run(Socket, Executable) ->
 ## Read a pane's exit status
 
 - `exit_status` and `dead` are separate fields.
-- After a normal exit, tmux gives a numeric status. A signal has no number, so
-  the captured value is `none`, which does not mean success.
+- A normal exit has a numeric `exit_status`. A death by signal leaves that
+  field as `none`.
 - `tmux_pane:wait_exit/2` returns `{status, Code}` or `{signal, Signal}`, so a
   death by signal never reads as a missing status. On Linux tmux prints the
   signal as its number.
@@ -140,3 +130,30 @@ run(Socket, Executable) ->
   daemon.
 - Operations use one-shot clients. Persistent control, grouping and stream
   delivery are not built; see [support and gaps](compatibility.md).
+
+## Wait for visible text
+
+`tmux_pane_text:start/3` samples a live pane on a library-owned server before
+it returns. Send input afterward, then call `tmux_pane_text:await/2` to collect
+the matching screen. The [workspace example](../examples/readme_demo.erl) runs
+this sequence against a pane running `cat`.
+
+<!-- example: examples/readme_demo.erl#watch_text -->
+
+```erlang
+        Text = <<"worker ready">>,
+        {ok, Wait} = tmux_pane_text:start(Right, Text, #{deadline_ms => 2500}),
+        {ok, _} = tmux_pane:send_text(Right, Text),
+        {ok, #{screen := Screen}} = tmux_pane_text:await(Wait, 2500),
+        ok = tmux_pane_text:release(Wait),
+        {_, _} = binary:match(Screen, Text),
+```
+
+Use `tmux_pane:wait_for_text/3` to start and await in one call. A match is a
+screen observation. Use `tmux_pane:wait_exit/2` for process completion.
+
+An `await_timeout` leaves the observation running. Cancel with
+`tmux_pane_text:cancel/1` and await its result to confirm cleanup. Release a
+completed handle when you no longer need the result. An expired wait or pane
+respawn ends the observation. Start again from a fresh pane record if the
+application launches a replacement.

@@ -25,6 +25,14 @@ run(Executable) ->
         {ok, Captured} = tmux_select:one(Workers, Windows),
         {ok, Children} = tmux_snapshot:related(panes, Captured, Snapshot),
         % docs:end capture
+        % docs:begin watch_text
+        Text = <<"worker ready">>,
+        {ok, Wait} = tmux_pane_text:start(Right, Text, #{deadline_ms => 2500}),
+        {ok, _} = tmux_pane:send_text(Right, Text),
+        {ok, #{screen := Screen}} = tmux_pane_text:await(Wait, 2500),
+        ok = tmux_pane_text:release(Wait),
+        {_, _} = binary:match(Screen, Text),
+        % docs:end watch_text
         Ids = [Id || #pane{id = Id} <:- Children],
         2 = length(Ids),
         Criteria = #{width => #{gte => 20},

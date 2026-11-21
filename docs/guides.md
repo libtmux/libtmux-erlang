@@ -19,6 +19,7 @@
 - [Prepare and submit command values](commands.md).
 - [Attach a control client](control.md).
 - [Wait for a job and capture its output](jobs.md).
+- [Wait for visible text in a running pane](jobs.md#wait-for-visible-text).
 - [Read and write scoped options](options.md).
 - [Store bytes and paste into a pane](buffers.md).
 - [Rearrange panes](panes.md).
