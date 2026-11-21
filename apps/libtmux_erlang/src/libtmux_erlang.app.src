@@ -1,6 +1,6 @@
 {application, libtmux_erlang, [
     {description, "Erlang tmux client library with native values and explicit operations"},
-    {vsn, "0.0.1"},
+    {vsn, "0.0.2"},
     {licenses, ["MIT"]},
     {links, #{"GitHub" => "https://github.com/libtmux/libtmux-erlang",
               "Documentation" => "https://libtmux.org/en/erlang/",

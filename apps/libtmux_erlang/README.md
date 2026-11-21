@@ -50,7 +50,7 @@ Add the published application to `rebar.config`:
 <!-- erlang-term -->
 
 ```erlang
-{deps, [{libtmux_erlang, "0.0.1"}]}.
+{deps, [{libtmux_erlang, "0.0.2"}]}.
 ```
 
 Commit `rebar.lock` and add `libtmux_erlang` to your application's

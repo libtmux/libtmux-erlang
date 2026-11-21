@@ -58,7 +58,7 @@ Add the core from [Hex](https://hex.pm/packages/libtmux_erlang) to your
 <!-- erlang-term -->
 
 ```erlang
-{deps, [{libtmux_erlang, "0.0.1"}]}.
+{deps, [{libtmux_erlang, "0.0.2"}]}.
 ```
 
 The API is still developing. Pin an exact version and commit `rebar.lock`.
@@ -632,7 +632,7 @@ $ time escript scripts/check/check.erl outer
 [api-with-server]: https://libtmux.org/en/erlang/latest/reference/tmux_server-with_server-2/
 [api-await]: https://libtmux.org/en/erlang/latest/reference/tmux_operation-await-2/
 [api-wait-exit]: https://libtmux.org/en/erlang/latest/reference/tmux_pane-wait_exit-2/
-[api-program-run]: https://libtmux.org/en/erlang/latest/reference/tmux_program-run-3/
+[api-program-run]: https://libtmux-erlang.hexdocs.pm/0.0.2/tmux_program.html#run/3
 [api-explain]: https://libtmux.org/en/erlang/latest/reference/tmux_query-explain-1/
 [api-pushdown]: https://libtmux.org/en/erlang/latest/reference/tmux_query-pushdown-2/
 [api-sequence]: https://libtmux.org/en/erlang/latest/reference/tmux_command-sequence-1/

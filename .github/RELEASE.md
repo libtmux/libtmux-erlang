@@ -1,9 +1,8 @@
 # Publish libtmux_erlang to Hex
 
-The published core is **0.0.1**. This is an early development release:
-the supported one-shot APIs work, while control command submission and
-streaming remain unfinished. Describe later changes under Unreleased in the
-[changelogs](../CHANGELOG.md) until their publication.
+See [Hex](https://hex.pm/packages/libtmux_erlang) for published core versions.
+Describe pending changes under Unreleased in the [root changelog](../CHANGELOG.md)
+and the [core changelog](../apps/libtmux_erlang/CHANGELOG.md).
 
 The [Hex release workflow](workflows/release.yml) publishes the core package
 and its native API documentation when a matching `vVERSION` tag is pushed.
