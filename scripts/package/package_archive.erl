@@ -84,5 +84,6 @@ mode(Path) ->
         _ -> 8#644
     end.
 
+-spec fail(io:format(), [term()]) -> no_return().
 fail(Format, Arguments) ->
     error({check_failed, unicode:characters_to_binary(io_lib:format(Format, Arguments))}).
