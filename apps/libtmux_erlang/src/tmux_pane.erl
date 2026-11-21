@@ -27,13 +27,6 @@ up, down, left, right, home, 'end', insert, delete, page_up, page_down and
 back_tab. Terminal modes still govern how input is consumed; command
 completion does not mean a program processed it.
 
-`capture/2` returns stdout bytes unchanged, including final
-newlines. Options (`t:capture_options/0`) are start and 'end' (line
-integers or all), join_lines, escape_sequences, escape_control,
-retain_trailing_spaces, alternate, pending and quiet. Defaults are tmux's
-current-screen capture without escapes, joined wraps or padding. The
-endpoint's output limit applies; an oversized capture returns an error.
-
 Use `join/3`, `move/3` and `swap/3` to rearrange existing panes without
 respawning their processes. `break/4` takes an explicit source window link:
 breaking a window's only pane moves that membership, while breaking one of
@@ -72,10 +65,9 @@ read the pane afterwards. `tmux_buffer:paste/3` pastes a stored buffer instead.
 
 `send_text/2`, `send_keys/2`, `t:key/0` and `tmux_buffer:paste/3`
 
-**Reading output.** `capture/2` returns the pane's terminal text as bytes,
-keeping the final newline, over the line range you choose. `pipe/3` connects a
-tmux-owned shell process to the pane's live byte stream, and `stop_pipe/1`
-closes that pipe.
+**Reading output.** `capture/2` reads the rendered screen and can include
+retained history. `pipe/3` connects a tmux-owned shell process to the pane's
+live byte stream. `stop_pipe/1` closes that pipe.
 
 - Capture: `capture/2`, `t:capture_options/0` and `t:coordinate/0`
 - Pipe: `pipe/3`, `stop_pipe/1`, `t:pipe_command/0` and `t:pipe_options/0`
@@ -620,10 +612,15 @@ send_keys(Pane, Keys) ->
     end.
 
 -doc """
-Capture terminal bytes, preserving final newlines. Options select line range,
-joined wraps, escapes, alternate screen and padding; defaults follow tmux
-current-screen capture. Performs I/O and returns an explicit output-limit
-error instead of silently truncating.
+Read the current rendered screen as bytes. Set `start => all` to include the
+history tmux still retains. The history limit can discard earlier lines.
+See `t:capture_options/0` for line ranges and rendering options.
+
+Set `pending => true` to read the start of an incomplete escape sequence.
+Those bytes can remain pending after `wait_exit/2` reports an exit.
+
+Capture preserves tmux's output bytes, including the final newline. It returns
+`output_limit` when the capture exceeds the endpoint's byte limit.
 """.
 -spec capture(tmux_model:pane(), capture_options()) -> {ok, binary()} | {error, map()}.
 capture(Pane, Options) ->

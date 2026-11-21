@@ -1,10 +1,10 @@
-# Wait for a terminal job, then capture its output
+# Wait for a terminal job, then read its screen
 
 See [wait for visible text](#wait-for-visible-text) to observe a running pane.
 
 A successful send does not prove a terminal program processed the input. This
 program runs a job that acknowledges terminal parsing, waits for its exit with
-`tmux_pane:wait_exit/2` and captures the output.
+`tmux_pane:wait_exit/2` and reads the screen with `tmux_pane:capture/2`.
 
 - The [companion job](../examples/terminal_job.erl) is an escript. It switches
   the terminal to raw mode with `shell:start_interactive({noshell, raw})`,
@@ -14,8 +14,7 @@ program runs a job that acknowledges terminal parsing, waits for its exit with
 - The job needs the Erlang/OTP that runs the example, and nothing else.
 - The session and setup window run `cat` while `tmux_pane:split/2` starts the
   job in a separate pane.
-- An exit is not an output-drain barrier on tmux 3.3. This protocol covers a
-  cooperating job. It cannot reconstruct output that scrolled out of history.
+- An incomplete escape sequence can remain pending after exit.
 - The program changes two options on its new window only: `remain-on-exit`
   keeps the dead pane addressable, and an empty exit banner keeps the first
   line. `tmux_pane:wait_exit/2` then waits for the job and returns its exit
@@ -81,7 +80,8 @@ run(Socket, Executable) ->
     end).
 ```
 
-- The output is `build complete` and a newline. The exit status is zero.
+- The capture returns the first rendered line, `build complete` and a newline.
+  The exit status is zero. Use `start => all` to include retained history.
 - The second operation waits for a channel that nobody signals. Its
   zero-duration `tmux_operation:await/2` returns `await_timeout` while the
   operation can still run. Call `tmux_operation:status/1` or await it again
