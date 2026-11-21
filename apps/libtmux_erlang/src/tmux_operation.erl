@@ -23,6 +23,7 @@ correlate outcomes by operation and endpoint generation; see
 [runtime diagnostics](diagnostics.md) for levels, fields and data boundaries.
 """.
 -export([start/3, await/2, await_started/2, status/1, cancel/1, transfer/2]).
+-export([send_request/2, start_before/4]).
 -export_type([t/0, completed/0, failure/0, state/0, outcome/0, cleanup/0]).
 -doc """
 A generation-bound operation handle. Possessing a waiter handle does not
@@ -75,10 +76,16 @@ executed the command.
 """.
 -spec start(tmux_server:t(), tmux_command:t(), tmux_server:command_options()) -> {ok, t()} | {error, failure()}.
 start(Server, Command, Options) ->
-    case tmux_server:submit(Server, Command, Options) of
-        {ok, {Pid, Generation, Lease}} -> {ok, {operation, Pid, Generation, Lease}};
-        Error -> Error
-    end.
+    handle(tmux_server:submit(Server, Command, Options)).
+
+-doc false.
+-spec start_before(tmux_server:t(), tmux_command:t(), tmux_server:command_options(), integer()) ->
+    {ok, t()} | {error, failure()}.
+start_before(Server, Command, Options, Deadline) ->
+    handle(tmux_server:submit_before(Server, Command, Options, Deadline)).
+
+handle({ok, {Pid, Generation, Lease}}) -> {ok, {operation, Pid, Generation, Lease}};
+handle({error, _} = Error) -> Error.
 
 -doc """
 Wait for a retained result for at most Timeout. An await_timeout removes only
@@ -130,6 +137,11 @@ relying on ownership; a timeout does not prove that the old owner remains.
 transfer(Operation, Owner) when is_pid(Owner), node(Owner) =:= node() ->
     request(Operation, {transfer, Owner}, 900);
 transfer(_, _) -> {error, #{code => invalid_owner}}.
+
+-doc false.
+-spec send_request(t(), await | cancel) -> gen_server:request_id().
+send_request({operation, Pid, Generation, Lease}, Kind) when Kind =:= await; Kind =:= cancel ->
+    gen_server:send_request(Pid, {Generation, operation, Lease, Kind, make_ref()}).
 
 request({operation, Pid, Generation, Lease}, Kind, Timeout)
   when is_pid(Pid), is_reference(Generation), is_reference(Lease),

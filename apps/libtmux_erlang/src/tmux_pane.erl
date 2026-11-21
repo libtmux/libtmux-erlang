@@ -107,10 +107,15 @@ reports its exit status or the signal that ended it. The pane must keep its
 dead state through `remain-on-exit`.
 
 `wait_exit/2`, `t:wait_exit_options/0`, `t:wait_exit_result/0` and `t:exit/0`
+
+**Waiting for text.** `wait_for_text/3` reads a live pane on a private owned
+server until its current screen contains the requested bytes. Use
+`tmux_pane_text:start/3` to begin sampling before sending input.
 """.
 -export([split/2, get/2, kill/1, resize/2, respawn/2, send_text/2, send_keys/2,
          capture/2, break/4, join/3, move/3, swap/3, pipe/3, stop_pipe/1, wait_exit/2]).
 -export([resize_command/2]).
+-export([wait_for_text/3]).
 
 -export_type([split_options/0, capture_options/0, resize_options/0, respawn_options/0,
               coordinate/0, key/0, break_options/0, join_options/0, swap_options/0,
@@ -127,7 +132,7 @@ How a pane's process ended: `{status, Code}` for a normal exit, or
 Linux and as a lowercase name on systems with `sys_signame`.
 """.
 -type exit() :: {status, 0..255} | {signal, pos_integer() | binary()}.
--doc "The outcome and the dead pane freshly observed after it.".
+-doc "The exit outcome and a fresh observation of the pane ID. A concurrent respawn can change its process.".
 -type wait_exit_result() :: #{exit := exit(), pane := tmux_model:pane()}.
 -doc "Explicit shell code: a nonempty NUL-free binary, with no tmux format or strftime expansion.".
 -type pipe_command() :: #{shell := binary()}.
@@ -271,9 +276,10 @@ tmux keeps a dead pane's status only when `remain-on-exit` is `on` for it, set
 on the pane or inherited from its window, before the process exits. Any other
 value returns `remain_on_exit_required` for a live pane. The call changes no
 option. While it waits it registers one `pane-died` hook entry at a private
-index and a private `wait-for` channel, and it removes the hook whatever the
-outcome. The hook is registered and the pane checked in one tmux command
-sequence, so an exit cannot fall between them.
+index and a private `wait-for` channel. The hook is registered and the pane
+checked in one tmux command sequence, so an exit cannot fall between them.
+Keep the endpoint open through the call's attempt to remove the hook. The
+wait result reports the pane outcome. It carries no hook cleanup receipt.
 
 `deadline_ms` bounds the wait; an expired wait returns the operation's
 `deadline` error and the pane stays usable for another call. A pane killed or
@@ -632,6 +638,11 @@ capture(Pane, Options) ->
             [<<"-p">>, <<"-t">>, Target | Flags]),
         {ok, Bytes}
     end.
+
+-doc "Wait for literal bytes on a live owned pane. See `tmux_pane_text:start/3` for limits and cancellation.".
+-spec wait_for_text(tmux_model:pane(), binary(), tmux_pane_text:options()) ->
+    tmux_pane_text:result().
+wait_for_text(Pane, Needle, Options) -> tmux_pane_text:wait(Pane, Needle, Options).
 
 send(Pane, Flags, Arguments) ->
     maybe

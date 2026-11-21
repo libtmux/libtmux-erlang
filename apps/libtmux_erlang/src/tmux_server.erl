@@ -152,7 +152,7 @@ that signal, wait on or lock a wait-for channel; submit them with `command/3`.
 -export([open/1, command/3, close/1, status/1, origin/1, version/1, from_origin/1, bind/2,
          snapshot/1, snapshot/2, observation_context/1, start_owned/1, stop_owned/1]).
 -export([with_server/2, with_owned/2]).
--export([submit/3, start_link/3, init/1, handle_call/3, handle_cast/2,
+-export([submit/3, submit_before/4, start_link/3, init/1, handle_call/3, handle_cast/2,
          handle_info/2, format_status/1, send_request/2, open_observed/3]).
 -export([watch_closing/1, watch_closing/2, unwatch_closing/2]).
 -export_type([t/0]).
@@ -341,7 +341,7 @@ open_observed(Owner, Config, Bytes) ->
         {ok, Pid, Version} ?= parse_probe(Bytes),
         {ok, Identity} ?= tmux_identity:observe(Pid),
         {ok, Server} ?= create_endpoint(Owner,
-            Config#{identity => Identity, server_pid => Pid, version => Version}),
+            Config#{identity => Identity, server_pid => Pid, version => Version, owned => true}),
         case tmux_identity:check(Identity, Pid) of
             ok -> {ok, Server};
             Error -> _ = close(Server), Error
@@ -493,8 +493,21 @@ from_origin(Origin) ->
 -doc false.
 -spec submit(t(), tmux_command:t(), map()) ->
     {ok, {pid(), reference(), reference()}} | {error, map()}.
-submit({server, Pid, Generation, Admission}, Command, Options) ->
+submit(Server, Command, Options) -> submit(Server, Command, Options, now_ms()).
+
+-doc false.
+-spec submit_before(t(), tmux_command:t(), map(), integer()) ->
+    {ok, {pid(), reference(), reference()}} | {error, map()}.
+submit_before(Server, Command, Options, Deadline) when is_map(Options), is_integer(Deadline) ->
     Started = now_ms(),
+    case Deadline - Started of
+        Remaining when Remaining > 0 ->
+            submit(Server, Command, Options#{deadline_ms => Remaining}, Started);
+        _ -> before_send(#{code => deadline})
+    end;
+submit_before(_, _, _, _) -> {error, #{code => invalid_operation_options}}.
+
+submit({server, Pid, Generation, Admission}, Command, Options, Started) ->
     maybe
         {ok, Spec} ?= submission(Command, Options, Started),
         Bytes = maps:get(bytes, Spec),
@@ -503,7 +516,7 @@ submit({server, Pid, Generation, Admission}, Command, Options) ->
         ok ?= tmux_admission:deliver(Admission, Lease, Bytes, Packed),
         {ok, {Pid, Generation, Lease}}
     end;
-submit(_, _, _) -> {error, #{code => invalid_server}}.
+submit(_, _, _, _) -> {error, #{code => invalid_server}}.
 
 server_request({server, Pid, Generation, _}, Kind, Timeout) ->
     Tag = make_ref(),
