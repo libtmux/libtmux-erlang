@@ -37,7 +37,7 @@ exit_status(Config) ->
 waits_for_a_running_pane(Config) ->
     Log = filename:join(proplists:get_value(priv_dir, Config), "tmux"),
     with_window(Config, true, #{log_directory => Log}, fun(_Server, Window, Fixture) ->
-        Pane = job(Window, Fixture, [<<"/bin/cat">>]),
+        Pane = job(Window, Fixture, eof_reader()),
         Self = self(),
         Waiter = spawn_link(fun() ->
             Self ! {done, tmux_pane:wait_exit(Pane, #{deadline_ms => 5000})}
@@ -132,7 +132,7 @@ retention_required(Config) ->
 
 deadline(Config) ->
     with_window(Config, true, fun(_Server, Window, Fixture) ->
-        Pane = job(Window, Fixture, [<<"/bin/cat">>]),
+        Pane = job(Window, Fixture, eof_reader()),
         {error, #{code := deadline}} = tmux_pane:wait_exit(Pane, #{deadline_ms => 100}),
         %% A timed-out wait leaves the live pane usable for another wait.
         {ok, _} = tmux_pane:send_keys(Pane, [{control, <<"d">>}]),
@@ -167,6 +167,9 @@ hook_removed(Config) ->
             {ok, Entries} -> 0 = map_size(Entries)
         end
     end).
+
+%% cat can close its standard streams before process exit. Keep the slave PTY open.
+eof_reader() -> [<<"/bin/sh">>, <<"-c">>, <<"exec 3>&1; exec /bin/cat">>].
 
 %% Jobs that end by themselves may be gone before the fixture can read them.
 job(Window, Fixture, [<<"/bin/true">>] = Argv) -> job(Window, Fixture, Argv, false);

@@ -212,8 +212,10 @@ run_endpoint(Socket, Executable) ->
             [Id] = pane_ids(tmux_select:to_list(Fetched)),
             #{query := #{candidate_count := 1, pushed_down := true}} =
                 tmux_select:summary(Fetched),
+            % Keep the slave PTY open until cat exits.
+            Reader = [<<"/bin/sh">>, <<"-c">>, <<"exec 3>&1; exec /bin/cat">>],
             {ok, InputWindow} = tmux_window:create(Session,
-                #{launch => #{argv => [<<"/bin/cat">>]}}),
+                #{launch => #{argv => Reader}}),
             InputWindowId = tmux_model:get(id, InputWindow),
             {ok, InputSnapshot} = tmux_server:snapshot(Server),
             {ok, InputPane} = tmux_select:one(#{window_id => InputWindowId},
