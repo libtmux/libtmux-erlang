@@ -333,7 +333,7 @@ initial_receipt(Root, Pins, Receipt) ->
          {source_sha256, maps:from_list([{check_package:bin(Name),
                                           script_util:sha256_hex({file, filename:join(Root, Name)})}
              || Name <- ["scripts/package/check_source_package.erl",
-                         "tools/source_package_registry.escript",
+                         "scripts/package/sign_source_registry.escript",
                          "scripts/package/check_package.erl", "scripts/lib/script_util.erl",
                          "tools/package-tool.json", ".tool-versions"]])},
          {packages, #{}}, {publication, <<"UNVERIFIED; local artifacts only">>}]).
@@ -470,7 +470,7 @@ write_rebar_config(ConfigDir, Text) ->
     file:write_file(File, Text).
 
 registry_script(Root) ->
-    filename:join([Root, "tools", "source_package_registry.escript"]).
+    filename:join([Root, "scripts", "package", "sign_source_registry.escript"]).
 
 % Build the signed registry files for the archives in `registry/public/tarballs`.
 registry_metadata(#{root := Root, temp := Temp, tools := Tools} = Context, Env) ->

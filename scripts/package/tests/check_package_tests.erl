@@ -145,7 +145,7 @@ dialyzer_commands_use_the_table_and_installed_beams_test() ->
         check_package:dialyzer_commands("/t/c", "/t/c/ebin", "/plt/x_plt"),
     ?assertEqual(["dialyzer", "--plt", "/plt/x_plt"], lists:sublist(Dialyzer, 3)),
     ?assertEqual(["-r", "/t/c/ebin"], lists:nthtail(length(Dialyzer) - 2, Dialyzer)),
-    ?assertEqual(["escript", "tools/check_model_types.escript", "/t/c/ebin", "/plt/x_plt",
+    ?assertEqual(["escript", "scripts/package/check_model_types.escript", "/t/c/ebin", "/plt/x_plt",
                   "/t/c/type-consumer"], Types).
 
 consumer_env_removes_session_variables_test() ->

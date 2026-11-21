@@ -63,7 +63,7 @@ The run itself uses a private loopback registry. The `source_package_registry`
 module is a small `gen_tcp` file server
 that adds an `ETag` header, records every request path, answers `429` after
 256 requests and shuts down before the script exits.
-`tools/source_package_registry.escript` signs the registry files.
+`scripts/package/sign_source_registry.escript` signs the registry files.
 
 ```console
 $ mise exec -- escript scripts/package/check_source_package.erl

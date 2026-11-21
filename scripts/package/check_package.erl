@@ -147,7 +147,8 @@ directory already exists.
 -spec stage_consumer(file:filename(), file:filename()) -> ok.
 stage_consumer(Root, Temp) ->
     lists:foreach(fun(Name) -> ok = file:make_dir(filename:join(Temp, Name)) end,
-                  ["consumer-ebin", "tools", "test", "examples", "legacy", "scripts", "scripts/check"]),
+                  ["consumer-ebin", "tools", "test", "examples", "legacy",
+                   "scripts", "scripts/check", "scripts/package"]),
     lists:foreach(fun({Source, Destination}) ->
         copy(filename:join(Root, Source), filename:join(Temp, Destination))
     end, consumer_files()),
@@ -175,8 +176,8 @@ stage_type_consumer(Root, Temp) ->
     lists:foreach(fun(Name) ->
         copy(filename:join([Root, "test", "consumers", Name]), filename:join(TypeSources, Name))
     end, ["model_types_ok.erl", "model_types_bad.erl"]),
-    copy(filename:join([Root, "tools", "check_model_types.escript"]),
-         filename:join([Temp, "tools", "check_model_types.escript"])).
+    copy(filename:join([Root, "scripts", "package", "check_model_types.escript"]),
+         filename:join([Temp, "scripts", "package", "check_model_types.escript"])).
 
 -doc """
 The installed-consumer commands, each tagged `json` when its standard output is
@@ -210,7 +211,7 @@ dialyzer_commands(Temp, InstalledEbin, Plt) ->
     [{plain, ["dialyzer", "--plt", Plt, filename:join(ConsumerEbin, "native_consumer.beam"),
               filename:join(ConsumerEbin, "tmux_test_fixture.beam"),
               filename:join(ConsumerEbin, "tmux_test_sandbox.beam"), "-r", InstalledEbin]},
-     {json, ["escript", "tools/check_model_types.escript", InstalledEbin, Plt,
+     {json, ["escript", "scripts/package/check_model_types.escript", InstalledEbin, Plt,
              filename:join(Temp, "type-consumer")]}].
 
 legacy_model() ->

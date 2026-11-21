@@ -430,7 +430,7 @@ failed_run_replaces_the_receipt_and_exits_1_test_() ->
         with_tmp(fun(Root) ->
             lists:foreach(fun(Name) -> ok = write(Root, Name, <<"input">>) end,
                           ["scripts/package/check_source_package.erl",
-                           "tools/source_package_registry.escript",
+                           "scripts/package/sign_source_registry.escript",
                            "scripts/package/check_package.erl", "scripts/lib/script_util.erl",
                            ".tool-versions"]),
             ok = write(Root, "tools/package-tool.json", <<"{\"packages\": [{\"name\": \"hex_core\","
@@ -449,7 +449,7 @@ failed_run_replaces_the_receipt_and_exits_1_test_() ->
                          maps:get(<<"publication">>, Receipt)),
             ?assertEqual([], maps:get(<<"commands">>, Receipt)),
             ?assertEqual(lists:sort([<<"scripts/package/check_source_package.erl">>,
-                                     <<"tools/source_package_registry.escript">>,
+                                     <<"scripts/package/sign_source_registry.escript">>,
                                      <<"scripts/package/check_package.erl">>,
                                      <<"scripts/lib/script_util.erl">>,
                                      <<"tools/package-tool.json">>, <<".tool-versions">>]),
