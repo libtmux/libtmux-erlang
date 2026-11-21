@@ -78,10 +78,15 @@ run(Arguments) ->
                 {ok, _, []} -> ok;
                 Failure -> error({example_compile_failed, Source, Failure})
             end
-        end, ["test/tmux_test_fixture.erl" | ["examples/" ++ atom_to_list(M) ++ ".erl" || M <- Modules]]),
-        Results = [example(Module, Executable) || Module <- Modules],
-        #{result => 'PASS', examples => Results,
-          microseconds => erlang:monotonic_time(microsecond) - Started}
+        end, ["scripts/check/tmux_test_sandbox.erl", "test/tmux_test_fixture.erl" |
+              ["examples/" ++ atom_to_list(M) ++ ".erl" || M <- Modules]]),
+        {ok, Sandbox} = tmux_test_sandbox:init(examples, []),
+        try
+            Results = [example(Module, Executable) || Module <- Modules],
+            #{result => 'PASS', examples => Results,
+              microseconds => erlang:monotonic_time(microsecond) - Started}
+        after ok = tmux_test_sandbox:terminate(Sandbox)
+        end
     after
         ok = file:del_dir_r(Scratch),
         ok = application:stop(libtmux_erlang)

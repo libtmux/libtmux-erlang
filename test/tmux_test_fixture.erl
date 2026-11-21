@@ -8,7 +8,11 @@
 
 -define(READY_MS, 2500).
 
-start(Executable) -> gen_server:start(?MODULE, {self(), Executable}, []).
+start(Executable) ->
+    case tmux_test_sandbox:require() of
+        ok -> gen_server:start(?MODULE, {self(), Executable}, []);
+        Error -> Error
+    end.
 info(Fixture) -> gen_server:call(Fixture, info, 900).
 replace(Fixture) -> gen_server:call(Fixture, replace, 5000).
 close(Fixture) -> gen_server:call(Fixture, close, 1000).
@@ -141,10 +145,7 @@ client_exit(_, _, _) -> error(client_output_limit).
 
 init({Owner, Executable}) ->
     Monitor = monitor(process, Owner),
-    Suffix = binary:encode_hex(crypto:strong_rand_bytes(10), lowercase),
-    Directory = binary_to_list(<<"/tmp/ltm-erlang-", Suffix/binary>>),
-    ok = file:make_dir(Directory),
-    ok = file:change_mode(Directory, 8#700),
+    {ok, Directory} = tmux_test_sandbox:fixture_directory(),
     try create(Executable, Directory) of
         State -> {ok, State#{owner_monitor => Monitor, cleaned => false,
                             tracked_processes => #{}}}

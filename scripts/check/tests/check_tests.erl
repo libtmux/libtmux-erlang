@@ -70,6 +70,40 @@ real_runner_reports_status_output_and_deadline_test() ->
     ?assertMatch(#{timed_out := true},
                  check:runner(["sleep", "30"], Options#{timeout_ms => 200})).
 
+runner_scrubs_tmux_selectors_and_cleans_its_private_directory_test() ->
+    Script = "test -z \"${TMUX+x}${TMUX_PANE+x}${LIBTMUX_SOCKET+x}"
+             "${LIBTMUX_SOCKET_PATH+x}\" && "
+             "test \"$LIBTMUX_TEST_TMUX\" = /selected/tmux && "
+             "test \"$TMUX_TMPDIR\" = \"$LIBTMUX_TEST_SANDBOX\" && "
+             "test -d \"$TMUX_TMPDIR\" && "
+             "test \"$(stat -c %a \"$TMUX_TMPDIR\")\" = 700 && "
+             "printf '%s\\n' \"$TMUX_TMPDIR\"",
+    Environment = [{"TMUX", "outside"}, {"TMUX_PANE", "%1"},
+                   {"LIBTMUX_SOCKET", "outside"}, {"LIBTMUX_SOCKET_PATH", "outside"},
+                   {"LIBTMUX_TEST_TMUX", "/selected/tmux"}],
+    Options = #{cwd => element(2, file:get_cwd()), env => Environment,
+                timeout_ms => 1000},
+    Outcome = check:runner(["sh", "-c", Script], Options),
+    ?assertMatch(#{exit_status := 0, timed_out := false}, Outcome),
+    Directory = string:trim(binary_to_list(maps:get(output, Outcome))),
+    ?assertNotEqual([], Directory),
+    ?assertNot(filelib:is_dir(Directory)).
+
+runner_cleans_its_directory_after_failure_and_cancellation_test() ->
+    Script = "printf '%s\\n' \"$TMUX_TMPDIR\"; "
+             "if test \"$1\" = failure; then exit 7; else exec cat; fi",
+    Options = #{cwd => element(2, file:get_cwd()), env => [], timeout_ms => 200},
+    lists:foreach(fun(Mode) ->
+        Outcome = check:runner(["sh", "-c", Script, "sandbox", Mode], Options),
+        case Mode of
+            "failure" -> ?assertMatch(#{exit_status := 7, timed_out := false}, Outcome);
+            "cancel" -> ?assertMatch(#{timed_out := true}, Outcome)
+        end,
+        Directory = string:trim(binary_to_list(maps:get(output, Outcome))),
+        ?assertNotEqual([], Directory),
+        ?assertNot(filelib:is_dir(Directory))
+    end, ["failure", "cancel"]).
+
 %% `timeout` keeps the command alive as the parent of `setsid`, which moves
 %% `sleep` into a new session: a signal to the command's process group never
 %% reaches it.

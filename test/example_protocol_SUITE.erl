@@ -143,9 +143,11 @@ project(Config, Case) ->
     Root = proplists:get_value(root, Config),
     Project = filename:join(proplists:get_value(priv_dir, Config), atom_to_list(Case)),
     lists:foreach(fun(Name) -> ok = filelib:ensure_path(filename:join(Project, Name)) end,
-                  ["tools", "test", "examples", "_build/checks", "scratch"]),
+                  ["tools", "test", "examples", "_build/checks", "scratch", "scripts/check"]),
     {ok, _} = file:copy(filename:join(Root, "tools/run_examples.escript"),
                         filename:join(Project, "tools/run_examples.escript")),
+    {ok, _} = file:copy(filename:join(Root, "scripts/check/tmux_test_sandbox.erl"),
+                        filename:join(Project, "scripts/check/tmux_test_sandbox.erl")),
     ok = file:write_file(filename:join(Project, "_build/checks/examples.json"),
                          json:encode(#{result => <<"PASS">>, old => true})),
     Project.

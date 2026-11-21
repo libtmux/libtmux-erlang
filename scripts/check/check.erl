@@ -6,8 +6,7 @@
 %% Each tier runs its commands in order under one time budget, keeps every
 %% command's output in _build/checks/<tier>-<n>.log and writes a receipt to
 %% _build/checks/<tier>.json. A failed or overrunning command ends the loop.
-%% Self-contained: it runs before the library is compiled, so it uses no
-%% helper modules.
+%% The sandbox helper is loaded from source before the library is compiled.
 -module(check).
 -mode(compile).
 -export([main/1, plan/2, budget/1, run/3, runner/2, passed/3]).
@@ -27,6 +26,7 @@ main(Arguments) ->
     Root = filename:dirname(filename:dirname(filename:dirname(
         filename:absname(escript:script_name())))),
     ok = file:set_cwd(Root),
+    ok = load_sandbox(Root),
     Output = filename:join(Root, "_build/checks"),
     ok = filelib:ensure_path(Output),
     Environment = [{"ERL_FLAGS", case os:getenv("ERL_FLAGS") of false -> "+S 4:4"; Flags -> Flags end}],
@@ -123,12 +123,21 @@ run([Command | Rest], Budget, Started, Runner, Acc) ->
 runner([Program | Arguments], #{cwd := Root, env := Environment, timeout_ms := Milliseconds}) ->
     Started = erlang:monotonic_time(millisecond),
     Run = integer_to_list(erlang:unique_integer([positive])) ++ "-" ++ os:getpid(),
-    Port = open_port({spawn_executable, os:find_executable(Program)},
-        [binary, exit_status, stderr_to_stdout, {cd, Root},
-         {env, [{?RUN_VARIABLE, Run} | Environment]}, {args, Arguments}]),
-    {Status, Output, TimedOut} = collect(Port, Started + Milliseconds, Run, <<>>),
+    Result = tmux_test_sandbox:with(Environment, fun(Sandbox) ->
+        Port = open_port({spawn_executable, os:find_executable(Program)},
+            [binary, exit_status, stderr_to_stdout, {cd, Root},
+             {env, [{?RUN_VARIABLE, Run} | Sandbox]}, {args, Arguments}]),
+        {Status, Output, TimedOut} = collect(Port, Started + Milliseconds, Run, <<>>),
+        #{exit_status => Status, output => Output, timed_out => TimedOut}
+    end),
     Seconds = (erlang:monotonic_time(millisecond) - Started) / 1000,
-    #{exit_status => Status, seconds => Seconds, output => Output, timed_out => TimedOut}.
+    Result#{seconds => Seconds}.
+
+load_sandbox(Root) ->
+    Path = filename:join([Root, "scripts", "check", "tmux_test_sandbox.erl"]),
+    {ok, tmux_test_sandbox, Beam} = compile:file(Path, [binary, report_errors, report_warnings]),
+    {module, tmux_test_sandbox} = code:load_binary(tmux_test_sandbox, Path, Beam),
+    ok.
 
 collect(Port, Deadline, Run, Acc) ->
     Remaining = max(0, Deadline - erlang:monotonic_time(millisecond)),

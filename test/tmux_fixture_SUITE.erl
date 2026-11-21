@@ -2,10 +2,11 @@
 -compile(nowarn_missing_spec).
 -export([all/0, init_per_suite/1, end_per_suite/1,
          command_failure_and_cleanup/1, owner_death/1, cancelled_client/1,
-         startup_failure/1]).
+         startup_failure/1, unprepared_fixture_is_refused/1]).
 
 %% Outer: owned tmux daemon, pane descendants, and cancellation aftereffects.
-all() -> [command_failure_and_cleanup, owner_death, cancelled_client, startup_failure].
+all() -> [command_failure_and_cleanup, owner_death, cancelled_client, startup_failure,
+          unprepared_fixture_is_refused].
 
 init_per_suite(Config) ->
     {ok, _} = application:ensure_all_started(libtmux_erlang),
@@ -23,6 +24,10 @@ command_failure_and_cleanup(Config) ->
     Info = tmux_test_fixture:info(Fixture),
     {ok, Identity} = tmux_identity:observe(maps:get(server_pid, Info)),
     try
+        Sandbox = os:getenv("LIBTMUX_TEST_SANDBOX"),
+        ct:log("owned test sandbox: ~ts; fixture: ~ts", [Sandbox, maps:get(directory, Info)]),
+        true = lists:prefix(Sandbox ++ "/", maps:get(directory, Info)),
+        true = byte_size(maps:get(socket, Info)) < 100,
         {ok, #{exit_status := 0, stdout := <<"$0\n">>}} = tmux_test_fixture:command(Fixture,
             [<<"new-session">>, <<"-d">>, <<"-P">>, <<"-F">>, <<"#{session_id}">>,
              <<"-s">>, <<"fixture">>, <<"/bin/cat">>]),
@@ -85,6 +90,15 @@ cancelled_client(Config) ->
 %% A client that exits without the readiness line fails on its EOF, not the deadline.
 startup_failure(_) ->
     {error, {{server_exited, <<>>}, _}} = tmux_test_fixture:start(<<"/bin/true">>).
+
+unprepared_fixture_is_refused(_) ->
+    Directory = os:getenv("LIBTMUX_TEST_SANDBOX"),
+    true = os:unsetenv("LIBTMUX_TEST_SANDBOX"),
+    try
+        {error, #{code := unsafe_test_environment}} = tmux_test_fixture:start(<<"/bin/true">>)
+    after
+        true = os:putenv("LIBTMUX_TEST_SANDBOX", Directory)
+    end.
 
 track_pane(Fixture) ->
     {ok, #{stdout := Text, exit_status := 0}} = tmux_test_fixture:command(Fixture,

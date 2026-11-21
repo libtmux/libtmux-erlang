@@ -23,8 +23,11 @@ kills the processes whose `/proc/<pid>/environ` names that run, then rescans
 until none is left. Without `/proc` it kills only the command itself. It needs
 a `kill` executable on `PATH`.
 
-The runner uses no helper module, because it runs before the library is
-compiled. Run it from anywhere:
+The runner loads the fixture helper before it compiles the library. The helper
+starts each run with a private directory and clears inherited tmux selectors.
+Cleanup requires the original directory and reports any remaining sockets.
+
+Run it from anywhere:
 
 ```console
 $ escript scripts/check/check.erl mid

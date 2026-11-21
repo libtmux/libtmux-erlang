@@ -156,20 +156,24 @@ exercise_consumer(Root, Temp, InstalledEbin, Options) ->
         true -> plt(Root);
         false -> none
     end,
-    ok = stage_consumer(Root, Temp),
-    Tmux = tmux_executable(),
-    Env = (consumer_env(Temp, Tmux))#{
-        <<"LIBTMUX_ENDPOINT_TMUX_LOG">> => bin(filename:join(Root, "_build/tmux-log"))},
-    Quickstart = quickstart(Root, Temp, InstalledEbin, Tmux, Env),
-    Run = fun({Kind, Command}) ->
-        run_command(Root, Temp, Command, #{env => Env, json => Kind =:= json})
-    end,
-    Commands = [Quickstart | lists:map(Run, consumer_commands(Temp, InstalledEbin))],
-    case Plt of
-        none -> Commands;
-        _ ->
-            ok = stage_type_consumer(Root, Temp),
-            Commands ++ lists:map(Run, dialyzer_commands(Temp, InstalledEbin, Plt))
+    {ok, Sandbox} = tmux_test_sandbox:init(consumer, []),
+    try
+        ok = stage_consumer(Root, Temp),
+        Tmux = tmux_executable(),
+        Env = (consumer_env(Temp, Tmux))#{
+            <<"LIBTMUX_ENDPOINT_TMUX_LOG">> => bin(filename:join(Root, "_build/tmux-log"))},
+        Quickstart = quickstart(Root, Temp, InstalledEbin, Tmux, Env),
+        Run = fun({Kind, Command}) ->
+            run_command(Root, Temp, Command, #{env => Env, json => Kind =:= json})
+        end,
+        Commands = [Quickstart | lists:map(Run, consumer_commands(Temp, InstalledEbin))],
+        case Plt of
+            none -> Commands;
+            _ ->
+                ok = stage_type_consumer(Root, Temp),
+                Commands ++ lists:map(Run, dialyzer_commands(Temp, InstalledEbin, Plt))
+        end
+    after ok = tmux_test_sandbox:terminate(Sandbox)
     end.
 
 -doc """
@@ -181,7 +185,9 @@ consumer_files() ->
     [{"examples/native_consumer.erl", "native_consumer.erl"},
      {"examples/quickstart.erl", "quickstart.erl"},
      {"test/tmux_test_fixture.erl", "tmux_test_fixture.erl"},
+     {"scripts/check/tmux_test_sandbox.erl", "tmux_test_sandbox.erl"},
      {"tools/run_examples.escript", "tools/run_examples.escript"},
+     {"scripts/check/tmux_test_sandbox.erl", "scripts/check/tmux_test_sandbox.erl"},
      {"test/tmux_test_fixture.erl", "test/tmux_test_fixture.erl"}]
     ++ [{"examples/" ++ Demo ++ ".erl", "examples/" ++ Demo ++ ".erl"} || Demo <- demos()]
     ++ [{"examples/terminal_job.erl", "examples/terminal_job.erl"}].
@@ -199,7 +205,7 @@ directory already exists.
 -spec stage_consumer(file:filename(), file:filename()) -> ok.
 stage_consumer(Root, Temp) ->
     lists:foreach(fun(Name) -> ok = file:make_dir(filename:join(Temp, Name)) end,
-                  ["consumer-ebin", "tools", "test", "examples", "legacy"]),
+                  ["consumer-ebin", "tools", "test", "examples", "legacy", "scripts", "scripts/check"]),
     lists:foreach(fun({Source, Destination}) ->
         copy(filename:join(Root, Source), filename:join(Temp, Destination))
     end, consumer_files()),
@@ -241,7 +247,7 @@ consumer_commands(Temp, InstalledEbin) ->
     Helper = filename:join([filename:dirname(InstalledEbin), "priv", "tmux_owned_io"]),
     [{json, ["escript", "tools/run_examples.escript", "--ebin", InstalledEbin]},
      {plain, ["erlc", "-Werror", "+debug_info", "-pa", InstalledEbin, "-o", ConsumerEbin,
-              "native_consumer.erl", "tmux_test_fixture.erl"]},
+              "native_consumer.erl", "tmux_test_fixture.erl", "tmux_test_sandbox.erl"]},
      {plain, ["erl", "-noshell", "-noinput", "-pa", InstalledEbin, "-pa", ConsumerEbin,
               "-eval", "ok = native_consumer:run(), halt(0)."]},
      % A separate VM retains a native value whose captured definition lacks the
@@ -260,7 +266,8 @@ consumer_commands(Temp, InstalledEbin) ->
 dialyzer_commands(Temp, InstalledEbin, Plt) ->
     ConsumerEbin = filename:join(Temp, "consumer-ebin"),
     [{plain, ["dialyzer", "--plt", Plt, filename:join(ConsumerEbin, "native_consumer.beam"),
-              filename:join(ConsumerEbin, "tmux_test_fixture.beam"), "-r", InstalledEbin]},
+              filename:join(ConsumerEbin, "tmux_test_fixture.beam"),
+              filename:join(ConsumerEbin, "tmux_test_sandbox.beam"), "-r", InstalledEbin]},
      {json, ["escript", "tools/check_model_types.escript", InstalledEbin, Plt,
              filename:join(Temp, "type-consumer")]}].
 
