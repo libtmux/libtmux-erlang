@@ -17,6 +17,11 @@ on:
       - 'scripts/release/**'
       - 'scripts/package/**'
   workflow_dispatch:
+    inputs:
+      verify_identity:
+        description: Verify Hex workload identity without publishing
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -29,8 +34,32 @@ env:
   ERL_FLAGS: '+S 4:4'
 
 jobs:
+  identity:
+    name: Verify Hex workload identity without publishing
+    if: github.event_name == 'workflow_dispatch' && inputs.verify_identity
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    environment: hexpm
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install the OTP and Rebar3 versions in .tool-versions
+        uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1.24.1
+        with:
+          version-file: .tool-versions
+          version-type: strict
+      - name: Load the pinned Hex publisher
+        run: rebar3 as release version
+      - name: Exchange and revoke a package-scoped token
+        run: escript scripts/release/check_hex_identity.erl
+
   candidate:
     name: Build package and native docs without publishing
+    if: ${{ !inputs.verify_identity }}
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     outputs:
@@ -133,7 +162,6 @@ jobs:
         run: cmp _build/libtmux_erlang-release.tar "_build/release/lib/libtmux_erlang/hex/libtmux_erlang-$VERSION.tar"
       - name: Publish package and prebuilt docs
         env:
-          HEX_API_KEY: ${{ secrets.HEX_API_KEY }}
           ALREADY_PUBLISHED: ${{ steps.release.outputs.published }}
         run: escript scripts/release/publish_hex.erl --published "$ALREADY_PUBLISHED"
       - name: Verify public artifact

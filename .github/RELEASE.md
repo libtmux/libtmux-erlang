@@ -1,113 +1,26 @@
 # Publish libtmux_erlang to Hex
 
-The first candidate is **0.0.1**. This is an early development release:
+The published core is **0.0.1**. This is an early development release:
 the supported one-shot APIs work, while control command submission and
-streaming remain unfinished. Preparing this version does not publish it.
-The [changelogs](../CHANGELOG.md) stay Unreleased until publication.
+streaming remain unfinished. Describe later changes under Unreleased in the
+[changelogs](../CHANGELOG.md) until their publication.
 
 The [Hex release workflow](workflows/release.yml) publishes the core package
 and its native API documentation when a matching `vVERSION` tag is pushed.
-PRs and manual dispatch build a candidate without publishing. Website
+PRs and normal manual dispatch build a candidate without publishing. A manual
+identity check exchanges and revokes a scoped token without uploading. Website
 publication through [docs.yml](workflows/docs.yml) is a separate operation.
 
-## First release: maintainer setup
+## Publishing setup
 
-1. [Create a Hex account](https://hex.pm/signup), confirm the email address,
-   and enable two-factor authentication in the security dashboard.
-2. Create a GitHub environment named **hexpm** in this repository's
-   [environment settings](https://github.com/libtmux/libtmux-erlang/settings/environments).
-   Select deployment tags matching `v*`. Restrict who may create release tags
-   through the repository's rulesets.
-3. Choose one bootstrap route below. Hex OIDC can publish subsequent releases,
-   but [cannot create a public package or its first release](https://hex.pm/docs/workload-identity).
-4. Merge the release PR, inspect its native CI results, and review the exact
-   commit that will receive the release tag. Account setup alone does not
-   authorize a release.
+A full package owner with two-factor authentication configures the identity
+below. The GitHub environment named **hexpm** allows deployment tags matching
+`v*` and the `master` branch for identity checks. Restrict release-tag creation
+through the repository's rulesets.
 
-### Route A: temporary API key in GitHub
-
-Create a short-lived key in the [Hex keys dashboard](https://hex.pm/dashboard/keys)
-with **API Read** and **Publish** permissions. Read is needed to wait for
-staged approval; Publish bootstraps the first public package. Follow Hex's
-[CI key instructions](https://hex.pm/docs/publish#publishing-from-ci).
-Store it as the
-**hexpm environment secret** named `HEX_API_KEY`. The following command
-prompts for the value; keep it out of shell history and repository files.
-
-```console
-$ gh secret set HEX_API_KEY \
-    --repo libtmux/libtmux-erlang \
-    --env hexpm
-```
-
-Then push the reviewed release tag as described below. New Hex packages use
-[staged publishing](https://hex.pm/docs/workload-identity#staged-publishing):
-open the approval URL printed by the job and approve using fresh 2FA.
-Package and documentation uploads can require separate approvals. The job
-waits with `--wait`; its publishing job has a 30-minute limit. If that wait
-expires, inspect Hex's pending release before approving or rerunning.
-
-After the package is public, configure OIDC and revoke the temporary key.
-
-### Route B: one manual publication
-
-Use a clean checkout of the reviewed release commit on qualified Linux.
-Install the versions in [.tool-versions](../.tool-versions), a C11 compiler,
-Make and supported tmux; see [CONTRIBUTING.md](CONTRIBUTING.md).
-The publisher lives only in the `release` profile. It is absent from the
-installed package's dependencies.
-
-Authenticate interactively. This changes the local Rebar3 account settings.
-
-```console
-$ mise exec -- rebar3 as release hex user auth
-```
-
-Prepare the pinned native documentation renderer.
-
-```console
-$ mise exec -- escript scripts/docs/build_docs.erl --prepare
-```
-
-Build the compiler documentation chunks and validate the rendered links.
-
-```console
-$ mise exec -- escript scripts/docs/build_docs.erl
-```
-
-Build and inspect the source package, including the C helper source and its
-license. For this candidate the archive is
-`_build/release/lib/libtmux_erlang/hex/libtmux_erlang-0.0.1.tar`.
-
-```console
-$ mise exec -- rebar3 as release hex build package \
-    --app libtmux_erlang
-```
-
-Exercise the actual publisher without uploading or authenticating.
-
-```console
-$ mise exec -- rebar3 as release hex publish \
-    --yes \
-    --dry-run \
-    --doc-dir "$PWD/_build/docs/core"
-```
-
-After reviewing the candidate and its native CI, publish once with the
-maintainer's explicit release decision. Native records require these prebuilt
-EEP-48 docs; do not substitute legacy EDoc source parsing.
-
-```console
-$ mise exec -- rebar3 as release hex publish \
-    --yes \
-    --wait \
-    --doc-dir "$PWD/_build/docs/core"
-```
-
-Configure OIDC before pushing the tag. The tag workflow compares the existing
-public package byte for byte with its qualified tarball and skips the package
-upload when they match. It still publishes the documentation. A mismatch
-fails; the workflow never uses `--replace` or reverts a release.
+The first release used a temporary `HEX_API_KEY`; current jobs never receive
+that secret. A new public package still needs one authenticated first
+publication, because [workload identity requires an existing package](https://hex.pm/docs/workload-identity).
 
 ## Configure OIDC after bootstrap
 
@@ -119,12 +32,28 @@ and add this GitHub identity:
 - Workflow: `release.yml`
 - Environment: `hexpm`
 
-The publisher job has `id-token: write`. Pinned `rebar3_hex` 7.5.0 exchanges
-the GitHub token automatically when no Hex credential is configured.
-The job explicitly unsets an empty `HEX_API_KEY` so it reaches that path.
-No AWS identity or website publisher credential is involved.
+The publisher job has `id-token: write` and does not receive `HEX_API_KEY`.
+Pinned `rebar3_hex` 7.5.0 exchanges the GitHub token automatically. No AWS
+identity or website publisher credential is involved.
 
-Revoke the bootstrap key at Hex and remove its environment secret.
+Verify the saved identity from master before removing the bootstrap key:
+
+```console
+$ gh workflow run release.yml \
+    --repo libtmux/libtmux-erlang \
+    --ref master \
+    --field verify_identity=true
+```
+
+The check uses the pinned publisher's Hex client to exchange a token scoped to
+`libtmux_erlang`. It makes one read-only package request, revokes the token,
+and requires Hex to reject it afterward. It prints no token and uploads no
+package or documentation. A passing run confirms authentication and revocation;
+the next release establishes publishing through OIDC. Staged publishing still
+requires approval when enabled on Hex.
+
+After that check passes, revoke the bootstrap key at Hex and remove its
+environment secret.
 
 ```console
 $ gh secret delete HEX_API_KEY \
@@ -156,23 +85,29 @@ Validate the candidate metadata and clean source tree.
 $ mise exec -- escript scripts/release/check_release.erl
 ```
 
-For the initial candidate, create the annotated tag locally. Later releases
-use their matching `vVERSION` instead.
+Enter the new release tag, including its `v` prefix. It must match the updated
+application version. Create its annotated tag locally.
 
 ```console
-$ git tag -a v0.0.1 -m 'Release 0.0.1'
+$ read -r LIBTMUX_RELEASE_TAG
+```
+
+```console
+$ git tag --annotate "$LIBTMUX_RELEASE_TAG" \
+    --message "Release ${LIBTMUX_RELEASE_TAG#v}"
 ```
 
 Check that the tag resolves to this commit and matches the package version.
 
 ```console
-$ mise exec -- escript scripts/release/check_release.erl --tag v0.0.1
+$ mise exec -- escript scripts/release/check_release.erl \
+    --tag "$LIBTMUX_RELEASE_TAG"
 ```
 
 The next command starts the publishing workflow and is the release action.
 
 ```console
-$ git push origin v0.0.1
+$ git push origin "$LIBTMUX_RELEASE_TAG"
 ```
 
 The workflow runs the existing native suite on OTP 29.1.2, tmux 3.3a and 3.8,
@@ -183,9 +118,9 @@ reproducibility again before calling the native publisher.
 
 ## Confirm delivery or retry
 
-Inspect the **Hex release** run, the package's public release, and
-`https://hexdocs.pm/libtmux_erlang/0.0.1/`. The final job installs the exact
-version from public Hex in an empty consumer with an empty build cache,
+Inspect the **Hex release** run, the [public package](https://hex.pm/packages/libtmux_erlang)
+and its HexDocs page for the selected release version. The final job installs
+that version from public Hex in an empty consumer with an empty build cache,
 compiles the helper from source, and executes the existing reader examples
 and native-record consumers. Its receipt is the `hex-public-install` artifact.
 

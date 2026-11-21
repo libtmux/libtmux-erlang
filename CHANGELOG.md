@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Use Hex workload identity for tagged releases and add an authentication-only
+  workflow check that exchanges and immediately revokes a package-scoped token.
+
 - Run the support scripts as Erlang modules that `escript` runs and Rebar3
   compiles, type checks and tests with the library, and remove their Python
   versions. Only the shared example-width checker still runs under Python.

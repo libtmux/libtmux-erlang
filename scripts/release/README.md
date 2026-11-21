@@ -1,6 +1,28 @@
 # release
 
-Checks a release and publishes it to Hex.
+Checks a release, verifies its publishing identity and publishes it to Hex.
+
+## check_hex_identity
+
+The authentication-only dispatch of `.github/workflows/release.yml` runs this
+script in the `hexpm` environment with `id-token: write`. It uses the same
+`hex_cli_auth:workload_identity_auth/2` function as pinned `rebar3_hex`, scopes
+the token to `libtmux_erlang`, and revokes it after one read-only package
+request. A second request must reject the revoked token. It uploads nothing
+and never prints or saves tokens. A configured `HEX_API_KEY` environment
+variable makes the check fail.
+
+Dispatch the check from master:
+
+```console
+$ gh workflow run release.yml \
+    --repo libtmux/libtmux-erlang \
+    --ref master \
+    --field verify_identity=true
+```
+
+This verifies authentication, not a release upload or approval. The workflow
+does not pass the bootstrap `HEX_API_KEY` secret to either job.
 
 ## check_release
 
@@ -44,8 +66,9 @@ script at the first failure.
 
 ## Tests
 
-Run the tests of both scripts with:
+Run the release and identity checks' unit tests with:
 
 ```console
-$ rebar3 eunit --module=check_release_tests,publish_hex_tests
+$ rebar3 eunit \
+    --module=check_release_tests,publish_hex_tests,check_hex_identity_tests
 ```
