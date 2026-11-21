@@ -2,10 +2,13 @@
 
 ## Unreleased
 
-- Add `tmux_pane:wait_exit/2`, which waits for a pane's process to exit and
-  returns `{status, Code}` or `{signal, Signal}` with the dead pane freshly
-  observed, so a death by signal is no longer read as a missing exit status.
-  The pane must keep its dead state through `remain-on-exit`.
+- Use `tmux_pane:wait_exit/2` to read a pane's exit status or signal after tmux
+  publishes it. Set `remain-on-exit` to retain the pane.
+- Use `tmux_capability:decision/2` to see the release a feature requires and
+  how it behaves on older daemons. Version checks order development builds,
+  numbered release candidates, stable releases and letter patches.
+- Errors for unsupported releases name the tmux client or daemon, the found
+  and required releases, and what to change.
 
 ## 0.0.1 - 2026-11-13
 
