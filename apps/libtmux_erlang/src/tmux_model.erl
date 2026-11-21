@@ -256,7 +256,17 @@ model_version(#window{model_version = Value}) -> Value;
 model_version(#window_link{model_version = Value}) -> Value;
 model_version(#pane{model_version = Value}) -> Value.
 
--doc "Return domain field values without origin or capture metadata. This is not the portable filter wire representation. Performs no I/O.".
+-doc """
+Return the row's domain fields as a map. Select the fields your application
+stores and validate them against its storage schema.
+
+```erlang
+1> {ok, Session} = tmux_model:session(#{id => <<"$1">>, name => <<"ci">>}), ok.
+ok
+2> maps:with([id, name], tmux_model:to_map(Session)).
+#{id => <<"$1">>,name => <<"ci">>}
+```
+""".
 -spec to_map(row()) -> map().
 to_map(Row = #session{}) -> #{id => Row#session.id, name => Row#session.name, attached_count => Row#session.attached_count, attached => Row#session.attached, created => Row#session.created};
 to_map(Row = #window{}) -> #{id => Row#window.id, name => Row#window.name, width => Row#window.width, height => Row#window.height, pane_count => Row#window.pane_count, layout => Row#window.layout};

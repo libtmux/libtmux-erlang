@@ -77,14 +77,14 @@ Moving from model version 1:
   be discarded.
 - Hot loading does not change fields in existing native values.
 
-Storing rows:
+## Store model fields
 
-- `tmux_model:to_map/1` extracts the documented fields from a valid row.
-  Validate them with the destination model's constructor when you migrate data.
-- The map loses actionable provenance. Bind it through a freshly constructed
-  row before you act on it.
-- It is not a versioned storage or cross-port wire format. Absence atoms,
-  binary bytes and field inventories need an application-defined schema.
+Convert a row with `tmux_model:to_map/1`. Its example shows how to keep the
+session ID and name with `maps:with/2`. Choose the fields your application
+stores and define how it encodes binaries and absence values.
+
+To use a stored ID as a target, construct a row and call
+`tmux_server:bind/2` to obtain a fresh observation.
 
 ## Implemented surfaces
 
