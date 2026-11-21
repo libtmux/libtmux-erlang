@@ -7,7 +7,7 @@ Comparisons order development builds, numbered release candidates, stable
 releases and letter patches. CI tests the endpoints of the supported range. Use
 `tmux_server:version/1` for the daemon version observed by an endpoint.
 """.
--export([parse/1, require/1, at_least/2, format/1]).
+-export([parse/1, require/1, at_least/2, format/1, floor/0]).
 -export_type([t/0, minimum/0]).
 
 -doc """
@@ -19,6 +19,10 @@ for a prerelease and `none` for a stable, patched or development build.
                candidate := none | pos_integer(), raw := binary()}.
 -doc "A stable major/minor floor, or a version spelling with an optional tmux prefix.".
 -type minimum() :: {non_neg_integer(), non_neg_integer()} | binary().
+
+-doc "Return the earliest release supported by the library.".
+-spec floor() -> binary().
+floor() -> <<"3.3a">>.
 
 -doc """
 Parse bounded tmux -V output. A release candidate has a positive numeric suffix,
@@ -67,7 +71,7 @@ false
 require(Raw) ->
     maybe
         {ok, Version} ?= parse(Raw),
-        case at_least(Version, <<"3.3a">>) of
+        case at_least(Version, floor()) of
             true -> {ok, Version};
             false -> {error, {unsupported_tmux_version, Version}}
         end

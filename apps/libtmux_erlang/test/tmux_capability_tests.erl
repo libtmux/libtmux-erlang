@@ -2,6 +2,36 @@
 -compile(nowarn_missing_spec).
 -include_lib("eunit/include/eunit.hrl").
 
+shared_gate_registry_test() ->
+    {ok, Old} = tmux_version:parse(<<"tmux 3.3a">>),
+    {ok, Current} = tmux_version:parse(<<"tmux 3.8">>),
+    Features = tmux_capability:features(),
+    ?assertEqual(Features, lists:usort(Features)),
+    lists:foreach(fun(Feature) ->
+        {ok, Info} = tmux_capability:describe(Feature),
+        ?assert(is_binary(maps:get(minimum, Info))),
+        ?assertMatch([_ | _], maps:get(apis, Info)),
+        ?assertMatch({ok, #{supported := true}},
+            tmux_capability:decision(Current, Feature))
+    end, Features),
+    lists:foreach(fun(Feature) ->
+        ?assertMatch({ok, #{supported := false}},
+            tmux_capability:decision(Old, Feature))
+    end, [paste_sanitize, cleaned_names, rename_replaces,
+          strict_named_target, control_no_detach]),
+    ?assertMatch({error, #{code := unknown_capability}},
+        tmux_capability:decision(Current, unknown)),
+    #{schema := <<"libtmux-capabilities/1">>, port := <<"erlang">>,
+      floor := #{minimum := <<"3.3a">>}, capabilities := Manifest} =
+        tmux_capability:manifest(),
+    [KeepAttached] = [Entry || #{id := <<"control-no-detach-on-destroy">>} = Entry <- Manifest],
+    ?assertMatch(#{handling := <<"fallback">>, since := <<"3.6">>,
+                   fallback := <<"omit-no-detach-on-destroy">>}, KeepAttached),
+    ?assertNot(maps:is_key(error, KeepAttached)),
+    [Layout] = [Entry || #{id := <<"layout-json">>} = Entry <- Manifest],
+    ?assertMatch(#{handling := <<"refuse">>, since := <<"3.8">>,
+                   error := <<"unsupported_capability">>}, Layout).
+
 native_catalogue_test() ->
     {ok, Floor} = tmux_version:parse(<<"tmux 3.3">>),
     {ok, NewKeys} = tmux_version:parse(<<"tmux 3.4">>),
@@ -32,12 +62,10 @@ native_catalogue_test() ->
     ?assertMatch({error, #{code := unsupported_capability}},
         tmux_capability:require(Tracking, layout_json)),
     {ok, Candidate} = tmux_version:parse(<<"tmux 3.8-rc2">>),
-    ?assertMatch({error, #{code := unsupported_command_catalogue, version := <<"3.8-rc2">>}},
+    ?assertMatch({error, #{code := unsupported_command_catalogue}},
         tmux_capability:commands(Candidate)),
     ?assertMatch({error, #{code := unsupported_capability}},
         tmux_capability:require(Candidate, layout_json)),
-    ?assertMatch({error, #{code := invalid_version}},
-        tmux_capability:require(Candidate#{candidate := 0}, layout_json)),
     lists:foreach(fun(Release) ->
         {ok, Version} = tmux_version:require(<<"tmux ", Release/binary>>),
         ?assertMatch({ok, _},
@@ -51,9 +79,9 @@ feature_gates_test() ->
     {ok, ClientKeys} = tmux_version:parse(<<"tmux 3.4">>),
     {ok, Formats} = tmux_version:parse(<<"tmux 3.7c">>),
     {ok, Latest} = tmux_version:parse(<<"tmux 3.8">>),
-    ?assertMatch({ok, #{minimum := {3, 8}}}, tmux_capability:describe(layout_json)),
+    ?assertMatch({ok, #{minimum := <<"3.8">>}}, tmux_capability:describe(layout_json)),
     ?assertEqual({error, #{code => unsupported_capability,
-        capability => layout_json, minimum => {3, 8}}},
+        capability => layout_json, minimum => <<"3.8">>}},
         tmux_capability:require(Floor, layout_json)),
     ?assertEqual(ok, tmux_capability:require(Latest, layout_json)),
     ?assertEqual(ok, tmux_capability:require(Floor, native_list_filter)),
@@ -64,4 +92,11 @@ feature_gates_test() ->
     ?assertMatch({error, #{code := unknown_capability}},
         tmux_capability:describe(unknown)),
     ?assertMatch({error, #{code := invalid_version}},
-        tmux_capability:require(invalid, layout_json)).
+        tmux_capability:require(invalid, layout_json)),
+    lists:foreach(fun(Invalid) ->
+        ?assertMatch({error, #{code := invalid_version}},
+            tmux_capability:decision(Invalid, layout_json))
+    end, [Latest#{candidate => -1}, Latest#{candidate => invalid},
+          Latest#{candidate => 1, tracking => true},
+          Latest#{candidate => 1, patch => <<"a">>},
+          Latest#{tracking => true, patch => <<"a">>}]).

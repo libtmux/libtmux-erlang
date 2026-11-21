@@ -53,10 +53,10 @@ ok
 """.
 -spec capabilities(tmux_version:t()) -> capabilities().
 capabilities(Version) ->
-    #{paste_sanitize => tmux_version:at_least(Version, {3, 7}),
-      cleaned_names => tmux_version:at_least(Version, {3, 7}),
-      rename_replaces => tmux_version:at_least(Version, {3, 4}),
-      strict_named_target => tmux_version:at_least(Version, {3, 4})}.
+    maps:from_list([begin
+        {ok, #{supported := Supported}} = tmux_capability:decision(Version, Feature),
+        {Feature, Supported}
+    end || Feature <- [paste_sanitize, cleaned_names, rename_replaces, strict_named_target]]).
 
 -doc """
 Load binary bytes under a name, or create an automatic buffer. Input may
