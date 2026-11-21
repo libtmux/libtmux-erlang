@@ -13,7 +13,7 @@ archive_lists_members_in_order_test() ->
     with_root(fun(Root, _Temp) ->
         Names = [Name || {Name, _, _} <- check_package:archive_members(Root, ?APP)],
         ?assertEqual(["ebin/libtmux_erlang.app", "ebin/tmux_a.beam", "LICENSE",
-                      "CHANGELOG.md", "priv/owned_io.LICENSE", "priv/tmux_owned_io"], Names)
+                      "CHANGELOG.md", "capabilities.json", "priv/owned_io.LICENSE", "priv/tmux_owned_io"], Names)
     end).
 
 archive_orders_nested_priv_files_by_path_component_test() ->
@@ -24,7 +24,7 @@ archive_orders_nested_priv_files_by_path_component_test() ->
         ok = file:write_file(filename:join(Priv, "sub.txt"), <<"t">>),
         Names = [Name || {Name, _, _} <- check_package:archive_members(Root, ?APP)],
         ?assertEqual(["priv/owned_io.LICENSE", "priv/sub/x", "priv/sub.txt",
-                      "priv/tmux_owned_io"], lists:nthtail(4, Names))
+                      "priv/tmux_owned_io"], lists:nthtail(5, Names))
     end).
 
 archive_is_deterministic_test() ->
@@ -38,6 +38,7 @@ archive_is_deterministic_test() ->
         {ok, Members} = erl_tar:table(First, [compressed]),
         ?assertEqual([Prefix ++ "/ebin/libtmux_erlang.app", Prefix ++ "/ebin/tmux_a.beam",
                       Prefix ++ "/LICENSE", Prefix ++ "/CHANGELOG.md",
+                      Prefix ++ "/capabilities.json",
                       Prefix ++ "/priv/owned_io.LICENSE", Prefix ++ "/priv/tmux_owned_io"],
                      Members)
     end).
@@ -323,7 +324,8 @@ with_root(Fun) ->
                  {filename:join([Application, "priv", "tmux_owned_io"]), <<"helper">>, 8#755},
                  {filename:join([Application, "priv", "owned_io.LICENSE"]), <<"mit">>, 8#644},
                  {source(Root, "LICENSE"), <<"license">>, 8#644},
-                 {source(Root, "CHANGELOG.md"), <<"changes">>, 8#644}],
+                 {source(Root, "CHANGELOG.md"), <<"changes">>, 8#644},
+                 {source(Root, "capabilities.json"), <<"{}">>, 8#644}],
         lists:foreach(fun({Path, Bytes, Mode}) ->
             ok = filelib:ensure_path(filename:dirname(Path)),
             ok = file:write_file(Path, Bytes),

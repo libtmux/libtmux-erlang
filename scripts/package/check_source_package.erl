@@ -221,7 +221,7 @@ check_contents(Path, App) ->
         Forbidden -> check_package:fail("prebuilt files in ~ts: ~ts",
                                         [App, lists:join(", ", Forbidden)])
     end,
-    Required = [<<"LICENSE">>, <<"CHANGELOG.md">>, <<"README.md">>, <<"rebar.config">>,
+    Required = [<<"LICENSE">>, <<"CHANGELOG.md">>, <<"README.md">>, <<"rebar.config">>, <<"capabilities.json">>,
                 <<"assets/logo.svg">>, <<"assets/logo-128.png">>, <<"assets/logo-512.png">>,
                 check_package:bin("src/" ++ App ++ ".app.src"), <<"c_src/owned_io.c">>,
                 <<"c_src/Makefile">>, <<"c_src/LICENSE">>, <<"c_src/provenance.json">>],

@@ -572,6 +572,7 @@ More: [Run a job and capture its result](docs/jobs.md) ·
 - [Key tables](docs/keys.md): add application bindings and remove them.
 - [Native commands](docs/commands-reference.md): parser metadata and feature
   minimums for each tmux command.
+- [Feature decisions](docs/capabilities.md): version requirements, fallbacks and native catalogue limits.
 - [API browser and source docs](docs/api.md): build the reference pages with
   specs, types and source links.
 

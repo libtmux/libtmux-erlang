@@ -3,7 +3,7 @@
 -include_lib("eunit/include/eunit.hrl").
 -include_lib("kernel/include/file.hrl").
 
--define(REQUIRED, ["LICENSE", "CHANGELOG.md", "README.md", "rebar.config", "assets/logo.svg",
+-define(REQUIRED, ["LICENSE", "CHANGELOG.md", "README.md", "rebar.config", "capabilities.json", "assets/logo.svg",
                    "assets/logo-128.png", "assets/logo-512.png", "src/libtmux_erlang.app.src",
                    "c_src/owned_io.c", "c_src/Makefile", "c_src/LICENSE",
                    "c_src/provenance.json"]).

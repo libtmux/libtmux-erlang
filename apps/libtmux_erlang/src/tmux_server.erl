@@ -225,6 +225,11 @@ Open a borrowed socket endpoint and start its supervised library owner. The
 caller owns that handle. This probes the executable, daemon version and
 observed Linux process incarnation; it never starts a tmux server or attaches
 a control client. Pass an absolute socket_path and optionally an executable.
+
+The native list-commands bootstrap avoids after-hooks. Its exact spelling must
+remain unaliased: a command-alias override can execute arbitrary server code.
+Opening does not audit aliases through show-options, which can run after-hooks.
+The captured version is historical; later commands verify endpoint identity.
 """.
 -spec open(open_options()) -> {ok, t()} | {error, map()}.
 open(Options) ->
@@ -737,7 +742,7 @@ submission(Command, Options, Started) when is_map(Options), is_integer(Started) 
 submission(_, _, _) -> {error, #{code => invalid_operation_options}}.
 
 endpoint_args(Config, Args) -> [<<"-u">>, <<"-N">>, <<"-S">>, maps:get(socket_path, Config) | Args].
-probe_args() -> [<<"display-message">>, <<"-p">>, <<"#{pid}\t#{version}">>].
+probe_args() -> [<<"list-commands">>, <<"-F">>, <<"#{pid}\t#{version}">>, <<"list-sessions">>].
 
 require_version(Raw) ->
     case tmux_version:require(Raw) of

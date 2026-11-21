@@ -209,8 +209,8 @@ value(Value) when is_binary(Value), byte_size(Value) =< 32768 ->
     end;
 value(_) -> {error, #{code => invalid_option_value}}.
 
-profile(#{major := Major, minor := Minor, patch := Patch, tracking := false}) ->
-    Profile = <<(integer_to_binary(Major))/binary, $., (integer_to_binary(Minor))/binary, Patch/binary>>,
+profile(#{major := _, minor := _, patch := _, tracking := false} = Version) ->
+    Profile = tmux_version:format(Version),
     case lists:member(Profile, tmux_option_data:versions()) of
         true -> {ok, Profile};
         false -> {error, #{code => unsupported_option_catalogue, version => Profile}}

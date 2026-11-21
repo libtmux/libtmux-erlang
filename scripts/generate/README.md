@@ -9,6 +9,19 @@ that schema from the pinned tmux sources.
 | `generate_commands.erl` | `schema/commands.json` | `tmux_capability_data.erl`, `docs/commands-reference.md` |
 | `generate_options.erl` | `schema/options.json` | `tmux_option_data.erl`, `docs/options-reference.md` |
 
+`generate_capabilities.erl` exports the compiled `tmux_capability` operation
+gates to the root and packaged `capabilities.json`. It does not regenerate the
+native command catalogue or claim that every native command has a typed API.
+Compile registry changes before writing or checking the manifests:
+
+```console
+$ mise exec -- escript scripts/generate/generate_capabilities.erl
+```
+
+```console
+$ mise exec -- escript scripts/generate/generate_capabilities.erl --check
+```
+
 Both read the pinned tmux commits from
 [schema/tmux-sources.json](../../schema/tmux-sources.json) and refuse a schema
 whose sources differ from those pins. Maintainers run them after changing a

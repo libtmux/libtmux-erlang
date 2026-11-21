@@ -116,7 +116,7 @@ assemble_archive(Root, App, ArtifactDir) ->
 
 -doc """
 List the archive members as `{NameInArchive, SourcePath, Mode}`: the compiled
-`ebin` files, `LICENSE`, `CHANGELOG.md` and everything under `priv`. Fails when
+`ebin` files, `LICENSE`, `CHANGELOG.md`, `capabilities.json` and everything under `priv`. Fails when
 the application is not compiled.
 """.
 -spec archive_members(file:filename(), string()) ->
@@ -131,7 +131,7 @@ archive_members(Root, App) ->
     end,
     Compiled = [{"ebin/" ++ Name, filename:join(Ebin, Name)} || Name <- Beams],
     Texts = [{Name, filename:join([Root, "apps", App, Name])}
-             || Name <- ["LICENSE", "CHANGELOG.md"]],
+             || Name <- ["LICENSE", "CHANGELOG.md", "capabilities.json"]],
     Priv = [{filename:join(["priv" | Relative]), Path}
             || {Relative, Path} <- walk(filename:join(Application, "priv"), [])],
     [{Name, Path, mode(Path)} || {Name, Path} <- Compiled ++ Texts ++ Priv].
@@ -186,7 +186,7 @@ consumer_files() ->
 demos() ->
     ["filter_demo", "inspect_demo", "readme_demo", "linked_graph", "job_demo",
      "options_demo", "buffer_demo", "pane_demo", "config_demo", "pipe_demo", "hook_demo",
-     "key_demo", "command_demo", "control_demo", "plan_demo", "batch_demo", "typing_demo"].
+     "key_demo", "command_demo", "control_demo", "plan_demo", "batch_demo", "typing_demo", "capability_demo"].
 
 -doc """
 Create the consumer's working directories and copy `consumer_files/0` and the
