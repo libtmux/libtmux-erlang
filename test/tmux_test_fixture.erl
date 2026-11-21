@@ -2,15 +2,18 @@
 -compile(nowarn_missing_spec).
 -behaviour(gen_server).
 -export([start/1, info/1, command/2, start_command/2, replace/1, close/1, ensure_closed/1,
-         process_identity/1, same_process/2, track_process/2, with_server/2,
+         process_identity/1, same_process/2, track_process/2, with_server/2, with_server/3,
          with_client/4, client_session/1]).
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2]).
 
 -define(READY_MS, 2500).
 
-start(Executable) ->
+start(Executable) -> start(Executable, #{}).
+
+start(Executable, Options) ->
+    Log = maps:get(log_directory, Options, os:getenv("LIBTMUX_TEST_TMUX_LOG")),
     case tmux_test_sandbox:require() of
-        ok -> gen_server:start(?MODULE, {self(), Executable}, []);
+        ok -> gen_server:start(?MODULE, {self(), Executable, Log}, []);
         Error -> Error
     end.
 info(Fixture) -> gen_server:call(Fixture, info, 900).
@@ -19,7 +22,10 @@ close(Fixture) -> gen_server:call(Fixture, close, 1000).
 track_process(Fixture, Pid) -> gen_server:call(Fixture, {track_process, Pid}, 900).
 
 with_server(Executable, Function) ->
-    {ok, Fixture} = start(Executable),
+    with_server(Executable, #{}, Function).
+
+with_server(Executable, Options, Function) ->
+    {ok, Fixture} = start(Executable, Options),
     try
         #{socket := Socket} = info(Fixture),
         {ok, Server} = tmux_server:open(#{socket_path => Socket, executable => Executable}),
@@ -143,10 +149,10 @@ client_exit(Port, Deadline, Budget) when Budget > 0 ->
     end;
 client_exit(_, _, _) -> error(client_output_limit).
 
-init({Owner, Executable}) ->
+init({Owner, Executable, Log}) ->
     Monitor = monitor(process, Owner),
     {ok, Directory} = tmux_test_sandbox:fixture_directory(),
-    try create(Executable, Directory) of
+    try create(Executable, Directory, Log) of
         State -> {ok, State#{owner_monitor => Monitor, cleaned => false,
                             tracked_processes => #{}}}
     catch Class:Reason:Stack ->
@@ -157,9 +163,9 @@ init({Owner, Executable}) ->
 %% The client starts the daemon, prints its pid and version, then blocks on a
 %% channel nobody signals. That line proves the server accepted a command, and
 %% closing the channel retires the client, helper and daemon together.
-create(Executable, Directory) ->
+create(Executable, Directory, Log) ->
     Socket = list_to_binary(filename:join(Directory, "s")),
-    {Verbose, Where} = verbose_log(),
+    {Verbose, Where} = verbose_log(Log),
     Arguments = [<<"-u">> | Verbose] ++ [<<"-S">>, Socket, <<"-f">>, <<"/dev/null">>,
                  <<"start-server">>, <<";">>,
                  <<"set-option">>, <<"-s">>, <<"exit-empty">>, <<"off">>, <<";">>,
@@ -172,6 +178,7 @@ create(Executable, Directory) ->
         {ok, #{helper_pid := HelperPid}} = tmux_transport:await_started(Handle, ?READY_MS),
         Pid = server_pid(ready_line(Handle, Deadline, <<>>)),
         #{executable => Executable, socket => Socket, directory => Directory,
+          log_directory => Log,
           transport => Handle, server_pid => Pid, server_identity => process_identity(Pid),
           helper_pid => HelperPid, helper_identity => process_identity(HelperPid)}
     catch Class:Reason:Stack ->
@@ -181,14 +188,11 @@ create(Executable, Directory) ->
 
 %% LIBTMUX_TEST_TMUX_LOG names a directory that receives tmux's -vv client and
 %% server logs, which CI keeps when a job fails.
-verbose_log() ->
-    case os:getenv("LIBTMUX_TEST_TMUX_LOG") of
-        false -> {[], #{}};
-        Directory ->
-            Absolute = filename:absname(Directory),
-            ok = filelib:ensure_path(Absolute),
-            {[<<"-vv">>], #{cwd => unicode:characters_to_binary(Absolute)}}
-    end.
+verbose_log(false) -> {[], #{}};
+verbose_log(Directory) ->
+    Absolute = filename:absname(Directory),
+    ok = filelib:ensure_path(Absolute),
+    {[<<"-vv">>], #{cwd => unicode:characters_to_binary(Absolute)}}.
 
 ready_line(Handle, Deadline, Seen) ->
     Remaining = max(0, Deadline - erlang:monotonic_time(millisecond)),
@@ -213,13 +217,13 @@ server_pid(Line) ->
 
 handle_call(info, _From, State) -> {reply, maps:without([transport, owner_monitor], State), State};
 handle_call(replace, _From, #{executable := Executable, directory := Directory,
-                            socket := Socket} = State) ->
+                            socket := Socket, log_directory := Log} = State) ->
     ok = retire(State),
     case file:delete(Socket) of
         ok -> ok;
         {error, enoent} -> ok
     end,
-    try create(Executable, Directory) of
+    try create(Executable, Directory, Log) of
         Replacement ->
             Next = maps:merge(State, Replacement#{tracked_processes => #{}}),
             {reply, ok, Next}

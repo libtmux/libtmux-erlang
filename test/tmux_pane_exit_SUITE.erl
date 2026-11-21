@@ -35,19 +35,39 @@ exit_status(Config) ->
     end).
 
 waits_for_a_running_pane(Config) ->
-    with_window(Config, true, fun(_Server, Window, Fixture) ->
+    Log = filename:join(proplists:get_value(priv_dir, Config), "tmux"),
+    with_window(Config, true, #{log_directory => Log}, fun(_Server, Window, Fixture) ->
         Pane = job(Window, Fixture, [<<"/bin/cat">>]),
         Self = self(),
         Waiter = spawn_link(fun() ->
             Self ! {done, tmux_pane:wait_exit(Pane, #{deadline_ms => 5000})}
         end),
         {ok, _} = tmux_pane:send_keys(Pane, [{control, <<"d">>}]),
-        {ok, #{exit := {status, 0}, pane := Dead}} = receive {done, Result} -> Result
-            after 6000 -> ct:fail(waiter_timeout) end,
+        Result = receive {done, Outcome} -> Outcome
+            after 6000 -> report_unexpected_exit(Fixture, Pane, waiter_timeout) end,
         unlink(Waiter),
+        Dead = case Result of
+            {ok, #{exit := {status, 0}, pane := Completed}} -> Completed;
+            _ -> report_unexpected_exit(Fixture, Pane, Result)
+        end,
         %% The pane is dead now, so a second call reads the same outcome.
         {ok, #{exit := {status, 0}}} = tmux_pane:wait_exit(Dead, #{})
     end).
+
+report_unexpected_exit(Fixture, Pane, Outcome) ->
+    #{server_pid := Server, helper_pid := Helper, log_directory := Log} =
+        tmux_test_fixture:info(Fixture),
+    Id = tmux_model:get(id, Pane),
+    Format = <<"#{pane_id}|#{pane_dead}|#{pane_dead_status}|#{pane_dead_signal}|#{pane_pid}">>,
+    Native = tmux_test_fixture:command(Fixture,
+        [<<"display-message">>, <<"-p">>, <<"-t">>, Id, <<"-F">>, Format]),
+    Clients = tmux_test_fixture:command(Fixture,
+        [<<"list-clients">>, <<"-F">>, <<"#{client_pid}|#{client_flags}">>]),
+    ct:fail({unexpected_pane_exit,
+        #{expected => {status, 0}, observed => Outcome, server_pid => Server,
+          helper_pid => Helper, pane => Id, pane_pid => tmux_model:get(pid, Pane),
+          current_command_at_split => tmux_model:get(current_command, Pane),
+          native => Native, clients => Clients, tmux_log => Log}}).
 
 waits_after_pty_closes(Config) ->
     with_window(Config, true, fun(_Server, Window, Fixture) ->
@@ -162,7 +182,10 @@ job(Window, Fixture, Argv, Track) ->
     Pane.
 
 with_window(Config, Retain, Fun) ->
-    tmux_test_fixture:with_server(proplists:get_value(executable, Config),
+    with_window(Config, Retain, #{}, Fun).
+
+with_window(Config, Retain, Options, Fun) ->
+    tmux_test_fixture:with_server(proplists:get_value(executable, Config), Options,
         fun(Server, Fixture) ->
             {ok, Session} = tmux_session:create(Server,
                 #{name => <<"exit">>, launch => #{argv => [<<"/bin/cat">>]}}),
