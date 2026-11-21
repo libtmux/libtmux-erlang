@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.0.2
+
 - Install the core from Hex in a fresh Rebar3 project. The quickstart counts
   panes in a private tmux server, stops the server and prints the count.
 - Find installation and first tasks together in the native docs. Examples link
@@ -10,6 +12,8 @@
 - On tmux 3.8, [run a program in a private terminal](docs/programs.md) with
   literal arguments. Collect its exit, bounded screen capture and cleanup
   result. Start a program separately to send input or request stop.
+- Wait for pane exit or visible text on an owned server. The
+  [job guide](docs/jobs.md) shows when to read the rendered screen.
 - Run contributor checks and examples with Erlang tooling. The shared
   example-width check uses Python.
 - Tagged Hex releases use workload identity and check for HTTP 200 on the
