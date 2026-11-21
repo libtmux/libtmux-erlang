@@ -21,8 +21,8 @@ get(#{api_key := <<"Bearer fixture">>} = Config,
     <<"packages/libtmux_erlang">>) ->
     Effective = not maps:get(ineffective_revoke, Config, false),
     case {get(revoked), Effective} of
-        {undefined, _} -> {ok, {200, #{}, #{}}};
-        {_, false} -> {ok, {200, #{}, #{}}};
+        {undefined, _} -> {ok, {403, #{}, #{}}};
+        {_, false} -> {ok, {403, #{}, #{}}};
         {_, true} -> {ok, {401, #{}, #{}}}
     end.
 

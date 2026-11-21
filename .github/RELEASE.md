@@ -46,9 +46,10 @@ $ gh workflow run release.yml \
 ```
 
 The check uses the pinned publisher's Hex client to exchange a token scoped to
-`libtmux_erlang`. It makes one read-only package request, revokes the token,
-and requires Hex to reject it afterward. It prints no token and uploads no
-package or documentation. A passing run confirms authentication and revocation;
+`libtmux_erlang`. A read-only API request must deny its read permission
+(HTTP 403), then reject authentication after revocation (HTTP 401).
+The check prints no token and uploads no package or documentation. A passing
+run confirms authentication and revocation;
 the next release establishes publishing through OIDC. Staged publishing still
 requires approval when enabled on Hex.
 

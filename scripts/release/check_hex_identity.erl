@@ -11,9 +11,10 @@ $ escript scripts/release/check_hex_identity.erl
 
 Requires the `hexpm` GitHub environment and `id-token: write`. Rejects a
 configured `HEX_API_KEY` environment variable, exchanges the GitHub identity
-for a token scoped to `libtmux_erlang`, and revokes it after one read-only
-package request. Checks that Hex then rejects the revoked token. Uploads no
-package or documentation. Tokens are neither printed nor written to disk.
+for a token scoped to `libtmux_erlang`. A read-only API request must deny its
+read permission (HTTP 403); after revocation it must reject the credential
+(HTTP 401). Uploads no package or documentation. Tokens are neither printed
+nor written to disk.
 HTTP requests have a 15-second deadline. Exit status 0 confirms exchange and
 revocation; status 1 indicates failure, including running outside Actions.
 """.
@@ -69,7 +70,7 @@ client(Module) ->
     {module, Module} = code:ensure_loaded(Module),
     Module.
 
--doc "Check token acceptance, revoke it, then require HTTP 401 for that token.".
+-doc "Require a publish-only token's HTTP 403 to become HTTP 401 on revocation.".
 -spec verify_revocation(module(), map(), binary(), binary()) ->
     ok | {error, token_verification_failed | token_revocation_failed}.
 verify_revocation(Api, Config, Bearer, Token) ->
@@ -84,13 +85,20 @@ verify_revocation(Api, Config, Bearer, Token) ->
                 _ -> throw(token_revocation_failed)
             end
         end,
-        case {Before, Api:get(Authenticated, Path)} of
-            {{ok, {200, _, _}}, {ok, {401, _, _}}} -> ok;
+        After = Api:get(Authenticated, Path),
+        io:format("Read-only API check: HTTP ~p before revocation, ~p after.~n",
+                  [http_status(Before), http_status(After)]),
+        % Package reads require api:read; publish-only tokens lack that scope.
+        case {Before, After} of
+            {{ok, {403, _, _}}, {ok, {401, _, _}}} -> ok;
             _ -> {error, token_verification_failed}
         end
     catch
         throw:token_revocation_failed -> {error, token_revocation_failed}
     end.
+
+http_status({ok, {Status, _, _}}) -> Status;
+http_status(_) -> request_failed.
 
 -spec fail(string()) -> no_return().
 fail(Message) ->

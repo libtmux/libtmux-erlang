@@ -7,8 +7,9 @@ Checks a release, verifies its publishing identity and publishes it to Hex.
 The authentication-only dispatch of `.github/workflows/release.yml` runs this
 script in the `hexpm` environment with `id-token: write`. It uses the same
 `hex_cli_auth:workload_identity_auth/2` function as pinned `rebar3_hex`, scopes
-the token to `libtmux_erlang`, and revokes it after one read-only package
-request. A second request must reject the revoked token. It uploads nothing
+the token to `libtmux_erlang`, and revokes it after one read-only API request.
+The read must deny permission (HTTP 403) because the token can only publish;
+after revocation it must reject authentication (HTTP 401). It uploads nothing
 and never prints or saves tokens. A configured `HEX_API_KEY` environment
 variable makes the check fail.
 
