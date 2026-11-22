@@ -4,13 +4,16 @@
          borrowed_commands/1, cancellation/1, operation_owner/1, stale_endpoint/1,
          replacement_endpoint/1, retirement_requests/1,
          ownership_transfer/1, transfer_timeout/1, endpoint_owner/1, admission_limits/1, result_retention/1,
-         admission_expiry/1, registry_restart/1, command_origins/1, capability_bootstrap/1]).
+         admission_expiry/1, registry_restart/1, command_origins/1,
+         capability_bootstrap/1, typed_kill/1, typed_kill_stale/1,
+         typed_kill_dispatch_replacement/1]).
 
 %% Outer: real tmux commands, operation ownership and borrowed-server survival.
 all() -> [borrowed_commands, cancellation, operation_owner, stale_endpoint,
           replacement_endpoint, retirement_requests,
           ownership_transfer, transfer_timeout, endpoint_owner, admission_limits, result_retention,
-          admission_expiry, registry_restart, command_origins, capability_bootstrap].
+          admission_expiry, registry_restart, command_origins, capability_bootstrap,
+          typed_kill, typed_kill_stale, typed_kill_dispatch_replacement].
 
 init_per_suite(Config) ->
     {ok, _} = application:ensure_all_started(libtmux_erlang),
@@ -22,6 +25,103 @@ init_per_suite(Config) ->
     [{executable, unicode:characters_to_binary(Executable)} | Config].
 
 end_per_suite(_) -> ok = application:stop(libtmux_erlang).
+
+typed_kill(Config) ->
+    with_server(Config, fun(Server, Fixture) ->
+        #{server_pid := Pid, server_identity := Identity} = tmux_test_fixture:info(Fixture),
+        #{transport := Lifetime} = sys:get_state(Fixture),
+        {ok, #{cleanup := complete, outcome := success}} = tmux_server:kill(Server),
+        {_, #{cleanup := complete}} = tmux_transport:await(Lifetime, 900),
+        false = tmux_test_fixture:same_process(Pid, Identity)
+    end),
+    Executable = proplists:get_value(executable, Config),
+    {ok, ok} = tmux_server:with_owned(#{executable => Executable}, fun(Server) ->
+        {error, #{code := owned_server_requires_stop, submitted := false}} =
+            tmux_server:kill(Server),
+        {ok, #{phase := open}} = tmux_server:status(Server),
+        ok
+    end).
+
+typed_kill_stale(Config) ->
+    with_server(Config, fun(Server, Fixture) ->
+        #{server_pid := OldPid, server_identity := OldIdentity} =
+            tmux_test_fixture:info(Fixture),
+        ok = tmux_test_fixture:replace(Fixture),
+        false = tmux_test_fixture:same_process(OldPid, OldIdentity),
+        #{server_pid := Pid, server_identity := Identity} = tmux_test_fixture:info(Fixture),
+        {ok, _} = tmux_test_fixture:command(Fixture,
+            [<<"set-option">>, <<"-s">>, <<"command-alias[91]">>,
+             <<"list-commands=set-option -s @kill-probe touched ; lscm">>]),
+        {error, #{code := stale_server, submitted := false}} = tmux_server:kill(Server),
+        true = tmux_test_fixture:same_process(Pid, Identity),
+        Expected = <<(integer_to_binary(Pid))/binary, $\n>>,
+        {ok, #{stdout := Expected}} = tmux_test_fixture:command(Fixture,
+            [<<"lscm">>, <<"-F">>, <<"#{pid}">>, <<"kill-server">>]),
+        Read = [<<"lscm">>, <<"-F">>, <<"#{@kill-probe}">>, <<"kill-server">>],
+        {ok, #{stdout := <<>>}} = tmux_test_fixture:command(Fixture, Read),
+        {ok, _} = tmux_test_fixture:command(Fixture,
+            [<<"list-commands">> | tl(Read)]),
+        {ok, #{stdout := <<"touched\n">>}} = tmux_test_fixture:command(Fixture, Read)
+    end).
+
+typed_kill_dispatch_replacement(Config) ->
+    with_server(Config, fun(Server, Fixture) ->
+        Executable = proplists:get_value(executable, Config),
+        tmux_test_fixture:with_server(Executable, fun(_, Replacement) ->
+            #{socket := Socket, server_pid := OldPid, server_identity := OldIdentity} =
+                tmux_test_fixture:info(Fixture),
+            #{socket := OtherSocket, server_pid := NewPid, server_identity := NewIdentity} =
+                tmux_test_fixture:info(Replacement),
+            Suffix = integer_to_binary(erlang:unique_integer([positive])),
+            Ready = <<"kill-preflight-", Suffix/binary>>,
+            Gate = <<"kill-dispatch-", Suffix/binary>>,
+            {ok, Listener} = tmux_test_fixture:start_command(Fixture,
+                [<<"wait-for">>, Ready]),
+            {ok, _} = tmux_transport:await_started(Listener, 900),
+            Alias = <<"list-commands=wait-for -S ", Ready/binary,
+                      " ; wait-for ", Gate/binary, " ; lscm">>,
+            {ok, _} = tmux_test_fixture:command(Fixture,
+                [<<"set-option">>, <<"-s">>, <<"command-alias[91]">>, Alias]),
+            Parent = self(),
+            {Caller, Monitor} = spawn_monitor(fun() ->
+                Parent ! {kill_result, self(), tmux_server:kill(Server)}
+            end),
+            try
+                {ok, #{cleanup := complete}} = tmux_transport:await(Listener, 900),
+                {ok, #{owner := Endpoint}} = tmux_server:status(Server),
+                ok = sys:suspend(Endpoint),
+                try
+                    {ok, _} = tmux_test_fixture:command(Fixture,
+                        [<<"wait-for">>, <<"-S">>, Gate]),
+                    #{operations := Operations} = sys:get_state(Endpoint),
+                    [#{stage := preflight, handle := Preflight}] = maps:values(Operations),
+                    {ok, #{cleanup := complete}} = tmux_transport:await(Preflight, 900),
+                    swap_socket_paths(Socket, OtherSocket, fun() ->
+                        ok = sys:resume(Endpoint),
+                        receive
+                            {kill_result, Caller,
+                             {error, #{code := stale_server, outcome := not_started,
+                                       cleanup := complete}}} -> ok;
+                            {kill_result, Caller, Result} -> ct:fail({replacement_kill, Result})
+                        after 900 -> ct:fail(missing_kill_result)
+                        end,
+                        true = tmux_test_fixture:same_process(OldPid, OldIdentity),
+                        true = tmux_test_fixture:same_process(NewPid, NewIdentity),
+                        Expected = <<(integer_to_binary(NewPid))/binary, $\n>>,
+                        {ok, #{stdout := Expected}} = tmux_test_fixture:command(Fixture,
+                            [<<"list-commands">>, <<"-F">>, <<"#{pid}">>, <<"kill-server">>])
+                    end)
+                after _ = sys:resume(Endpoint)
+                end,
+                receive {'DOWN', Monitor, process, Caller, normal} -> ok
+                after 900 -> ct:fail(kill_caller_alive)
+                end
+            after
+                exit(Caller, kill),
+                _ = tmux_transport:close(Listener)
+            end
+        end)
+    end).
 
 capability_bootstrap(Config) ->
     with_server(Config, fun(Setup, Fixture) ->
@@ -575,6 +675,21 @@ registry_restart(Config) ->
         after ok = tmux_server:close(New)
         end
     end).
+
+swap_socket_paths(Socket, OtherSocket, Function) ->
+    Parked = <<Socket/binary, ".parked">>,
+    ok = file:rename(Socket, Parked),
+    try
+        ok = file:rename(OtherSocket, Socket),
+        try Function()
+        after
+            case file:rename(Socket, OtherSocket) of
+                ok -> ok;
+                {error, enoent} -> ok
+            end
+        end
+    after ok = file:rename(Parked, Socket)
+    end.
 
 with_server(Config, Fun) ->
     Executable = proplists:get_value(executable, Config),

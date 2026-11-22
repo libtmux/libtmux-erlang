@@ -51,14 +51,15 @@ one captured session; it does not yet submit commands or stream output.
 
 **Closing and scopes.** `close/1` retires a handle's queued work and one-shot
 clients and leaves a borrowed daemon running; `stop_owned/1` stops an owned
-daemon and returns ok only once its cleanup is proved. `with_server/2` and
+daemon and returns ok only once its cleanup is proved. `kill/1` explicitly
+sends native `kill-server` to a borrowed daemon. `with_server/2` and
 `with_owned/2` run a callback between opening and closing a borrowed endpoint,
 or between starting and stopping an owned one. A failed cleanup there returns
 `t:scope_failure/0` with the handles needed to retry. `tmux_scope:run/2` pairs
 work with cleanup for any other resource, and control attachments close with
 `tmux_control:close/1` before the endpoint does.
 
-`close/1`, `stop_owned/1`, `with_server/2`, `with_owned/2`,
+`close/1`, `stop_owned/1`, `kill/1`, `with_server/2`, `with_owned/2`,
 `t:ownership/0`, `t:scope_failure/0`, `tmux_scope:run/2` and
 `tmux_control:close/1`
 
@@ -149,7 +150,7 @@ that signal, wait on or lock a wait-for channel; submit them with `command/3`.
   `tmux_command:wait_for/2`
 """.
 -behaviour(gen_server).
--export([open/1, command/3, close/1, status/1, origin/1, version/1, from_origin/1, bind/2,
+-export([open/1, command/3, close/1, kill/1, status/1, origin/1, version/1, from_origin/1, bind/2,
          snapshot/1, snapshot/2, observation_context/1, start_owned/1, stop_owned/1]).
 -export([with_server/2, with_owned/2]).
 -export([submit/3, submit_before/4, start_link/3, init/1, handle_call/3, handle_cast/2,
@@ -391,6 +392,48 @@ before this call to verify those clients' cleanup too.
 close(Server) -> server_request(Server, close, 1000).
 
 -doc """
+Explicitly destroy the daemon behind a borrowed endpoint with native
+`kill-server`. Performs I/O. Owned endpoints return `owned_server_requires_stop`
+before dispatch; use their ownership token with `stop_owned/1` instead.
+
+Endpoint preflight checks the captured Linux process incarnation. Native
+`if-shell -F` then compares the connected daemon's PID before dispatching
+`kill-server`. A mismatch returns `stale_server` with `outcome => not_started`.
+This narrows the one-shot replacement window; it does not reserve a PID or
+eliminate PID reuse between the process observation and connection.
+
+The result retains command and client-cleanup evidence. It does not prove
+retirement of borrowed daemon descendants or clean their namespace. Call
+`close/1` afterward to retire the endpoint. The guard requires native
+`if-shell`, `list-commands` and `kill-server` behavior; configured overrides
+retain their native effects.
+""".
+-spec kill(t()) -> {ok, map()} | {error, map()}.
+kill(Server) ->
+    maybe
+        {ok, Command, Rejected} ?= server_request(Server, kill_command, 900),
+        case command(Server, Command, #{max_stdout => 128, max_stderr => 4096}) of
+            {ok, #{stdout := Rejected} = Detail} ->
+                {error, Detail#{code => stale_server, outcome => not_started}};
+            {ok, #{stdout := <<>>}} = Result -> Result;
+            {ok, Detail} -> {error, Detail#{code => unexpected_server_reply, outcome => unknown}};
+            Error -> Error
+        end
+    end.
+
+kill_command(#{server_pid := Pid}) ->
+    Mark = <<"libtmux-kill-", (binary:encode_hex(crypto:strong_rand_bytes(12), lowercase))/binary>>,
+    Condition = <<"#{==:#{pid},", (integer_to_binary(Pid))/binary, "}">>,
+    {ok, Kill} = tmux_command:raw(<<"kill-server">>, []),
+    {ok, Reject} = tmux_command:raw(<<"list-commands">>,
+        [<<"-F">>, Mark, <<"kill-server">>]),
+    {ok, Action} = tmux_command:to_config([Kill]),
+    {ok, Otherwise} = tmux_command:to_config([Reject]),
+    {ok, Command} = tmux_command:raw(<<"if-shell">>,
+        [<<"-F">>, <<"--">>, Condition, Action, Otherwise]),
+    {ok, Command, <<Mark/binary, $\n>>}.
+
+-doc """
 Read the endpoint owner's lifecycle and resource summary. This contacts the
 library owner, not tmux, and does not refresh captured rows.
 """.
@@ -601,6 +644,13 @@ handle_call({Generation, origin, _}, _, #{generation := Generation, phase := ope
     {reply, {ok, maps:get(origin, State)}, State};
 handle_call({Generation, version, _}, _, #{generation := Generation, phase := open, valid := true} = State) ->
     {reply, {ok, maps:get(version, maps:get(config, State))}, State};
+handle_call({Generation, kill_command, _}, _,
+            #{generation := Generation, phase := open, valid := true, config := Config} = State) ->
+    Reply = case maps:get(owned, Config, false) of
+        true -> before_send(#{code => owned_server_requires_stop});
+        false -> kill_command(Config)
+    end,
+    {reply, Reply, State};
 handle_call({Generation, observation_context, _}, _,
             #{generation := Generation, phase := open, valid := true,
               config := Config, origin := Origin} = State) ->
@@ -630,7 +680,7 @@ handle_call({Generation, {unwatch_closing, Watch}, _}, {Pid, _},
         Error -> {reply, Error, State}
     end;
 handle_call({Generation, Kind, _}, _, #{generation := Generation} = State)
-  when Kind =:= origin; Kind =:= version; Kind =:= observation_context ->
+  when Kind =:= origin; Kind =:= version; Kind =:= observation_context; Kind =:= kill_command ->
     {reply, {error, #{code => stale_reference}}, State};
 handle_call({Generation, Kind, _}, _, #{generation := Generation, phase := closed} = State)
   when Kind =:= close; Kind =:= retired ->

@@ -34,6 +34,21 @@ startup, graph queries and cleanup.
 - A [control attachment](control.md) gets an invalidation notice and starts its
   own retirement. Close it before its endpoint to verify its cleanup too.
 
+## Destroy a borrowed daemon
+
+`tmux_server:kill/1` explicitly sends native `kill-server` to a borrowed
+endpoint. It checks the captured process incarnation during preflight and the
+connected daemon's PID before the destructive command. A replacement found by
+that guard returns `stale_server` with `outcome => not_started`. These checks
+do not reserve a PID against reuse between observation and connection.
+
+The result records command completion and client cleanup. It does not retire
+borrowed descendants or remove their namespace. Close the endpoint afterward.
+Configured aliases retain their
+[native effects](compatibility.md#check-a-feature-before-use).
+An owned endpoint returns `owned_server_requires_stop`; stop it with its
+ownership token instead.
+
 ## Preserve work and cleanup failures
 
 - A scoped server callback runs in the calling process.

@@ -111,6 +111,7 @@ This table describes the source checkout. See the
 | Control attachment | Explicit session, same-connection identity, no-output/ignore-size, skipped environment update and separate native cleanup |
 | Pane stream | Live pane bytes and native notifications on owned sessions, with credit, acknowledgements and terminal gaps |
 | Daemon ownership | Empty private startup, separate ownership token, caller lifetime, explicit stop and identity-checked namespace cleanup |
+| Borrowed daemon shutdown | Explicit `tmux_server:kill/1` with process preflight and a native daemon PID guard |
 | Domain commands | Initial create/read/rename/kill calls, explicit client/session selection, checked window memberships, pane split/break/join/move/swap/resize, pane/window respawn, window layouts, literal/key input and capture |
 | Options | Explicit local/global tables, local or inherited reads, indexed writes/unsets and generated source metadata; hooks remain outside the option API |
 | Hooks | Versioned builtin arrays, indexed command values, inheritance and explicit execution contexts |
