@@ -79,7 +79,7 @@ cached_tool_archives_are_not_fetched_test() ->
         Pins = [pin(<<"hex_core">>, <<"1.0.0">>, <<"core">>)],
         ok = file:write_file(filename:join(Temp, "hex_core-1.0.0.tar"), <<"core">>),
         Self = self(),
-        ok = check_source_package:ensure_pins(Temp, Pins,
+        ok = source_package_tools:ensure_pins(Temp, Pins,
             fun(Url) -> Self ! {fetched, Url}, {ok, <<"core">>} end),
         receive {fetched, Url} -> error({fetched, Url})
         after 0 -> ok
@@ -90,7 +90,7 @@ missing_tool_archives_are_fetched_and_kept_test() ->
     with_tmp(fun(Temp) ->
         Pins = [pin(<<"verl">>, <<"1.1.1">>, <<"verl-bytes">>)],
         Self = self(),
-        ok = check_source_package:ensure_pins(Temp, Pins,
+        ok = source_package_tools:ensure_pins(Temp, Pins,
             fun(Url) -> Self ! {fetched, Url}, {ok, <<"verl-bytes">>} end),
         ?assertEqual({ok, <<"verl-bytes">>}, file:read_file(filename:join(Temp, "verl-1.1.1.tar"))),
         receive {fetched, Url} -> ?assertEqual("https://repo.hex.pm/tarballs/verl-1.1.1.tar", Url)
@@ -103,7 +103,7 @@ changed_tool_archive_is_replaced_test() ->
         Pins = [pin(<<"verl">>, <<"1.1.1">>, <<"good">>)],
         Path = filename:join(Temp, "verl-1.1.1.tar"),
         ok = file:write_file(Path, <<"tampered">>),
-        ok = check_source_package:ensure_pins(Temp, Pins, fun(_) -> {ok, <<"good">>} end),
+        ok = source_package_tools:ensure_pins(Temp, Pins, fun(_) -> {ok, <<"good">>} end),
         ?assertEqual({ok, <<"good">>}, file:read_file(Path))
     end).
 
@@ -111,7 +111,7 @@ tool_archive_with_the_wrong_digest_is_rejected_test() ->
     with_tmp(fun(Temp) ->
         Pins = [pin(<<"verl">>, <<"1.1.1">>, <<"good">>)],
         assert_failed("tool checksum mismatch", "verl-1.1.1.tar", fun() ->
-            check_source_package:ensure_pins(Temp, Pins, fun(_) -> {ok, <<"evil">>} end)
+            source_package_tools:ensure_pins(Temp, Pins, fun(_) -> {ok, <<"evil">>} end)
         end),
         ?assertNot(filelib:is_file(filename:join(Temp, "verl-1.1.1.tar")))
     end).
@@ -120,10 +120,10 @@ failed_and_oversized_downloads_are_rejected_test() ->
     with_tmp(fun(Temp) ->
         Pins = [pin(<<"verl">>, <<"1.1.1">>, <<"good">>)],
         assert_failed("cannot download", "verl-1.1.1.tar", fun() ->
-            check_source_package:ensure_pins(Temp, Pins, fun(_) -> {error, timeout} end)
+            source_package_tools:ensure_pins(Temp, Pins, fun(_) -> {error, timeout} end)
         end),
         assert_failed("too large", "verl-1.1.1.tar", fun() ->
-            check_source_package:ensure_pins(Temp, Pins,
+            source_package_tools:ensure_pins(Temp, Pins,
                 fun(_) -> {ok, binary:copy(<<0>>, 8 * 1024 * 1024 + 1)} end)
         end),
         ?assertNot(filelib:is_file(filename:join(Temp, "verl-1.1.1.tar")))
@@ -143,11 +143,11 @@ hex_core_is_unpacked_and_compiled_in_order_test_() ->
                     "-callback a() -> ok.\na() -> ok.\n">>},
                 {"src/fakehex_b.erl", <<"-module(fakehex_b).\n-behaviour(fakehex_a).\n"
                     "-export([a/0]).\na() -> ok.\n">>}]),
-            ok = check_source_package:unpack_core(Tarball, Core),
+            ok = source_package_tools:unpack_core(Tarball, Core),
             ?assertNot(filelib:is_file(filename:join(Core, "stale"))),
             Ebin = filename:join(Core, "ebin"),
             try
-                ok = check_source_package:compile_core(Core),
+                ok = source_package_tools:compile_core(Core),
                 lists:foreach(fun(Module) ->
                     ?assert(filelib:is_regular(filename:join(Ebin, Module ++ ".beam")), Module)
                 end, ["fakehex_a", "fakehex_b", "safe_erl_term"])
@@ -166,10 +166,10 @@ a_warning_in_hex_core_is_an_error_test_() ->
                     "Erlang code.\n">>},
                 {"src/fakehex_c.erl", <<"-module(fakehex_c).\n-export([c/0]).\n"
                     "c() -> Unused = 1, ok.\n">>}]),
-            ok = check_source_package:unpack_core(Tarball, Core),
+            ok = source_package_tools:unpack_core(Tarball, Core),
             try
                 assert_failed("cannot compile", "fakehex_c.erl",
-                    fun() -> check_source_package:compile_core(Core) end)
+                    fun() -> source_package_tools:compile_core(Core) end)
             after true = code:del_path(filename:join(Core, "ebin"))
             end
         end)
@@ -182,20 +182,20 @@ core_archive_without_contents_is_rejected_test() ->
         ok = erl_tar:add(Tar, {"VERSION", <<"3">>}, []),
         ok = erl_tar:close(Tar),
         assert_failed("no contents.tar.gz", "core.tar",
-            fun() -> check_source_package:unpack_core(Path, filename:join(Temp, "core")) end)
+            fun() -> source_package_tools:unpack_core(Path, filename:join(Temp, "core")) end)
     end).
 
 runtime_names_the_otp_release_test() ->
     ?assertMatch(#{<<"otp">> := _, <<"erts">> := _, <<"architecture">> := _},
-                 check_source_package:runtime()),
-    #{<<"otp">> := Otp} = check_source_package:runtime(),
+                 source_package_tools:runtime()),
+    #{<<"otp">> := Otp} = source_package_tools:runtime(),
     ?assertMatch({match, _}, re:run(Otp, "^[0-9]+\\.[0-9]+")).
 
 %% Prepared tools
 
 prepared_tools_must_match_what_prepare_recorded_test() ->
     with_tools(fun(Root, Tools, Pins, Runtime) ->
-        ?assertEqual(ok, check_source_package:verify_prepared(Root, Tools, Pins, Runtime))
+        ?assertEqual(ok, source_package_tools:verify_prepared(Root, Tools, Pins, Runtime))
     end).
 
 prepared_tools_reject_a_changed_file_test() ->
@@ -232,7 +232,7 @@ prepared_tools_need_the_recorded_manifest_test() ->
 prepared_tools_need_the_compiled_registry_module_test() ->
     with_tools(fun(Root, Tools, Pins, Runtime) ->
         ok = file:delete(filename:join([Tools, "hex_core", "ebin", "hex_registry.beam"])),
-        Manifest = check_source_package:prepared_manifest(Root, Tools, Runtime),
+        Manifest = source_package_tools:prepared_manifest(Root, Tools, Runtime),
         ok = file:write_file(filename:join(Tools, "prepared.json"),
                              check_package:encode_json(Manifest)),
         assert_mismatch(Root, Tools, Pins, Runtime)
@@ -242,10 +242,10 @@ prepared_tools_need_the_pinned_archives_test() ->
     with_tools(fun(Root, Tools, Pins, Runtime) ->
         ok = file:write_file(filename:join(Tools, "verl-1.1.1.tar"), <<"swapped">>),
         assert_failed("--prepare first", "check_source_package",
-            fun() -> check_source_package:verify_prepared(Root, Tools, Pins, Runtime) end),
+            fun() -> source_package_tools:verify_prepared(Root, Tools, Pins, Runtime) end),
         ok = file:delete(filename:join(Tools, "verl-1.1.1.tar")),
         assert_failed("--prepare first", "check_source_package",
-            fun() -> check_source_package:verify_prepared(Root, Tools, Pins, Runtime) end)
+            fun() -> source_package_tools:verify_prepared(Root, Tools, Pins, Runtime) end)
     end).
 
 %% Git identity
@@ -430,6 +430,9 @@ failed_run_replaces_the_receipt_and_exits_1_test_() ->
         with_tmp(fun(Root) ->
             lists:foreach(fun(Name) -> ok = write(Root, Name, <<"input">>) end,
                           ["scripts/package/check_source_package.erl",
+                           "scripts/package/source_package_tools.erl",
+                           "scripts/package/source_package_registry.erl",
+                           "scripts/package/package_archive.erl",
                            "scripts/package/sign_source_registry.escript",
                            "scripts/package/check_package.erl", "scripts/lib/script_util.erl",
                            ".tool-versions"]),
@@ -449,6 +452,9 @@ failed_run_replaces_the_receipt_and_exits_1_test_() ->
                          maps:get(<<"publication">>, Receipt)),
             ?assertEqual([], maps:get(<<"commands">>, Receipt)),
             ?assertEqual(lists:sort([<<"scripts/package/check_source_package.erl">>,
+                                     <<"scripts/package/source_package_tools.erl">>,
+                                     <<"scripts/package/source_package_registry.erl">>,
+                                     <<"scripts/package/package_archive.erl">>,
                                      <<"scripts/package/sign_source_registry.escript">>,
                                      <<"scripts/package/check_package.erl">>,
                                      <<"scripts/lib/script_util.erl">>,
@@ -482,7 +488,7 @@ assert_failed(Needle, Also, Fun) ->
 
 assert_mismatch(Root, Tools, Pins, Runtime) ->
     assert_failed("repeat --prepare", "mismatch",
-        fun() -> check_source_package:verify_prepared(Root, Tools, Pins, Runtime) end).
+        fun() -> source_package_tools:verify_prepared(Root, Tools, Pins, Runtime) end).
 
 pin(Name, Version, Content) ->
     #{<<"name">> => Name, <<"version">> => Version,
@@ -542,7 +548,7 @@ with_tools(Fun) ->
         ok = write(Tools, "hex_core/ebin/hex_registry.beam", <<"beam">>),
         Runtime = #{<<"otp">> => <<"29.1.2">>, <<"erts">> => <<"17.1.1">>,
                     <<"architecture">> => <<"x86_64-pc-linux-gnu">>},
-        Manifest = check_source_package:prepared_manifest(Root, Tools, Runtime),
+        Manifest = source_package_tools:prepared_manifest(Root, Tools, Runtime),
         ok = write(Tools, "prepared.json", check_package:encode_json(Manifest)),
         Fun(Root, Tools, Pins, Runtime)
     end).

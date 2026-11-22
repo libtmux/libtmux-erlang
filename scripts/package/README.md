@@ -1,61 +1,50 @@
 # Check an installed package
 
-Run these checks from the repository root after `rebar3 compile`.
-They run the public examples and native consumers outside the checkout. Set
-`LIBTMUX_TEST_TMUX` to an absolute executable path to select a tmux release.
-Without it the checks use `tmux` from `PATH`.
+Run from the repository root after `rebar3 compile`. The libtmux_erlang
+checks install outside the checkout and execute the public examples.
+Select tmux with an absolute `LIBTMUX_TEST_TMUX` path, or use `tmux` on `PATH`.
 
 ## Check the compiled OTP archive
 
-The outer loop runs this check. It builds the archive from the compiled
-application, unpacks it and runs the consumers against the installed `ebin`
-and packaged C helper.
+The [outer loop](../check/README.md) checks the installed beams and C helper:
 
 ```console
 $ escript scripts/package/check_package.erl
 ```
 
-The archive and `receipt.json` are in `_build/package-check/`. Add `--dialyzer`
-to check the installed types after `rebar3 dialyzer` prepares the
-project's PLT.
+Find the archive and receipt in `_build/package-check/`. Add `--dialyzer`
+after `rebar3 dialyzer` to check the installed types.
 
 ## Check the Hex source before publishing
 
-Prepare the tooling once per runtime and pin set. This step downloads and
-verifies the archives in [tools/package-tool.json](../../tools/package-tool.json).
+Prepare the [pinned tools](../../tools/package-tool.json) once per runtime
+and pin set:
 
 ```console
 $ escript scripts/package/check_source_package.erl --prepare
 ```
 
-Build and install the artifact through a private loopback registry. The check
-verifies that installation builds the C helper from source and that a missing
-C compiler gives the expected build failure.
+Install through a private signed registry. A missing C compiler must fail
+before a successful installation builds the helper from source:
 
 ```console
 $ escript scripts/package/check_source_package.erl
 ```
 
-Find the receipt, artifact, consumer lockfile and command logs under
-`_build/source-package-check/`. The receipt binds the artifact digest to the
-source revision and records registry and consumer cleanup.
+Find the artifact, lockfile, command logs and receipt under
+`_build/source-package-check/`. The receipt binds source and artifact
+identities and records registry and consumer cleanup. `source_package_tools`
+owns downloads and cache integrity; `source_package_registry` owns serving.
 
 ## Check a published Hex version
 
-Run this from the checkout matching the published release. Replace `VERSION`
-with that version. The [release verifier](../../.github/RELEASE.md#verify-after-hex-approval)
-runs the installed quickstart on tmux 3.8 after approval and stores the result
-in `_build/checks/hex-install.json`.
+Use the matching release checkout and replace `VERSION` with its version:
 
 ```console
 $ escript scripts/package/check_hex_install.erl VERSION
 ```
 
-## Run package unit tests
-
-The [mid loop](../check/README.md) includes the package tests. For an archive
-change, run its test module on its own.
-
-```console
-$ rebar3 eunit --module check_package_tests
-```
+The [release verifier](../../.github/RELEASE.md#verify-after-hex-approval)
+checks the installed quickstart on tmux 3.8 after approval. Its receipt is
+`_build/checks/hex-install.json`. The [mid loop](../check/README.md) includes
+all package unit tests.
