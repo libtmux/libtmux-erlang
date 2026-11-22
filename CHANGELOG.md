@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Build pull request documentation with previews disabled. Native close cleanup
+  rechecks current state and removes only that pull request's Erlang prefix.
+
 ## 0.0.3 - 2026-11-22
 
 - [Set up Erlang and Rebar3](docs/installation.md#set-up-erlang-and-rebar3)
