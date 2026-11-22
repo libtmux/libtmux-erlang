@@ -1,0 +1,58 @@
+name: docs-preview-cleanup
+
+# Check out only the default branch; never execute pull request content.
+on:
+  pull_request_target:
+    types: [closed]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: docs-deploy-${{ github.repository }}
+  queue: max
+
+env:
+  ERL_FLAGS: '+S 4:4'
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    environment: docs-preview-cleanup
+    permissions:
+      contents: read
+      pull-requests: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          persist-credentials: false
+      - name: Install the OTP and Rebar3 versions in .tool-versions
+        uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1.24.1
+        with:
+          version-file: .tool-versions
+          version-type: strict
+      - name: Compile the cleanup helper
+        run: rebar3 compile
+      - name: Check current cleanup eligibility
+        id: current
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number }}
+        run: escript scripts/docs/preview_cleanup.erl eligibility
+      - if: steps.current.outputs.should_cleanup == 'true'
+        uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
+        with:
+          role-to-assume: ${{ secrets.LIBTMUX_DOCS_PREVIEW_CLEANUP_ROLE_ARN }}
+          aws-region: us-east-1
+      - name: Delete this Erlang preview if the pull request is still closed
+        if: steps.current.outputs.should_cleanup == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number }}
+          BUCKET: ${{ secrets.LIBTMUX_DOCS_BUCKET }}
+        run: escript scripts/docs/preview_cleanup.erl delete
