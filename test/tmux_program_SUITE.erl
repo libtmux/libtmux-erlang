@@ -55,12 +55,19 @@ version_gate(Config) ->
     {error, enoent} = file:read_file(Marker),
     Fixture = compile_fixture(Config, "setup"),
     Env = [{"LIBTMUX_TEST_PROGRAM_REAL", binary_to_list(Executable)},
-           {"LIBTMUX_TEST_PROGRAM_VERSION", "tmux 3.8"},
+           {"LIBTMUX_TEST_PROGRAM_BLOCK", "new-session"},
            {"LIBTMUX_TEST_PROGRAM_MARKER", binary_to_list(Marker)}],
+    with_env([{"LIBTMUX_TEST_PROGRAM_VERSION", "tmux mystery"} | Env], fun() ->
+        {error, #{code := invalid_tmux_version, component := client,
+                  required := <<"3.8">>, outcome := not_started, cleanup := complete}} =
+            tmux_program:run(Fixture, Argv, #{}),
+        Before = owned_controllers(),
+        {error, enoent} = file:read_file(Marker)
+    end),
     case tmux_capability:require(Version, program_history) of
         ok -> ok;
         {error, #{found := DaemonVersion}} ->
-            with_env(Env, fun() ->
+            with_env([{"LIBTMUX_TEST_PROGRAM_VERSION", "tmux 3.8"} | Env], fun() ->
                 Refusal = tmux_program:run(Fixture, Argv, #{}),
                 {error, enoent} = file:read_file(Marker),
                 {error, #{code := unsupported_capability, capability := program_history,

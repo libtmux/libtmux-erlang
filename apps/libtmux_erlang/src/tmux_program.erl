@@ -170,6 +170,11 @@ require_client(#{executable := Executable} = Config, Context) ->
         tmux_capability:require(Version, program_history)
     else
         {ok, Result} -> {error, Result#{code => program_client_probe_failed}};
+        {error, {invalid_tmux_version, _}} ->
+            {ok, #{minimum := Required}} = tmux_capability:describe(program_history),
+            {error, #{code => invalid_tmux_version, component => client, required => Required,
+                hint => <<"Select a tmux executable at or above the required release.">>,
+                outcome => not_started}};
         {error, _} = Error -> Error
     end.
 
