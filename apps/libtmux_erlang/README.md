@@ -45,13 +45,9 @@ Drive tmux from Erlang: create [sessions][tmux-session],
 
 It needs:
 
-- Erlang/OTP 29 and Rebar3.
+- [Erlang/OTP 29 and Rebar3](../../docs/installation.md#set-up-erlang-and-rebar3).
 - tmux 3.3a through 3.8 on Linux (including WSL).
 - `make` and a C11 compiler, to build the bundled helper.
-
-[Set up Erlang and Rebar3](../../docs/installation.md#set-up-erlang-and-rebar3)
-with a direct install, [mise](https://mise.jdx.dev/getting-started.html),
-or [asdf](https://asdf-vm.com/guide/getting-started.html).
 
 Add the published application to `rebar.config`:
 
