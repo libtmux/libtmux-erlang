@@ -1,7 +1,7 @@
 # Update generated files
 
-Edit the source for the change, then run its generator from the repository root.
-Each generator also accepts `--check` to report a missing or stale output.
+Run libtmux_erlang generators from the repository root. Edit the source first;
+`--check` reports a missing or stale output without changing it.
 
 | Change | Source | Generator | Output |
 | --- | --- | --- | --- |
@@ -11,21 +11,14 @@ Each generator also accepts `--check` to report a missing or stale output.
 | tmux options and named hooks | `schema/options.json` | `generate_options.erl` | `tmux_option_data.erl`, `docs/options-reference.md` |
 | Operation support and minimum versions | `tmux_capability:manifest/0` | `generate_capabilities.erl` | `capabilities.json` |
 
-Run the entity generator before compiling when you change `schema/entities.json`.
-The field reference, catalogues and capability manifest read compiled modules.
-
-```console
-$ rebar3 compile
-```
-
-After updating an operation gate and compiling, write the manifest.
+Run the entity generator before `rebar3 compile`. All other generators read
+compiled modules. After changing and compiling an operation gate:
 
 ```console
 $ escript scripts/generate/generate_capabilities.erl
 ```
 
-The [mid loop](../check/README.md) runs the drift checks. It uses the tracked
-schemas and compiled modules, so it needs no tmux checkout.
+The [mid loop](../check/README.md) checks drift without a tmux checkout:
 
 ```console
 $ escript scripts/check/check.erl mid
