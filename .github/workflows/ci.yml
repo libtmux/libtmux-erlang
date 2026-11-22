@@ -62,6 +62,8 @@ jobs:
         uses: libtmux/.github/actions/check-example-width@bd3bae79572512da032287202d74c8da03b5967b
       - name: Unit, generated-source and whitespace checks
         run: escript scripts/check/check.erl mid
+      - name: Measure whole child VM and escript startup
+        run: escript scripts/check/measure_startup.erl
       - name: Compile, helper, Dialyzer, owned integration and archive consumer
         run: escript scripts/check/check.erl outer
       - name: Prepare pinned source-package tools

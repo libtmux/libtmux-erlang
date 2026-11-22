@@ -44,6 +44,22 @@ Run its tests with:
 $ rebar3 eunit --module=check_tests
 ```
 
+## Measure child startup
+
+After compiling, measure a child VM and a minimal compiled escript through
+the native helper. Each measurement includes launch through exit, with three
+warmups and ten retained samples. The native CI matrix records the runner
+image, OTP/ERTS identity, flags, source digest and whole-command timings in
+`_build/checks/startup.json`, uploaded with each cell's check receipts.
+
+```console
+$ escript scripts/check/measure_startup.erl
+```
+
+These are startup baselines. The transport tests' 6 to 10 second deadlines
+also include command work and cleanup; the startup samples alone do not
+qualify those deadlines. Hosted measurements require a run of the changed CI.
+
 ## Older tmux daemons
 
 The daemon floor jobs use the [test-profile checker](../../test/check_daemon_floor.erl)
