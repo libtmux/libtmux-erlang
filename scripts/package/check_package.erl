@@ -13,11 +13,12 @@ private directory outside the checkout and runs the installed-consumer
 commands there. It writes `_build/package-check/receipt.json` and exits 0 only
 when every command passed.
 
-`check_source_package` and `check_hex_install` call `exercise_consumer/4` to
-run the same commands against a Hex source installation.
+`check_source_package` runs the full consumer suite against a Hex source
+installation. `check_hex_install` runs the installed quickstart.
 """.
 -mode(compile).
--export([main/1, exercise_consumer/4, stage_consumer/2, consumer_files/0, consumer_commands/2,
+-export([main/1, exercise_consumer/4, exercise_quickstart/3, stage_consumer/2,
+         consumer_files/0, consumer_commands/2,
          dialyzer_commands/3, consumer_env/2, base_env/0, rebar_env/2, rebar_dirs/2,
          select_tmux/2, run_command/4, execute/3, receipt/3, run_script/1, write_json/2,
          encode_json/1, fail/2, bin/1, printable/1, round6/1, delete_file/1]).
@@ -116,6 +117,16 @@ exercise_consumer(Root, Temp, InstalledEbin, Options) ->
                 ok = stage_type_consumer(Root, Temp),
                 Commands ++ lists:map(Run, dialyzer_commands(Temp, InstalledEbin, Plt))
         end
+    end).
+
+-doc "Run the reader quickstart in `Temp` against the installed application.".
+-spec exercise_quickstart(file:filename(), file:filename(), file:filename()) -> map().
+exercise_quickstart(Root, Temp, InstalledEbin) ->
+    tmux_test_sandbox:with(fun() ->
+        Tmux = tmux_executable(),
+        copy(filename:join([Root, "examples", "quickstart.erl"]),
+             filename:join(Temp, "quickstart.erl")),
+        quickstart(Root, Temp, InstalledEbin, Tmux, consumer_env(Temp, Tmux))
     end).
 
 -doc """

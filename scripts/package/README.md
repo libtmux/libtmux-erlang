@@ -43,8 +43,9 @@ source revision and records registry and consumer cleanup.
 ## Check a published Hex version
 
 Run this from the checkout matching the published release. Replace `VERSION`
-with that version. Release CI runs this command after publishing and checks
-`_build/checks/hex-install.json` for the install result.
+with that version. The [release verifier](../../.github/RELEASE.md#verify-after-hex-approval)
+runs the installed quickstart on tmux 3.8 after approval and stores the result
+in `_build/checks/hex-install.json`.
 
 ```console
 $ escript scripts/package/check_hex_install.erl VERSION
