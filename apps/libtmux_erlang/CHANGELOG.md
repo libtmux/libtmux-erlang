@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- Open borrowed endpoints without firing discovery after-hooks. Native command
+  aliases keep their tmux behavior; discovery requires native `list-commands`.
+- Explicitly destroy a borrowed daemon with `tmux_server:kill/1`. Process
+  preflight and a native daemon PID guard refuse observed replacements. Stop
+  owned daemons with their ownership token instead.
+- Wait for screen text on live borrowed panes with `tmux_pane:wait_for_text/3`
+  or `tmux_pane_text:start/3`. Replacement and respawn end the observation.
+
 ## 0.0.3 - 2026-11-22
 
 - Use `tmux_stream:subscribe/3` to read pane bytes and native notifications
