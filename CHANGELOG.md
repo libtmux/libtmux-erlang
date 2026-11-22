@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.0.3
+
 - [Set up Erlang and Rebar3](docs/installation.md#set-up-erlang-and-rebar3)
   with system tools, mise or asdf. Run examples with the tools on `PATH`.
 - [Read live pane output and native notifications](docs/control.md#read-pane-output)
