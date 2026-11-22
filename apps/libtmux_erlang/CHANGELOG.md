@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Use `tmux_control:submit/3` to read session, window and pane IDs through
+  a persistent owned attachment. Await ordered replies or cancel the group.
 - Open borrowed endpoints without firing discovery after-hooks. Native command
   aliases keep their tmux behavior; discovery requires native `list-commands`.
 - Explicitly destroy a borrowed daemon with `tmux_server:kill/1`. Process
