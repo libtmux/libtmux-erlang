@@ -115,7 +115,6 @@ run(Socket, Executable) ->
 ## Read pane output
 
 Use `tmux_stream:subscribe/3` with a session captured on an owned server.
-The stream API is in the [Unreleased changelog](../CHANGELOG.md#unreleased).
 The example subscribes before sending input and waits for the bytes
 `hello\r\n` from one pane. Its outer scope stops the private server.
 

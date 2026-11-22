@@ -130,8 +130,8 @@ run(Socket, Executable) ->
 - Closing an endpoint retires its library clients and preserves the tmux
   server. [Daemon ownership](ownership.md) covers the token that stops an owned
   daemon.
-- Operations use one-shot clients. Persistent control, grouping and stream
-  delivery are not built; see [support and gaps](compatibility.md).
+- Operations use one-shot clients. To receive pane bytes and notifications,
+  [subscribe to an owned session](control.md#read-pane-output).
 
 ## Wait for visible text
 
