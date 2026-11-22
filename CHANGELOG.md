@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-## 0.0.3
+## 0.0.3 - 2026-11-22
 
 - [Set up Erlang and Rebar3](docs/installation.md#set-up-erlang-and-rebar3)
   with system tools, mise or asdf. Run examples with the tools on `PATH`.
