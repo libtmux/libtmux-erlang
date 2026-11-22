@@ -1,7 +1,7 @@
-% Publish the qualified package and its prebuilt documentation to Hex.
+% Submit the qualified package and its prebuilt documentation to Hex.
 -module(publish_hex).
 -moduledoc """
-Publish `libtmux_erlang` and its prebuilt documentation to Hex with Rebar3.
+Submit `libtmux_erlang` and its prebuilt documentation to Hex with Rebar3.
 
 ```console
 $ escript scripts/release/publish_hex.erl --published false
@@ -11,16 +11,15 @@ $ escript scripts/release/publish_hex.erl --published false
 only the documentation. The release workflow passes the `published` output of
 `check_release.erl`. Documentation comes from `_build/docs/core`. An empty or
 unset `HEX_API_KEY` is removed from the publisher's environment so Rebar3 does
-not mistake it for a key. Each command waits for Hex to finish, within ten
-minutes. The script prints each command's output and stops at the first
-failure.
+not mistake it for a key. Hex may stage both artifacts for approval. The script
+prints the publisher's status and approval links and returns after submission.
 """.
 -mode(compile).
 -export([main/1, plan/2, environment/1]).
 -export_type([command/0]).
 
 -define(APP, "libtmux_erlang").
--define(DEADLINE_MS, 600000).
+-define(DEADLINE_MS, 120000).
 
 -type command() :: [string()].
 
@@ -41,19 +40,17 @@ main(_) ->
     halt(2).
 
 -doc """
-The Rebar3 commands to run from `Root`: the package unless Hex already holds
-it, then the documentation.
+Submit the package and docs together. If Hex already holds the package,
+submit its docs.
 """.
 -spec plan(file:filename(), boolean()) -> [command()].
 plan(Root, AlreadyPublished) ->
-    Package = ["rebar3", "as", "release", "hex", "publish", "package",
-               "--app", ?APP, "--yes", "--wait"],
-    Docs = ["rebar3", "as", "release", "hex", "publish", "docs", "--app", ?APP,
-            "--yes", "--wait", "--doc-dir", filename:join(Root, "_build/docs/core")],
-    case AlreadyPublished of
-        true -> [Docs];
-        false -> [Package, Docs]
-    end.
+    Options = ["--yes", "--doc-dir", filename:join(Root, "_build/docs/core")],
+    Task = case AlreadyPublished of
+        true -> ["docs", "--app", ?APP];
+        false -> []
+    end,
+    [["rebar3", "as", "release", "hex", "publish"] ++ Task ++ Options].
 
 -doc """
 The environment overrides for the publisher: unset `HEX_API_KEY` when it is

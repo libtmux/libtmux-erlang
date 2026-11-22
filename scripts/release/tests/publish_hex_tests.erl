@@ -2,16 +2,15 @@
 -compile(nowarn_missing_spec).
 -include_lib("eunit/include/eunit.hrl").
 
-an_unpublished_version_publishes_package_then_docs_test() ->
-    [Package, Docs] = publish_hex:plan("/repo", false),
-    ?assertEqual(["rebar3", "as", "release", "hex", "publish", "package"],
-                 lists:sublist(Package, 6)),
-    ?assertEqual(["rebar3", "as", "release", "hex", "publish", "docs"],
-                 lists:sublist(Docs, 6)),
-    ?assertEqual(["--doc-dir", "/repo/_build/docs/core"], lists:nthtail(length(Docs) - 2, Docs)).
+an_unpublished_version_submits_package_and_docs_without_waiting_test() ->
+    ?assertEqual([["rebar3", "as", "release", "hex", "publish",
+                   "--yes", "--doc-dir", "/repo/_build/docs/core"]],
+                 publish_hex:plan("/repo", false)).
 
-a_published_version_publishes_only_the_docs_test() ->
-    ?assertMatch([[_, _, _, _, _, "docs" | _]], publish_hex:plan("/repo", true)).
+a_published_version_submits_only_docs_without_waiting_test() ->
+    ?assertEqual([["rebar3", "as", "release", "hex", "publish", "docs",
+                   "--app", "libtmux_erlang", "--yes", "--doc-dir", "/repo/_build/docs/core"]],
+                 publish_hex:plan("/repo", true)).
 
 an_empty_key_is_unset_and_a_real_key_is_kept_test() ->
     Unset = #{<<"HEX_API_KEY">> => false},
