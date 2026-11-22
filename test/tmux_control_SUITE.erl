@@ -2,11 +2,13 @@
 -compile(nowarn_missing_spec).
 -export([all/0, init_per_suite/1, end_per_suite/1, attachment/1,
          parent_closing/1, caller_death/1, attachment_hook/1, cleanup_pending/1,
-         expired_startup/1, endpoint_unavailable/1, malformed_identity_tail/1]).
+         expired_startup/1, endpoint_unavailable/1, malformed_identity_tail/1,
+         submitted_read_group/1, cancelled_read_group/1]).
 
 %% Outer: real control clients and owned process retirement on both branches.
 all() -> [attachment, parent_closing, caller_death, attachment_hook, cleanup_pending,
-          expired_startup, endpoint_unavailable, malformed_identity_tail].
+          expired_startup, endpoint_unavailable, malformed_identity_tail,
+          submitted_read_group, cancelled_read_group].
 
 init_per_suite(Config) ->
     {ok, _} = application:ensure_all_started(libtmux_erlang),
@@ -18,6 +20,83 @@ init_per_suite(Config) ->
 
 end_per_suite(_) -> ok = application:stop(libtmux_erlang).
 
+submitted_read_group(Config) ->
+    with_owned_control(Config, fun(Server, Session, Control) ->
+        Id = tmux_model:get(id, Session),
+        First = <<Id/binary, 10>>,
+        Sessions = sessions_read(),
+        {ok, Windows} = tmux_command:raw(<<"list-windows">>,
+            [<<"-t">>, Id, <<"-F">>, <<"#{window_id}">>]),
+        {ok, Panes} = tmux_command:raw(<<"list-panes">>,
+            [<<"-t">>, Id, <<"-F">>, <<"#{pane_id}">>]),
+        {ok, #{stdout := WindowIds}} = tmux_server:command(Server, Windows, #{}),
+        {ok, #{stdout := PaneIds}} = tmux_server:command(Server, Panes, #{}),
+        {ok, Success} = tmux_control:submit(Control, [Sessions, Windows, Panes], #{}),
+        {ok, #{replies := [First, WindowIds, PaneIds]}} = tmux_control:await(Success, 900),
+
+        {ok, Missing} = tmux_command:raw(<<"list-panes">>,
+            [<<"-t">>, <<"$4294967294">>, <<"-F">>, <<"#{pane_id}">>]),
+        {ok, Failed} = tmux_control:submit(Control, [Sessions, Missing, Panes], #{}),
+        {error, #{code := command_error, index := 2, replies := [First]}} =
+            tmux_control:await(Failed, 900),
+
+        {ok, Read} = tmux_control:submit(Control, Sessions, #{}),
+        {ok, #{replies := [First]}} = tmux_control:await(Read, 900),
+        {error, #{code := control_submission_expired}} = tmux_control:await(Success, 900),
+        {ok, Unsupported} = tmux_command:raw(<<"display-message">>,
+            [<<"-p">>, <<"read">>]),
+        {error, #{code := unsupported_control_command}} =
+            tmux_control:submit(Control, Unsupported, #{}),
+        ok
+    end).
+
+cancelled_read_group(Config) ->
+    with_owned_control(Config, fun(_, _, Control = {control, Owner, _}) ->
+        {ok, #{helper_pid := Helper}} = tmux_control:status(Control),
+        Identity = tmux_test_fixture:process_identity(Helper),
+        try
+            signal_helper(Helper, Identity, <<"-STOP">>),
+            Sessions = sessions_read(),
+            {ok, Pending} = tmux_control:submit(Control, Sessions, #{}),
+            {error, #{code := await_timeout}} = tmux_control:await(Pending, 0),
+            {error, #{code := busy}} = tmux_control:submit(Control, Sessions, #{}),
+            ok = tmux_control:cancel(Pending),
+            {ok, #{phase := closing, cleanup := pending}} = tmux_control:status(Control),
+            #{close_timer := Timer} = sys:get_state(Owner),
+            Owner ! {timeout, Timer, cleanup},
+            {error, #{code := cancelled, outcome := unknown, cleanup := incomplete}} =
+                tmux_control:await(Pending, 900),
+            Retired = tmux_control:send_request(Control, retired),
+            signal_helper(Helper, Identity, <<"-CONT">>),
+            {reply, ok} = gen_server:receive_response(Retired, 900),
+            {error, #{code := cancelled, outcome := unknown, cleanup := complete}} =
+                tmux_control:await(Pending, 900),
+            false = tmux_test_fixture:same_process(Helper, Identity),
+            ok
+        after
+            case tmux_test_fixture:same_process(Helper, Identity) of
+                true -> signal_helper(Helper, Identity, <<"-CONT">>);
+                false -> ok
+            end
+        end
+    end).
+
+sessions_read() ->
+    {ok, Command} = tmux_command:raw(<<"list-sessions">>, [<<"-F">>, <<"#{session_id}">>]),
+    Command.
+
+with_owned_control(Config, Function) ->
+    Executable = proplists:get_value(executable, Config),
+    {ok, ok} = tmux_server:with_owned(#{executable => Executable}, fun(Server) ->
+        {ok, Session} = tmux_session:create(Server,
+            #{name => <<"reads">>, launch => #{argv => [<<"/bin/cat">>]}}),
+        {ok, Control} = tmux_control:attach(Server, Session, #{}),
+        try Function(Server, Session, Control)
+        after ok = tmux_control:close(Control)
+        end
+    end),
+    ok.
+
 attachment(Config) ->
     with_session(Config, fun(Server, Session, Fixture) ->
         Id = tmux_model:get(id, Session),
@@ -27,6 +106,8 @@ attachment(Config) ->
             [<<"set-environment">>, <<"-t">>, Id, <<"PATH">>, <<"/preserved-session-path">>]),
         {ok, Control} = tmux_control:attach(Server, Session, #{}),
         try
+            {error, #{code := control_requires_owned_server}} =
+                tmux_control:submit(Control, sessions_read(), #{}),
             {ok, #{phase := open, identity := same_connection,
                    child_pid := Child, helper_pid := Helper}} = tmux_control:status(Control),
             ChildIdentity = tmux_test_fixture:process_identity(Child),

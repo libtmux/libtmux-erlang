@@ -310,10 +310,13 @@ The selected no-output/ignore-size and environment-update policies remain
 visible. Existing hooks and destruction policies can still produce effects;
 closing a client is not a rollback.
 
-The [control guide](control.md) limits current qualification to attachment.
-Command submission and groups need separate framing, ordering, eligibility,
-certainty and cleanup evidence. tmux's [reply guards](https://github.com/tmux/tmux/blob/3.8/control.c#L523-L543) coexist with
-asynchronous notifications. Its [alias-expansion path](https://github.com/tmux/tmux/blob/3.3/cmd-parse.y#L744-L779) means a
+The [control guide](control.md) qualifies groups of fixed ID reads on owned
+daemons. A group checks each native reply, reports the successful prefix if a
+session disappears, and retires the client on cancellation. Adding commands
+requires evidence for framing, ordering, eligibility, certainty and cleanup.
+tmux's [reply guards](https://github.com/tmux/tmux/blob/3.8/control.c#L523-L543)
+coexist with asynchronous notifications. Its
+[alias-expansion path](https://github.com/tmux/tmux/blob/3.3/cmd-parse.y#L744-L779) means a
 canonical command name alone cannot establish what configured tmux will do.
 The ambient-alias contract also applies to the existing attachment command and
 its identity probe. Qualify those paths against configured aliases while
@@ -322,10 +325,10 @@ where possible; retain the raw attached count and hook effects. Any adjusted
 view needs a separately named contract rather than silently subtracting the
 observer.
 
-Public output subscriptions and sampled observation streams are also unfinished.
-The helper's internal credit protocol does not establish a public streaming
-API. Any such API must define credits, gaps, acknowledgement and retirement,
-and describe sampled observations without promising unobserved terminal history.
+`tmux_stream:subscribe/3` delivers live pane bytes and native notifications on
+owned sessions. Credits bound mailbox delivery, acknowledgements release
+capacity and a terminal gap ends an incomplete stream. A future sampled
+observation stream needs to state which changes can be missed between samples.
 
 ### AD-8: Keep runtime dependencies within OTP
 

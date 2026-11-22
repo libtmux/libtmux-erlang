@@ -122,6 +122,8 @@ It returns a map with the `sessions`, `windows` and `panes` counts.
 - [Filter captured data](../../docs/querying.md): map criteria, Boolean
   functions, quantifiers and source queries.
 - [Run and stop a private terminal program](../../docs/programs.md) on tmux 3.8.
+- [List IDs in one control group](../../docs/control.md#submit-a-read-group)
+  on an owned server.
 - [Read live pane output](../../docs/control.md#read-pane-output) on an owned
   server.
 - [Submit and cancel work](../../docs/jobs.md): await completion, exit status
@@ -146,7 +148,8 @@ More: [Support and gaps](../../docs/compatibility.md) ·
 
 ## What it leaves out
 
-- **Control command submission and grouping.** Use one-shot operations.
+- **General control commands.** Use one-shot operations for commands outside
+  the [fixed control reads](../../docs/control.md#submit-a-read-group).
 
 ## Contribute
 

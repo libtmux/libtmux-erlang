@@ -148,8 +148,8 @@ consumer_files() ->
 demos() ->
     ["quickstart", "filter_demo", "inspect_demo", "readme_demo", "linked_graph", "job_demo", "program_demo",
      "options_demo", "buffer_demo", "pane_demo", "config_demo", "pipe_demo", "hook_demo",
-     "key_demo", "command_demo", "control_demo", "stream_demo", "plan_demo", "batch_demo",
-     "typing_demo"].
+     "key_demo", "command_demo", "control_demo", "control_read_demo", "stream_demo",
+     "plan_demo", "batch_demo", "typing_demo"].
 
 -doc """
 Create the consumer's working directories and copy `consumer_files/0` and the

@@ -3,8 +3,9 @@
 Attach to an existing session, verify identity on that persistent connection,
 inspect its attachment effects and close the client.
 
-Run commands through the one-shot APIs. To receive pane bytes, use a
-[separate stream attachment](#read-pane-output) on an owned server.
+[Submit a read group](#submit-a-read-group) on an owned server. The one-shot
+APIs support the general command catalogue. To receive pane bytes, use a
+[separate stream attachment](#read-pane-output).
 
 The program owns its session. The runner supplies a private tmux server:
 
@@ -111,6 +112,53 @@ run(Socket, Executable) ->
   client. The library does not disable borrowed hooks.
 - Startup is bounded across parent registration, native exec and the identity
   probe. An incomplete error carries the control handle for recovery.
+
+## Submit a read group
+
+Use `tmux_control:submit/3` on an attachment to a private daemon started by
+`tmux_server:with_owned/2`. The attachment owner submits one group at a
+time and receives a handle before tmux replies. The replies below contain
+the session IDs and the pane IDs in the selected session's current window.
+
+<!-- example: examples/control_read_demo.erl#submit -->
+
+```erlang
+    {ok, Sessions} = tmux_command:raw(<<"list-sessions">>,
+        [<<"-F">>, <<"#{session_id}">>]),
+    {ok, Panes} = tmux_command:raw(<<"list-panes">>,
+        [<<"-t">>, SessionId, <<"-F">>, <<"#{pane_id}">>]),
+    {ok, Read} = tmux_control:submit(Control, [Sessions, Panes], #{}),
+    {ok, #{replies := [SessionIds, PaneIds]}} = tmux_control:await(Read, 900),
+```
+
+Run the [complete example](../examples/control_read_demo.erl) to check both
+counts and close the attachment and its daemon.
+
+```console
+$ escript scripts/check/run_examples.escript control-read
+```
+
+<!-- example-output: control_read_demo -->
+
+```json
+{
+  "panes": 1,
+  "sessions": 1,
+  "cleanup": "complete"
+}
+```
+
+Groups accept up to 16 fixed ID reads and 64 KiB of replies. Use native
+session IDs as targets. If a session is missing, tmux skips the remaining
+members. The result includes the failed member's index and prior replies.
+Keep `list-sessions`, `list-windows`, `list-panes` and `display-message` at their
+native meanings. Configured aliases can override full command names, and
+unexpected hook output or reply blocks retire the attachment.
+
+`tmux_control:await/2` timing out leaves the group running. Cancelling a
+running group retires the attachment. If the result reports incomplete
+cleanup, await it again to observe later retirement. Attach again to submit
+further reads.
 
 ## Read pane output
 

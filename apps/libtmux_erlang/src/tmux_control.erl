@@ -9,8 +9,9 @@ uses no-output and ignore-size; -E skips attachment's environment update.
 The library issues no session-option writes or session-creation commands.
 Configured hooks and native lifetime policies can still change state,
 including on failed attach or detachment. Those effects are not rolled back.
-Use `m:tmux_operation` for one-shot commands and `m:tmux_stream` for pane
-output from a separate client.
+Use `submit/3` for qualified reads on an owned daemon, `m:tmux_operation`
+for one-shot commands, and `m:tmux_stream` for pane output from a
+separate client.
 
 Use `close/1` before closing the parent endpoint. Parent closing, invalidation
 or caller death requests retirement, but parent close alone does not prove
@@ -19,14 +20,18 @@ Neither detachment nor cancellation reverses remote effects. Application
 shutdown alone is not a verified cleanup result.
 """.
 -behaviour(gen_server).
--export([attach/3, close/1, status/1]).
+-export([attach/3, close/1, status/1, submit/3, await/2, cancel/1]).
 -export([start_link/4, init/1, handle_continue/2, handle_call/3, handle_cast/2,
          handle_info/2, terminate/2, format_status/1, send_request/2, request/3,
          attach_stream/4, resolve_stream/3]).
--export_type([t/0, attach_options/0, state/0]).
+-export_type([t/0, attach_options/0, state/0, submission/0, submit_options/0]).
 
 -doc "A generation-bound connection handle. Passing it does not transfer lifetime ownership.".
 -opaque t() :: {control, pid(), reference()}.
+-doc "An admitted control read or group of reads.".
+-opaque submission() :: {control_submission, t(), reference()}.
+-doc "Read group deadline in milliseconds, including admission. Defaults to 2500.".
+-type submit_options() :: #{deadline_ms => 1..600000}.
 -doc "Finite attachment budget, including parent registration, exec and identity. Defaults to 2500 ms.".
 -type attach_options() :: #{startup_timeout_ms => 1..600000}.
 -doc """
@@ -114,6 +119,61 @@ expire after 60 seconds and then return control_expired.
 -spec status(t()) -> {ok, state()} | {error, map()}.
 status(Control) -> request(Control, status, 900).
 
+-doc """
+Submit one command or up to 16 commands on an owned daemon. The attachment
+owner admits one group at a time. Admission returns before tmux replies.
+
+Use `tmux_command:raw/2` for `list-sessions -F '#{session_id}'`,
+`list-windows -t $ID -F '#{window_id}'`, and
+`list-panes -t $ID -F '#{pane_id}'`. Targets are native session IDs. The
+pane reply is for the targeted session's current window. Replies are bounded
+to 64 KiB per group. These spellings and `display-message` must retain their
+native behavior in the owned daemon's configuration. Hooks can affect
+execution. A failed member ends the group. Groups do not provide rollback.
+
+On an admission reply timeout, the error includes the submission handle
+so you can observe its outcome or retire it with `cancel/1`.
+""".
+-spec submit(t(), tmux_command:t() | [tmux_command:t()], submit_options()) ->
+    {ok, submission()} | {error, map()}.
+submit(Control, Commands, Options) ->
+    Started = now_ms(),
+    maybe
+        {ok, DeadlineMs} ?= submit_options(Options),
+        {ok, Plan} ?= tmux_control_group:prepare(Commands),
+        Id = make_ref(),
+        Submission = {control_submission, Control, Id},
+        case request(Control, {submit, Id, Plan, Started + DeadlineMs}, 900) of
+            ok -> {ok, Submission};
+            {error, #{code := await_timeout} = Error} ->
+                {error, Error#{submission => Submission}};
+            {error, _} = Error -> Error
+        end
+    end.
+
+-doc """
+Read a group's replies in submission order. Each reply is the native ID
+output as bytes. A missing session error includes its one-based index and
+the successful prefix. The attachment retires on unexpected replies.
+It retains its latest result. A wait timeout leaves the group running.
+""".
+-spec await(submission(), timeout()) -> {ok, #{replies := [binary()]}} | {error, map()}.
+await({control_submission, Control, Id}, Timeout)
+  when is_reference(Id), (Timeout =:= infinity orelse is_integer(Timeout, 0, 4294967295)) ->
+    request(Control, {submission, Id}, Timeout);
+await(_, _) -> {error, #{code => invalid_control_submission}}.
+
+-doc """
+Request cancellation by retiring the control attachment. Use `await/2`
+for the group outcome and retirement receipt. A completed group is left
+available to read. If cleanup is incomplete, await the handle again to
+observe later retirement.
+""".
+-spec cancel(submission()) -> ok | {error, map()}.
+cancel({control_submission, Control, Id}) when is_reference(Id) ->
+    request(Control, {cancel_submission, Id}, 900);
+cancel(_) -> {error, #{code => invalid_control_submission}}.
+
 -doc false.
 -spec request(t(), term(), timeout()) -> term().
 request({control, Pid, Generation}, Kind, Timeout)
@@ -156,17 +216,41 @@ init({Owner, Generation, Server, Config}) ->
         write => none, child_pid => none, helper_pid => none,
         identity => unverified, cleanup => pending, cause => none,
         failure => none, diagnostics => <<>>, startup_bytes => 0, stream => none,
+        command => none, command_result => none,
         timer => none, close_timer => none, retention_timer => none, waiters => #{}},
         {continue, launch}}.
 
 -doc false.
--spec handle_continue(launch, map()) -> {noreply, map()}.
-handle_continue(launch, State) -> {noreply, launch(State)}.
+-spec handle_continue(launch | dispatch_group, map()) -> {noreply, map()}.
+handle_continue(launch, State) -> {noreply, launch(State)};
+handle_continue(dispatch_group, State) -> {noreply, dispatch_group(State)}.
 
 -doc false.
--spec handle_call(term(), gen_server:from(), map()) -> {reply, term(), map()} | {noreply, map()}.
+-spec handle_call(term(), gen_server:from(), map()) ->
+    {reply, term(), map()} | {reply, term(), map(), {continue, dispatch_group}} | {noreply, map()}.
 handle_call({Generation, status, _}, _, #{generation := Generation} = State) ->
     {reply, {ok, public_status(State)}, State};
+handle_call({Generation, {submit, Id, Plan, Deadline}, _}, {Owner, _},
+            #{generation := Generation, owner := Owner, phase := open,
+              config := #{mode := commands}, context := #{config := #{owned := true}},
+              command := none} = State)
+  when is_reference(Id), is_map(Plan), is_integer(Deadline) ->
+    admit_group(Id, Plan, Deadline, State);
+handle_call({Generation, {submit, _, _, _}, _}, From,
+            #{generation := Generation} = State) ->
+    {reply, submission_unavailable(From, State), State};
+handle_call({Generation, {submission, Id} = Kind, Tag}, From,
+            #{generation := Generation} = State) when is_reference(Id) ->
+    reply_or_wait(Kind, Tag, From, State);
+handle_call({Generation, {cancel_submission, Id}, _}, _,
+            #{generation := Generation, command := #{id := Id}} = State) ->
+    {reply, ok, retire(cancelled, State)};
+handle_call({Generation, {cancel_submission, Id}, _}, _,
+            #{generation := Generation, command_result := {Id, _}} = State) ->
+    {reply, ok, State};
+handle_call({Generation, {cancel_submission, _}, _}, _,
+            #{generation := Generation} = State) ->
+    {reply, {error, #{code => control_submission_expired}}, State};
 handle_call({Generation, {stream, Id, Action}, Tag}, {Caller, _} = From,
             #{generation := Generation, stream := Stream, phase := Phase} = State)
   when is_map(Stream), (Phase =:= open orelse Action =:= close) ->
@@ -226,7 +310,7 @@ handle_info({tmux_transport, Channel, {data, stderr, Sequence, Bytes}},
 handle_info({tmux_transport, Channel, {write_ack, Id, Size}},
             #{channel := Channel, write := {Id, Size}} = State) ->
     case tmux_transport:ack_write(Channel, Id) of
-        ok -> {noreply, maybe_ready(State#{write => none})};
+        ok -> {noreply, advance(State#{write => none})};
         {error, Error} -> {noreply, fail(Error, State)}
     end;
 handle_info({tmux_transport, Channel, {eof, stdout}}, #{channel := Channel} = State) ->
@@ -236,8 +320,11 @@ handle_info({tmux_server_closing, Parent, ParentGeneration, Watch, _},
     {noreply, retire(parent_closed, State)};
 handle_info({timeout, Timer, startup}, #{timer := Timer} = State) ->
     {noreply, fail(#{code => startup_timeout}, State#{timer => none})};
+handle_info({timeout, Timer, {command, Id}}, #{command := #{id := Id, timer := Timer}} = State) ->
+    {noreply, retire(deadline, State)};
 handle_info({timeout, Timer, cleanup}, #{close_timer := Timer} = State) ->
-    {noreply, reply_waiters(State#{cleanup => incomplete, close_timer => none})};
+    Next = State#{cleanup => incomplete, close_timer => none},
+    {noreply, reply_waiters(retirement_result(incomplete, Next))};
 handle_info({timeout, Timer, expire}, #{retention_timer := Timer, phase := closed} = State) ->
     {stop, normal, State};
 handle_info({'DOWN', Ref, process, _, _}, #{owner_monitor := Ref} = State) ->
@@ -275,6 +362,48 @@ options(Options) when is_map(Options) ->
         false -> {error, #{code => invalid_control_options}}
     end;
 options(_) -> {error, #{code => invalid_control_options}}.
+
+submit_options(Options) when is_map(Options) ->
+    Timeout = maps:get(deadline_ms, Options, 2500),
+    case maps:without([deadline_ms], Options) =:= #{} andalso is_integer(Timeout, 1, 600000) of
+        true -> {ok, Timeout};
+        false -> {error, #{code => invalid_control_options}}
+    end;
+submit_options(_) -> {error, #{code => invalid_control_options}}.
+
+submission_unavailable({Caller, _}, #{owner := Owner}) when Caller =/= Owner ->
+    {error, #{code => not_control_owner}};
+submission_unavailable(_, #{phase := open, config := #{mode := commands},
+                           context := #{config := #{owned := true}}}) ->
+    {error, #{code => busy}};
+submission_unavailable(_, #{phase := open}) -> {error, #{code => control_requires_owned_server}};
+submission_unavailable(_, _) -> {error, #{code => control_closed}}.
+
+admit_group(Id, Plan, Deadline, State) ->
+    Remaining = Deadline - now_ms(),
+    case Remaining > 0 of
+        true ->
+            Timer = erlang:start_timer(Remaining, self(), {command, Id}),
+            Command = #{id => Id, plan => Plan, deadline => Deadline, timer => Timer,
+                        phase => queued, result => pending},
+            {reply, ok, State#{command => Command}, {continue, dispatch_group}};
+        false -> {reply, {error, #{code => deadline, outcome => not_started}}, State}
+    end.
+
+dispatch_group(#{command := #{plan := Plan, deadline := Deadline} = Command} = State) ->
+    case {authorized(State), now_ms() < Deadline} of
+        {false, _} -> retire(parent_closed, State);
+        {true, false} ->
+            finish_group({error, #{code => deadline, outcome => not_started}}, State);
+        {true, true} ->
+            {Bytes, Group} = tmux_control_group:start(Plan),
+            case tmux_transport:write(maps:get(channel, State), Bytes) of
+                {ok, Write} ->
+                    Active = maps:remove(plan, Command#{phase => sent, group => Group}),
+                    State#{command => Active, write => {Write, byte_size(Bytes)}};
+                {error, Error} -> fail(Error, State#{command => Command#{phase => sent}})
+            end
+    end.
 
 launch(#{server := Server, config := Config} = State) ->
     Remaining = maps:get(deadline, Config) - now_ms(),
@@ -350,7 +479,7 @@ stdout(Bytes, State) ->
             end
     end.
 
-events([], State) -> maybe_ready(State);
+events([], State) -> advance(State);
 events(_, #{phase := Phase} = State) when Phase =:= closing; Phase =:= closed -> State;
 events([Event | Rest], State) -> events(Rest, event(Event, State)).
 
@@ -368,7 +497,13 @@ event({block_begin, #{flags := 0} = Guard}, #{startup := attachment, block := no
     State#{block => {Guard, <<>>}, startup => attachment_block};
 event({block_begin, #{flags := 1} = Guard}, #{startup := probe, block := none} = State) ->
     State#{block => {Guard, <<>>}};
+event({block_begin, #{flags := 1} = Guard},
+      #{phase := open, block := none, command := #{phase := sent, result := pending}} = State) ->
+    State#{block => {Guard, <<>>}};
 event({block_begin, _}, State) -> fail(#{code => unexpected_control_block}, State);
+event({block_data, Guard, Bytes}, #{phase := open, block := {Guard, Acc}} = State)
+  when byte_size(Acc) + byte_size(Bytes) =< 65536 ->
+    State#{block => {Guard, <<Acc/binary, Bytes/binary>>}};
 event({block_data, Guard, Bytes}, #{block := {Guard, Acc}} = State)
   when byte_size(Acc) + byte_size(Bytes) =< 128 ->
     State#{block => {Guard, <<Acc/binary, Bytes/binary>>}};
@@ -376,6 +511,14 @@ event({block_end, Guard, ok}, #{startup := attachment_block, block := {Guard, <<
     probe(State#{block => none});
 event({block_end, Guard, ok}, #{startup := probe, block := {Guard, Bytes}} = State) ->
     verify_probe(Bytes, State#{block => none});
+event({block_end, Guard, Outcome}, #{phase := open, block := {Guard, Bytes},
+                                    command := #{group := Group} = Command} = State) ->
+    Next = State#{block => none},
+    case tmux_control_group:reply(Outcome, Bytes, Group) of
+        {continue, Updated} -> Next#{command => Command#{group => Updated}};
+        {done, Reply} -> Next#{command => Command#{result => Reply}};
+        {error, Code} -> fail(#{code => Code}, Next)
+    end;
 event({block_end, _, error}, State) -> fail(#{code => control_attach_error}, State);
 event(_, State) -> fail(#{code => unqualified_control_reply}, State).
 
@@ -445,6 +588,32 @@ maybe_ready(#{phase := attaching, startup := verified, write := none,
     end;
 maybe_ready(State) -> State.
 
+advance(#{phase := open, write := none, command := #{result := Result, deadline := Deadline}} = State)
+  when Result =/= pending ->
+    case now_ms() < Deadline of
+        true -> finish_group(Result, State);
+        false -> retire(deadline, State)
+    end;
+advance(State) -> maybe_ready(State).
+
+finish_group(Result, #{command := #{id := Id, timer := Timer}} = State) ->
+    cancel_timer(Timer),
+    reply_waiters(State#{command => none, command_result => {Id, Result}}).
+
+retire_group(Cause, #{command := #{phase := Phase, timer := Timer} = Command} = State) ->
+    cancel_timer(Timer),
+    Outcome = case Phase of queued -> not_started; sent -> unknown end,
+    State#{command => #{id => maps:get(id, Command), timer => none,
+                        failure => #{code => Cause, outcome => Outcome}}};
+retire_group(_, State) -> State.
+
+retirement_result(Cleanup, #{command := #{failure := Failure}} = State) ->
+    finish_group({error, Failure#{cleanup => Cleanup}}, State);
+retirement_result(complete,
+                  #{command_result := {Id, {error, #{cleanup := incomplete} = Failure}}} = State) ->
+    State#{command_result => {Id, {error, Failure#{cleanup => complete}}}};
+retirement_result(_, State) -> State.
+
 start_stream(#{config := #{mode := {stream, Subscriber}}, owner := Owner, generation := Generation} = State) ->
     State#{stream => tmux_stream:new(Owner, {control, self(), Generation}, Generation, Subscriber)};
 start_stream(State) -> State.
@@ -482,8 +651,8 @@ retire(Cause, State) ->
         none -> none;
         Active -> tmux_stream:finish(Cause, Active)
     end,
-    Next = State#{phase => closing, cause => Cause, timer => none, watch => none,
-        block => none, codec => none, probe => none, write => none, stream => Stream},
+    Next = retire_group(Cause, State#{phase => closing, cause => Cause, timer => none, watch => none,
+        block => none, codec => none, probe => none, write => none, stream => Stream}),
     case maps:get(channel, Next) of
         none -> closed(Next);
         Channel ->
@@ -500,10 +669,14 @@ closed(#{phase := closed} = State) -> State;
 closed(State) ->
     Next = retire(control_exit, State),
     cancel_timer(maps:get(close_timer, Next)),
-    reply_waiters(Next#{phase => closed, cleanup => complete, close_timer => none,
-        retention_timer => erlang:start_timer(60000, self(), expire)}).
+    Retired = Next#{phase => closed, cleanup => complete, close_timer => none,
+                    retention_timer => erlang:start_timer(60000, self(), expire)},
+    reply_waiters(retirement_result(complete, Retired)).
 
 answer(status, State) -> {ok, public_status(State)};
+answer({submission, Id}, #{command_result := {Id, Result}}) -> Result;
+answer({submission, Id}, #{command := #{id := Id}}) -> pending;
+answer({submission, _}, _) -> {error, #{code => control_submission_expired}};
 answer(ready, #{phase := open}) -> ok;
 answer(ready, #{cleanup := Cleanup, failure := Failure, cause := Cause}) when Cleanup =/= pending ->
     Error = case Failure of none -> #{code => Cause}; _ -> Failure end,

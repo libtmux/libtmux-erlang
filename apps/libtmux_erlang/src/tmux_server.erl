@@ -43,11 +43,12 @@ named by an absolute socket path, and never starts one. `start_owned/1` starts
 an empty private daemon and returns a separate `t:ownership/0` token with the
 handle. `status/1`, `version/1` and `origin/1` read the handle's own state
 without contacting tmux. `tmux_control:attach/3` attaches a control client to
-one captured session; it does not yet submit commands or stream output.
+one captured session. On an owned daemon, `tmux_control:submit/3` runs fixed
+read groups and `tmux_stream:subscribe/3` opens a separate pane stream.
 
 `open/1`, `start_owned/1`, `status/1`, `version/1`, `origin/1`,
-`tmux_control:attach/3`, `t:t/0`, `t:open_options/0`, `t:owned_options/0` and
-`t:state/0`
+`tmux_control:attach/3`, `tmux_control:submit/3`, `tmux_stream:subscribe/3`,
+`t:t/0`, `t:open_options/0`, `t:owned_options/0` and `t:state/0`
 
 **Closing and scopes.** `close/1` retires a handle's queued work and one-shot
 clients and leaves a borrowed daemon running; `stop_owned/1` stops an owned

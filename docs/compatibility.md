@@ -109,6 +109,7 @@ This table describes the source checkout. See the
 | [Pane exit](jobs.md) | Exit status or signal. Waits can time out on unpatched tmux builds before 3.6 linked with `libutempter`, including Ubuntu `3.4-1ubuntu0.2`. [Fixed upstream in tmux 3.6](https://github.com/tmux/tmux/commit/fa5f3cef3d651b0eb9abfa77fc37ccade81679b5). |
 | Pane text | Bounded current-screen waits on live owned or borrowed panes, with explicit cancellation and process checks |
 | Control attachment | Explicit session, same-connection identity, no-output/ignore-size, skipped environment update and separate native cleanup |
+| [Control reads](control.md#submit-a-read-group) | One bounded group of session, window and pane ID reads on an owned attachment, with ordered replies and cancellation |
 | Pane stream | Live pane bytes and native notifications on owned sessions, with credit, acknowledgements and terminal gaps |
 | Daemon ownership | Empty private startup, separate ownership token, caller lifetime, explicit stop and identity-checked namespace cleanup |
 | Borrowed daemon shutdown | Explicit `tmux_server:kill/1` with process preflight and a native daemon PID guard |
@@ -125,7 +126,7 @@ This table describes the source checkout. See the
 
 ## Not yet built
 
-- Control command submission and command groups.
+- General command execution through control mode.
 - Complete performance qualification.
 - Complete typed command coverage, public cross-port
   filter conformance and independent implementation reviews.
