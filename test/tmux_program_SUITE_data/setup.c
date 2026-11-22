@@ -39,6 +39,9 @@ static void hold_setup(const char *socket)
 
 int main(int argc, char **argv)
 {
+    const char *version = getenv("LIBTMUX_TEST_PROGRAM_VERSION");
+    if (argc == 2 && strcmp(argv[1], "-V") == 0 && version != NULL)
+        return puts(version) < 0 ? 65 : 0;
     const char *socket = NULL;
     const char *blocked = getenv("LIBTMUX_TEST_PROGRAM_BLOCK");
     if (blocked == NULL)
@@ -46,8 +49,14 @@ int main(int argc, char **argv)
     for (int index = 1; index < argc; index++) {
         if (strcmp(argv[index], "-S") == 0 && index + 1 < argc)
             socket = argv[++index];
-        else if (strcmp(argv[index], blocked) == 0)
+        else if (strcmp(argv[index], blocked) == 0) {
+            const char *marker = getenv("LIBTMUX_TEST_PROGRAM_MARKER");
+            if (marker != NULL) {
+                FILE *file = fopen(marker, "wx");
+                return file != NULL && fclose(file) == 0 ? 66 : 65;
+            }
             hold_setup(socket == NULL ? "-" : socket);
+        }
     }
     const char *tmux = getenv("LIBTMUX_TEST_PROGRAM_REAL");
     if (tmux == NULL)

@@ -3,13 +3,14 @@
 -export([all/0, groups/0, init_per_suite/1, end_per_suite/1, init_per_group/2,
          end_per_group/2, version_gate/1, exit_results/1, capture_limits/1,
          replaced_capture/1, retained_slots/1, controller_crash/1, setup_retirement/1,
-         running_stop/1]).
+         running_stop/1, launch_environment/1, independent_waits/1, descendant_retirement/1]).
 
 %% Outer: the program cases exercise a private native tmux and real PTYs.
 all() -> [version_gate, {group, programs}].
 
 groups() ->
-    [{programs, [], [exit_results, capture_limits, replaced_capture,
+    [{programs, [], [exit_results, launch_environment, independent_waits,
+                     descendant_retirement, capture_limits, replaced_capture,
                      retained_slots, controller_crash, setup_retirement, running_stop]}].
 
 init_per_suite(Config) ->
@@ -52,7 +53,22 @@ version_gate(Config) ->
     end,
     Before = owned_controllers(),
     {error, enoent} = file:read_file(Marker),
-    ok.
+    Fixture = compile_fixture(Config, "setup"),
+    Env = [{"LIBTMUX_TEST_PROGRAM_REAL", binary_to_list(Executable)},
+           {"LIBTMUX_TEST_PROGRAM_VERSION", "tmux 3.8"},
+           {"LIBTMUX_TEST_PROGRAM_MARKER", binary_to_list(Marker)}],
+    case tmux_capability:require(Version, program_history) of
+        ok -> ok;
+        {error, #{found := DaemonVersion}} ->
+            with_env(Env, fun() ->
+                Refusal = tmux_program:run(Fixture, Argv, #{}),
+                {error, enoent} = file:read_file(Marker),
+                {error, #{code := unsupported_capability, capability := program_history,
+                          found := DaemonVersion, required := <<"3.8">>, cleanup := complete}} =
+                    Refusal
+            end),
+            Before = owned_controllers()
+    end.
 
 owned_controllers() ->
     lists:sort([Pid || {_, Pid, worker, [tmux_owned_server]} <- supervisor:which_children(tmux_sup),
@@ -71,6 +87,122 @@ exit_results(Config) ->
     Missing = list_to_binary(filename:join(Dir, "missing")),
     {error, #{code := program_launch_failed, stage := exec, cleanup := complete}} =
         tmux_program:run(Executable, [Missing], #{}).
+
+launch_environment(Config) ->
+    Executable = proplists:get_value(executable, Config),
+    {ok, Directory} = tmux_test_sandbox:fixture_directory(),
+    Cwd = list_to_binary(Directory),
+    Value = <<"literal; #{pane_id}">>,
+    Code = <<"[ -t 0 ] && [ -t 1 ] || exit 60; pwd -P; "
+             "printf '<%s><%s>\\n' \"$PROGRAM_VALUE\" \"$PROGRAM_EMPTY\"; "
+             "[ \"${PROGRAM_EMPTY+x}\" = x ] || exit 61; stty size; exit 17">>,
+    {ok, #{exit := {status, 17}, screen := Screen, cleanup := complete}} =
+        tmux_program:run(Executable, [<<"/bin/sh">>, <<"-c">>, Code],
+            #{cwd => Cwd, env => #{<<"PROGRAM_VALUE">> => Value, <<"PROGRAM_EMPTY">> => <<>>},
+              width => 72, height => 7}),
+    Expected = <<Cwd/binary, "\n<", Value/binary, "><>\n7 72\n">>,
+    {0, _} = binary:match(Screen, Expected).
+
+independent_waits(Config) ->
+    Executable = proplists:get_value(executable, Config),
+    Code = <<"IFS= read -r line; printf 'complete %s\\n' \"$line\"; exit 23">>,
+    {ok, {program, Controller, Token, _} = Program} =
+        tmux_program:start(Executable, [<<"/bin/sh">>, <<"-c">>, Code], #{}),
+    try
+        {ok, #{state := released}} = tmux_program:await_started(Program, 900),
+        {error, #{code := await_timeout}} = tmux_program:await(Program, 0),
+        Waits = [gen_server:send_request(Controller, {Token, await, make_ref()}) || _ <- [1, 2]],
+        #{waiters := Waiters, stopping := Stopping} = sys:get_state(Controller),
+        none = Stopping,
+        2 = map_size(Waiters),
+        Parent = self(),
+        {Waiter, Monitor} = spawn_monitor(fun() ->
+            Request = gen_server:send_request(Controller, {Token, await, make_ref()}),
+            #{waiters := Registered} = sys:get_state(Controller),
+            3 = map_size(Registered),
+            Parent ! {waiting, self()},
+            gen_server:receive_response(Request, infinity)
+        end),
+        receive {waiting, Waiter} -> ok after 900 -> ct:fail(waiter_registration_timeout) end,
+        exit(Waiter, kill),
+        receive {'DOWN', Monitor, process, Waiter, killed} -> ok
+        after 900 -> ct:fail(waiter_retirement_timeout)
+        end,
+        {ok, #{bytes := 6}} = tmux_program:send_text(Program, <<"value\n">>),
+        [First, First] = [gen_server:receive_response(Request, 900) || Request <- Waits],
+        {reply, {ok, #{exit := {status, 23}, screen := Screen, cleanup := complete}}} = First,
+        {_, _} = binary:match(Screen, <<"complete value\n">>),
+        #{waiters := #{}} = sys:get_state(Controller)
+    after retire_program(Program)
+    end.
+
+descendant_retirement(Config) ->
+    Executable = proplists:get_value(executable, Config),
+    Fixture = compile_fixture(Config, "tree"),
+    lists:foreach(fun(Mode) -> descendant_case(Executable, Fixture, Mode) end,
+                  [complete, stop, owner_exit]).
+
+descendant_case(Executable, Fixture, Mode) ->
+    {ok, Directory} = tmux_test_sandbox:fixture_directory(),
+    Fifo = list_to_binary(filename:join(Directory, "tree-ready")),
+    {ok, #{exit_status := 0}} =
+        tmux_transport:run(<<"/usr/bin/mkfifo">>, [Fifo], #{timeout_ms => 900}),
+    Parent = self(),
+    {Owner, OwnerMonitor} = spawn_monitor(fun() ->
+        {ok, Program} = tmux_program:start(Executable, [Fixture, Fifo], #{}),
+        Parent ! {program, self(), Program},
+        receive finish -> ok end
+    end),
+    receive
+        {program, Owner, Program} ->
+            try collect_descendants(Program, Owner, Fifo, Mode)
+            after
+                _ = tmux_program:stop(Program),
+                _ = tmux_program:await(Program, 900),
+                _ = tmux_program:release(Program),
+                Owner ! finish
+            end;
+        {'DOWN', OwnerMonitor, process, Owner, Reason} -> ct:fail({tree_setup_failed, Reason})
+    after 900 -> ct:fail(tree_setup_timeout)
+    end,
+    wait_exit(OwnerMonitor, Owner).
+
+collect_descendants({program, Controller, Token, _} = Program, Owner, Fifo, Mode) ->
+    {ok, #{state := released}} = tmux_program:await_started(Program, 900),
+    {ok, #{exit_status := 0, stdout := Ready}} =
+        tmux_transport:run(<<"/bin/cat">>, [Fifo], #{timeout_ms => 900, max_stdout => 200}),
+    [Leader, Child, Leader, Child] = binary:split(string:trim(Ready), <<"\t">>, [global]),
+    #{target := #{server := Server, pane := Pane, daemon := Daemon},
+      terminal_holder := Holder, ownership := Ownership} = sys:get_state(Controller),
+    Leader = integer_to_binary(tmux_model:get(pid, Pane)),
+    {ok, #{child_pid := HolderPid}} = tmux_transport:status(Holder),
+    Identities = [observe(Pid) || Pid <- [Leader, Child, Daemon, integer_to_binary(HolderPid)]],
+    {ok, #{endpoint := #{socket_path := Socket}}} = tmux_server:observation_context(Server),
+    try
+        Collection = gen_server:send_request(Controller, {Token, await, make_ref()}),
+        #{waiters := Waiters} = sys:get_state(Controller),
+        1 = map_size(Waiters),
+        case Mode of
+            complete ->
+                {ok, #{bytes := 1}} = tmux_program:send_text(Program, <<"\n">>),
+                {reply, {ok, #{exit := {status, 17}, screen := Screen, cleanup := complete}}} =
+                    gen_server:receive_response(Collection, 900),
+                {_, _} = binary:match(Screen, <<"final stdout\nfinal stderr\n">>);
+            _ ->
+                Code = case Mode of
+                    stop -> {ok, stop_requested} = tmux_program:stop(Program), program_stopped;
+                    owner_exit -> Owner ! finish, program_owner_exited
+                end,
+                {reply, {error, #{code := Code, cleanup := complete}}} =
+                    gen_server:receive_response(Collection, 900)
+        end,
+        lists:foreach(fun({Pid, Identity}) ->
+            {error, #{code := stale_server}} = tmux_identity:check(Identity, Pid)
+        end, Identities),
+        {error, enoent} = file:read_link_info(Socket),
+        {error, enoent} = file:read_link_info(filename:dirname(Socket))
+    after _ = tmux_server:stop_owned(Ownership)
+    end.
 
 capture_limits(Config) ->
     Executable = proplists:get_value(executable, Config),
@@ -223,16 +355,20 @@ await_condition(Check, Deadline) ->
 
 setup_retirement(Config) ->
     Executable = proplists:get_value(executable, Config),
+    Fixture = compile_fixture(Config, "setup"),
+    lists:foreach(fun(Mode) -> setup_case(Executable, Fixture, Mode) end, [stop, owner_exit]),
+    with_probe(Executable, Fixture, fun stop_probe/3),
+    probe_crash(Executable, Fixture).
+
+compile_fixture(Config, Name) ->
     {ok, Directory} = tmux_test_sandbox:fixture_directory(),
-    Fixture = list_to_binary(filename:join(Directory, "setup")),
-    Source = list_to_binary(filename:join(proplists:get_value(data_dir, Config), "setup.c")),
+    Fixture = list_to_binary(filename:join(Directory, Name)),
+    Source = list_to_binary(filename:join(proplists:get_value(data_dir, Config), Name ++ ".c")),
     Compiler = list_to_binary(os:find_executable("cc")),
     {ok, #{exit_status := 0}} = tmux_transport:run(
         Compiler, [<<"-std=c11">>, <<"-Wall">>, <<"-Wextra">>, <<"-Werror">>,
                    Source, <<"-o">>, Fixture], #{timeout_ms => 900}),
-    lists:foreach(fun(Mode) -> setup_case(Executable, Fixture, Mode) end, [stop, owner_exit]),
-    with_probe(Executable, Fixture, fun stop_probe/3),
-    probe_crash(Executable, Fixture).
+    Fixture.
 
 probe_crash(Executable, Fixture) ->
     Argv = [<<"/usr/bin/true">>],
@@ -302,7 +438,7 @@ running_stop(Config) ->
     {ok, {program, Controller, _, _} = Program} =
         tmux_program:start(Executable, [<<"/bin/cat">>], #{deadline_ms => 120000}),
     {ok, #{state := released}} = tmux_program:await_started(Program, 900),
-    #{ownership := {owned_server, Owned, _},
+    #{ownership := {owned_server, Owned, _} = Ownership,
       target := #{daemon := DaemonBytes, server := Server}} = sys:get_state(Controller),
     {ok, #{endpoint := #{socket_path := Socket}}} = tmux_server:observation_context(Server),
     {Daemon, Identity} = observe(DaemonBytes),
@@ -310,11 +446,12 @@ running_stop(Config) ->
     ControllerMonitor = monitor(process, Controller),
     ok = sys:suspend(Owned),
     try
-        await_cleanup_timeout(Program, Controller, ownership, unknown),
+        #{ownership := Ownership} = await_cleanup_timeout(Program, Controller, ownership, unknown),
         ok = tmux_identity:check(Identity, Daemon),
         {ok, _} = file:read_link_info(Socket)
     after ok = sys:resume(Owned)
     end,
+    ok = tmux_server:stop_owned(Ownership),
     ok = tmux_program:release(Program),
     wait_exit(ControllerMonitor, Controller),
     wait_exit(OwnerMonitor, Owned),
@@ -328,9 +465,10 @@ await_cleanup_timeout(Program, Controller, Resource, Outcome) ->
     Controller ! {timeout, Timer, cleanup},
     {error, #{code := program_cleanup_incomplete, cleanup := incomplete,
               primary := {error, #{code := program_stopped, outcome := Outcome}},
-              causes := #{Resource := {error, #{code := cleanup_timeout}}}}} =
+              causes := #{Resource := {error, #{code := cleanup_timeout}}},
+              resources := Resources}} =
         tmux_program:await(Program, 900),
-    ok.
+    Resources.
 
 setup_case(Executable, Fixture, Mode) ->
     {ok, Dir} = tmux_test_sandbox:fixture_directory(),
