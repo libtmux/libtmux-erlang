@@ -20,6 +20,9 @@
   cleanup and wait-client retirement. Registered live waits reject pane
   replacements. A wait can return `pane_generation_unavailable` if it cannot
   pin the PTY and confirm the live process during registration.
+- Report unrecognized tmux client versions as `invalid_tmux_version` when
+  starting a managed program. The error includes the required release and
+  confirmed probe cleanup.
 
 ## 0.0.3 - 2026-11-22
 
