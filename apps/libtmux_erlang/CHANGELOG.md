@@ -2,8 +2,13 @@
 
 ## Unreleased
 
-- Use `tmux_control:submit/3` to read session, window and pane IDs through
-  a persistent owned attachment. Await ordered replies or cancel the group.
+- Submit ID reads, session renames and window or pane resizes with
+  `tmux_control:submit/3` on an owned attachment. Await ordered replies
+  or cancel the group. An interrupted group keeps confirmed replies and can
+  leave the remaining outcome unknown.
+- Read live pane output and native notifications on borrowed sessions with
+  `tmux_stream:subscribe/3`. It uses a dedicated client and skips the session
+  environment update.
 - Open borrowed endpoints without firing discovery after-hooks. Native command
   aliases keep their tmux behavior; discovery requires native `list-commands`.
 - Explicitly destroy a borrowed daemon with `tmux_server:kill/1`. Process
