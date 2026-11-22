@@ -108,7 +108,7 @@ independent_waits(Config) ->
     Code = <<"IFS= read -r line; printf 'complete %s\\n' \"$line\"; exit 23">>,
     {ok, {program, Controller, Token, _} = Program} =
         tmux_program:start(Executable, [<<"/bin/sh">>, <<"-c">>, Code], #{}),
-    try
+    tmux_scope:run_or_error(fun() ->
         {ok, #{state := released}} = tmux_program:await_started(Program, 900),
         {error, #{code := await_timeout}} = tmux_program:await(Program, 0),
         Waits = [gen_server:send_request(Controller, {Token, await, make_ref()}) || _ <- [1, 2]],
@@ -123,18 +123,22 @@ independent_waits(Config) ->
             Parent ! {waiting, self()},
             gen_server:receive_response(Request, infinity)
         end),
-        receive {waiting, Waiter} -> ok after 900 -> ct:fail(waiter_registration_timeout) end,
-        exit(Waiter, kill),
-        receive {'DOWN', Monitor, process, Waiter, killed} -> ok
-        after 900 -> ct:fail(waiter_retirement_timeout)
-        end,
-        {ok, #{bytes := 6}} = tmux_program:send_text(Program, <<"value\n">>),
-        [First, First] = [gen_server:receive_response(Request, 900) || Request <- Waits],
-        {reply, {ok, #{exit := {status, 23}, screen := Screen, cleanup := complete}}} = First,
-        {_, _} = binary:match(Screen, <<"complete value\n">>),
-        #{waiters := #{}} = sys:get_state(Controller)
-    after retire_program(Program)
-    end.
+        tmux_scope:run_or_error(fun() ->
+            receive {waiting, Waiter} -> ok after 900 -> ct:fail(waiter_registration_timeout) end,
+            exit(Waiter, kill),
+            receive {'DOWN', Monitor, process, Waiter, killed} -> ok
+            after 900 -> ct:fail(waiter_retirement_timeout)
+            end,
+            {ok, #{bytes := 6}} = tmux_program:send_text(Program, <<"value\n">>),
+            [First, First] = [gen_server:receive_response(Request, 900) || Request <- Waits],
+            {reply, {ok, #{exit := {status, 23}, screen := Screen, cleanup := complete}}} = First,
+            {_, _} = binary:match(Screen, <<"complete value\n">>),
+            #{waiters := #{}} = sys:get_state(Controller)
+        end, fun() ->
+            exit(Waiter, kill),
+            retire_process(Waiter, Monitor)
+        end)
+    end, fun() -> retire_program(Program) end).
 
 descendant_retirement(Config) ->
     Executable = proplists:get_value(executable, Config),
@@ -153,19 +157,36 @@ descendant_case(Executable, Fixture, Mode) ->
         Parent ! {program, self(), Program},
         receive finish -> ok end
     end),
-    receive
-        {program, Owner, Program} ->
-            try collect_descendants(Program, Owner, Fifo, Mode)
-            after
-                _ = tmux_program:stop(Program),
-                _ = tmux_program:await(Program, 900),
-                _ = tmux_program:release(Program),
-                Owner ! finish
-            end;
-        {'DOWN', OwnerMonitor, process, Owner, Reason} -> ct:fail({tree_setup_failed, Reason})
-    after 900 -> ct:fail(tree_setup_timeout)
-    end,
-    wait_exit(OwnerMonitor, Owner).
+    tmux_scope:run_or_error(fun() ->
+        receive
+            {program, Owner, Program} ->
+                try collect_descendants(Program, Owner, Fifo, Mode)
+                after
+                    _ = tmux_program:stop(Program),
+                    _ = tmux_program:await(Program, 900),
+                    _ = tmux_program:release(Program)
+                end;
+            {'DOWN', OwnerMonitor, process, Owner, Reason} -> ct:fail({tree_setup_failed, Reason})
+        after 900 -> ct:fail(tree_setup_timeout)
+        end
+    end, fun() ->
+        Owner ! finish,
+        retire_process(Owner, OwnerMonitor)
+    end).
+
+retire_process(Pid, Monitor) ->
+    case is_process_alive(Pid) of
+        false -> demonitor(Monitor, [flush]), ok;
+        true ->
+            receive {'DOWN', Monitor, process, Pid, _} -> ok
+            after 900 ->
+                exit(Pid, kill),
+                receive {'DOWN', Monitor, process, Pid, _} ->
+                    {error, fixture_process_did_not_finish}
+                after 900 -> {error, fixture_process_cleanup_timeout}
+                end
+            end
+    end.
 
 collect_descendants({program, Controller, Token, _} = Program, Owner, Fifo, Mode) ->
     {ok, #{state := released}} = tmux_program:await_started(Program, 900),
