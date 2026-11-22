@@ -7,13 +7,13 @@ the file before stopping the pipe. It never infers delivery from the command.
 Compile the project:
 
 ```console
-$ mise exec -- rebar3 compile
+$ rebar3 compile
 ```
 
 Run it on an owned server:
 
 ```console
-$ mise exec -- escript scripts/check/run_examples.escript pipe
+$ escript scripts/check/run_examples.escript pipe
 ```
 
 <!-- example: examples/pipe_demo.erl -->

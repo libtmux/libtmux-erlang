@@ -10,7 +10,8 @@ prints this after the private server stops and its socket is removed.
 ```
 
 In an empty directory, save the Hex dependency from [Install](../README.md#install)
-as `rebar.config`. Install it with Erlang/OTP, Rebar3 and tmux on `PATH`.
+as `rebar.config`. [Set up Erlang and Rebar3](installation.md#set-up-erlang-and-rebar3)
+and put tmux on `PATH`.
 
 ```console
 $ rebar3 compile

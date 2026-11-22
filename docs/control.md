@@ -9,7 +9,7 @@ Run commands through the one-shot APIs. To receive pane bytes, use a
 The program owns its session. The runner supplies a private tmux server:
 
 ```console
-$ mise exec -- escript scripts/check/run_examples.escript control
+$ escript scripts/check/run_examples.escript control
 ```
 
 <!-- example: examples/control_demo.erl -->
@@ -136,7 +136,7 @@ The example subscribes before sending input and waits for the bytes
 Run the [full example](../examples/stream_demo.erl) from the compiled checkout.
 
 ```console
-$ mise exec -- escript scripts/check/run_examples.escript stream
+$ escript scripts/check/run_examples.escript stream
 ```
 
 <!-- example-output: stream_demo -->

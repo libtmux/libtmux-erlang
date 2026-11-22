@@ -14,19 +14,19 @@ pages.
 Compile the project:
 
 ```console
-$ mise exec -- rebar3 compile
+$ rebar3 compile
 ```
 
 Prepare the checksum-pinned ExDoc tool. This step uses the network:
 
 ```console
-$ mise exec -- escript scripts/docs/build_docs.erl --prepare
+$ escript scripts/docs/build_docs.erl --prepare
 ```
 
 Build the browser without fetching dependencies:
 
 ```console
-$ mise exec -- escript scripts/docs/build_docs.erl
+$ escript scripts/docs/build_docs.erl
 ```
 
 Open `_build/docs/core/index.html`.

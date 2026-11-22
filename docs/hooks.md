@@ -11,13 +11,13 @@ pane. The hook writes a session option and signals a unique channel.
 Compile the project first:
 
 ```console
-$ mise exec -- rebar3 compile
+$ rebar3 compile
 ```
 
 Run the complete program:
 
 ```console
-$ mise exec -- escript scripts/check/run_examples.escript hooks
+$ escript scripts/check/run_examples.escript hooks
 ```
 
 <!-- example: examples/hook_demo.erl -->

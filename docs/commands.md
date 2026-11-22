@@ -9,7 +9,7 @@ operation handle, reads fresh dimensions and verifies that earlier rows keep
 their values. The runner supplies the private server:
 
 ```console
-$ mise exec -- escript scripts/check/run_examples.escript commands
+$ escript scripts/check/run_examples.escript commands
 ```
 
 <!-- example: examples/command_demo.erl -->

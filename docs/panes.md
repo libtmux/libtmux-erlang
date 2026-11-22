@@ -7,7 +7,7 @@ the temporary window and that the earlier capture did not change. The runner
 supplies the server:
 
 ```console
-$ mise exec -- escript scripts/check/run_examples.escript panes
+$ escript scripts/check/run_examples.escript panes
 ```
 
 <!-- example: examples/pane_demo.erl -->

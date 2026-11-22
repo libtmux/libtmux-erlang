@@ -55,7 +55,7 @@ captured row keeps the old name and a fresh query finds the new name.
 Run this local recipe. It uses captured rows and needs no tmux server:
 
 ```console
-$ mise exec -- escript scripts/check/run_examples.escript filter
+$ escript scripts/check/run_examples.escript filter
 ```
 
 <!-- example: examples/filter_demo.erl -->

@@ -27,13 +27,13 @@ The core application has no runtime dependency on them. Prepare that profile
 outside timed inner/mid checks:
 
 ```console
-$ mise exec -- rebar3 as property,test get-deps
+$ rebar3 as property,test get-deps
 ```
 
 Run the generated properties separately:
 
 ```console
-$ time mise exec -- rebar3 as property proper \
+$ time rebar3 as property proper \
     --dir property \
     --numtests 300
 ```

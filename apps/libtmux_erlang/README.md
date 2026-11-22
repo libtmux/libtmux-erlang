@@ -13,15 +13,17 @@
 
 <p>
   <a href="https://hex.pm/packages/libtmux_erlang">Hex.pm</a> ·
+  <a href="https://libtmux.org/en/erlang/latest/reference/">API reference</a> ·
   <a href="https://libtmux-erlang.hexdocs.pm/readme.html">HexDocs</a> ·
   <a href="https://libtmux.org/en/erlang/">Documentation</a> ·
-  <a href="https://libtmux.org/en/erlang/latest/reference/">API reference</a> ·
   <a href="https://github.com/libtmux/libtmux-erlang/tree/master/examples">Examples</a>
 </p>
 
 <p>
+  <a href="https://github.com/libtmux/libtmux-erlang/actions/workflows/ci.yml"><img src="https://github.com/libtmux/libtmux-erlang/actions/workflows/ci.yml/badge.svg" alt="Erlang checks"></a>
   <a href="https://hex.pm/packages/libtmux_erlang"><img src="https://img.shields.io/hexpm/v/libtmux_erlang?label=libtmux_erlang" alt="libtmux_erlang"></a>
   <a href="https://libtmux.org/en/erlang/"><img src="https://img.shields.io/badge/docs-libtmux.org-0b7285" alt="libtmux.org"></a>
+  <a href="https://github.com/libtmux/libtmux-erlang/blob/master/LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="license"></a>
 </p>
 
 </div>
@@ -29,6 +31,8 @@
 Drive tmux from Erlang: create [sessions][tmux-session],
 [windows][tmux-window] and [panes][tmux-pane], capture the
 [object graph][tmux-snapshot] as immutable data, filter it, ask tmux again.
+
+**Contents**
 
 [Install](#install) ·
 [Start a private server](../../docs/first-task.md) ·
@@ -44,6 +48,10 @@ It needs:
 - Erlang/OTP 29 and Rebar3.
 - tmux 3.3a through 3.8 on Linux (including WSL).
 - `make` and a C11 compiler, to build the bundled helper.
+
+[Set up Erlang and Rebar3](../../docs/installation.md#set-up-erlang-and-rebar3)
+with a direct install, [mise](https://mise.jdx.dev/getting-started.html),
+or [asdf](https://asdf-vm.com/guide/getting-started.html).
 
 Add the published application to `rebar.config`:
 
@@ -94,13 +102,13 @@ run(Socket, Executable) ->
 From the repository root, compile:
 
 ```console
-$ mise exec -- rebar3 compile
+$ rebar3 compile
 ```
 
 Run it against a temporary server that the example runner starts:
 
 ```console
-$ mise exec -- escript scripts/check/run_examples.escript inspect
+$ escript scripts/check/run_examples.escript inspect
 ```
 
 It returns a map with the `sessions`, `windows` and `panes` counts.

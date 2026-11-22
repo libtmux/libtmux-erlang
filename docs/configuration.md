@@ -11,13 +11,13 @@ an owned session option and signals the channel.
 Compile the project first:
 
 ```console
-$ mise exec -- rebar3 compile
+$ rebar3 compile
 ```
 
 Run the complete program:
 
 ```console
-$ mise exec -- escript scripts/check/run_examples.escript config
+$ escript scripts/check/run_examples.escript config
 ```
 
 <!-- example: examples/config_demo.erl -->

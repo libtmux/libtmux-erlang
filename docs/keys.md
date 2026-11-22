@@ -7,7 +7,7 @@ listing and removes its table. It attaches no client and presses no key.
 From the checkout, after [building the core](installation.md), run:
 
 ```console
-$ mise exec -- escript scripts/check/run_examples.escript keys
+$ escript scripts/check/run_examples.escript keys
 ```
 
 <!-- example: examples/key_demo.erl -->

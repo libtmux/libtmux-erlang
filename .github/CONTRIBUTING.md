@@ -13,27 +13,17 @@ Full command, consumer and CI qualification remains in the epic.
 
 ## Setup
 
-Use mise to install the exact development versions in
-[.tool-versions](../.tool-versions). Initial development targets only the
-latest stable Erlang/OTP release. Check the
+Put the Erlang/OTP and Rebar3 versions from
+[.tool-versions](../.tool-versions) on `PATH`. The
+[toolchain guide](../docs/installation.md#set-up-erlang-and-rebar3)
+covers direct installation, mise and asdf. Development targets the latest
+stable Erlang/OTP release. Check the
 [official downloads](https://www.erlang.org/downloads) when updating OTP,
 then update the exact pin. Older OTP compatibility is outside the current
-scope. Install tools before timing checks:
+scope. Verify the selected Erlang and Rebar3 before timing checks.
 
 ```console
-$ mise install
-```
-
-Check the selected versions:
-
-```console
-$ mise current
-```
-
-Verify that the pinned build tool runs on the selected Erlang runtime:
-
-```console
-$ mise exec -- rebar3 version
+$ rebar3 version
 ```
 
 The pure model checks do not start tmux. Live integration checks must use
@@ -66,7 +56,7 @@ advertised Erlang block must execute without skips.
 Run the guide and example checks alone after compiling:
 
 ```console
-$ mise exec -- escript scripts/docs/check_docs.erl
+$ escript scripts/docs/check_docs.erl
 ```
 
 The [documentation scripts](../scripts/docs/README.md) list what they check.
@@ -101,8 +91,8 @@ $ uv run \
     https://raw.githubusercontent.com/libtmux/.github/bd3bae79572512da032287202d74c8da03b5967b/actions/check-example-width/check_example_width.py
 ```
 
-The runner times each complete child command, including mise and VM startup; the
-shell time command measures the complete loop invocation.
+The runner times each child command from startup through completion.
+The shell time command measures the complete loop invocation.
 The runner defaults to four Erlang schedulers to bound its share of a busy
 development host. An explicit ERL_FLAGS overrides that test profile; receipts
 record the selected flags. This does not configure the installed application.
@@ -117,13 +107,13 @@ are test-only tools; the core remains OTP-only. The mid loop checks fixture
 drift, while CI runs matching against PCRE2, JavaScript and Rust regex.
 
 [CI source builds](../tools/ci/README.md) explains the tmux matrix, the shared
-build action and separate PropEr profile. CI uses setup-beam's installed
-tools directly; the local runner uses mise.
+build action and separate PropEr profile. Both the local runner and CI use
+the Erlang and Rebar3 tools on `PATH`.
 
 Edit schema/entities.json, then regenerate the native records and registry:
 
 ```console
-$ mise exec -- escript scripts/generate/generate_schema.escript
+$ escript scripts/generate/generate_schema.escript
 ```
 
 The generator uses OTP JSON. Generated files are checked in so package
@@ -133,10 +123,10 @@ The option catalogue uses the tmux source commits pinned in
 [schema/tmux-sources.json](../schema/tmux-sources.json). After changing those
 pins, refresh it from a local tmux Git clone that contains them. The
 [generators](../scripts/generate/README.md) run from the compiled library, so
-run `mise exec -- rebar3 compile` first:
+run `rebar3 compile` first:
 
 ```console
-$ mise exec -- escript scripts/generate/generate_options.erl \
+$ escript scripts/generate/generate_options.erl \
     --refresh-from /path/to/tmux
 ```
 
@@ -148,7 +138,7 @@ The native command catalogue records parser declarations and selected feature
 minimums from those same pins. Refresh its data and reference together:
 
 ```console
-$ mise exec -- escript scripts/generate/generate_commands.erl \
+$ escript scripts/generate/generate_commands.erl \
     --refresh-from /path/to/tmux
 ```
 
@@ -168,7 +158,7 @@ With Clang 18 and its sanitizer runtime installed, run the additional native
 outer check:
 
 ```console
-$ time mise exec -- escript scripts/helper/check_helper_native.erl
+$ time escript scripts/helper/check_helper_native.erl
 ```
 
 This compiles the helper with AddressSanitizer and UndefinedBehaviorSanitizer
@@ -186,13 +176,13 @@ checks. This downloads verified tool archives and compiles the registry helper;
 it does not publish packages or change the user's Rebar3 configuration:
 
 ```console
-$ mise exec -- escript scripts/package/check_source_package.erl --prepare
+$ escript scripts/package/check_source_package.erl --prepare
 ```
 
 Run the source-installation outer check with the selected supported tmux:
 
 ```console
-$ time mise exec -- escript scripts/package/check_source_package.erl
+$ time escript scripts/package/check_source_package.erl
 ```
 
 It builds the core with `rebar3 hex build package`, then serves that exact

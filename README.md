@@ -13,9 +13,9 @@
 
 <p>
   <a href="https://hex.pm/packages/libtmux_erlang">Hex.pm</a> ·
+  <a href="https://libtmux.org/en/erlang/latest/reference/">API reference</a> ·
   <a href="https://libtmux-erlang.hexdocs.pm/readme.html">HexDocs</a> ·
   <a href="https://libtmux.org/en/erlang/">Documentation</a> ·
-  <a href="https://libtmux.org/en/erlang/latest/reference/">API reference</a> ·
   <a href="https://github.com/libtmux/libtmux-erlang/tree/master/examples">Examples</a>
 </p>
 
@@ -31,6 +31,8 @@
 Drive tmux from Erlang: create [sessions][tmux-session],
 [windows][tmux-window] and [panes][tmux-pane], capture the
 [object graph][tmux-snapshot] as immutable data, filter it, ask tmux again.
+
+**Contents**
 
 [Install](#install) ·
 [Start a private server](docs/first-task.md) ·
@@ -51,6 +53,10 @@ It needs:
 - Erlang/OTP 29 and Rebar3.
 - tmux 3.3a through 3.8 on Linux (including WSL).
 - `make` and a C11 compiler, to build the bundled helper.
+
+[Set up Erlang and Rebar3](docs/installation.md#set-up-erlang-and-rebar3)
+with a direct install, [mise](https://mise.jdx.dev/getting-started.html),
+or [asdf](https://asdf-vm.com/guide/getting-started.html).
 
 Add the core from [Hex](https://hex.pm/packages/libtmux_erlang) to your
 `rebar.config`:
@@ -75,13 +81,13 @@ The [complete program](examples/readme_demo.erl) creates a session with an
 editor window and a two-pane worker window. Compile from a checkout.
 
 ```console
-$ mise exec -- rebar3 compile
+$ rebar3 compile
 ```
 
 Run it on a private tmux server.
 
 ```console
-$ mise exec -- escript scripts/check/run_examples.escript readme
+$ escript scripts/check/run_examples.escript readme
 ```
 
 `with_owned/2` stops the private daemon when the program finishes. A cleanup
@@ -142,7 +148,7 @@ returns before the program reads it, so the shell signals a tmux channel and
 the program awaits that signal before it captures:
 
 ```console
-$ mise exec -- escript scripts/check/run_examples.escript typing
+$ escript scripts/check/run_examples.escript typing
 ```
 
 <!-- example: examples/typing_demo.erl -->
@@ -212,7 +218,7 @@ Filtering runs locally on captured rows and never calls tmux.
 JSON. This program needs no tmux server:
 
 ```console
-$ mise exec -- escript scripts/check/run_examples.escript filter
+$ escript scripts/check/run_examples.escript filter
 ```
 
 <!-- example: examples/filter_demo.erl -->
@@ -289,7 +295,7 @@ More: [Local filters and source queries](docs/querying.md).
 query twice, then fetches it and checks that the rows agree:
 
 ```console
-$ mise exec -- escript scripts/check/run_examples.escript plan
+$ escript scripts/check/run_examples.escript plan
 ```
 
 <!-- example: examples/plan_demo.erl -->
@@ -375,7 +381,7 @@ Build commands without I/O, join them and run them once. A sequence is not
 atomic: a failing member can leave the commands before it applied.
 
 ```console
-$ mise exec -- escript scripts/check/run_examples.escript batch
+$ escript scripts/check/run_examples.escript batch
 ```
 
 <!-- example: examples/batch_demo.erl -->
@@ -449,7 +455,7 @@ one-shot clients. [Read pane output](docs/control.md#read-pane-output) with
 a separate stream attachment on a private server.
 
 ```console
-$ mise exec -- escript scripts/check/run_examples.escript control
+$ escript scripts/check/run_examples.escript control
 ```
 
 <!-- example: examples/control_demo.erl -->

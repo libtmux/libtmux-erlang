@@ -30,17 +30,13 @@ main(Arguments) ->
     Output = filename:join(Root, "_build/checks"),
     ok = filelib:ensure_path(Output),
     Environment = [{"ERL_FLAGS", case os:getenv("ERL_FLAGS") of false -> "+S 4:4"; Flags -> Flags end}],
-    Prefix = case os:getenv("GITHUB_ACTIONS") of
-        "true" -> [];
-        _ -> ["mise", "exec", "--"]
-    end,
     Started = erlang:monotonic_time(millisecond),
     Runner = fun(Command, RemainingMs) ->
-        runner(Prefix ++ Command, #{cwd => Root, env => Environment, timeout_ms => RemainingMs})
+        runner(Command, #{cwd => Root, env => Environment, timeout_ms => RemainingMs})
     end,
     {Failed, Results} = run(plan(Tier, Module), budget(Tier), Runner),
     Seconds = (erlang:monotonic_time(millisecond) - Started) / 1000,
-    Written = [record(Tier, Output, Prefix, N, R) || {N, R} <- lists:enumerate(Results)],
+    Written = [record(Tier, Output, N, R) || {N, R} <- lists:enumerate(Results)],
     Passed = passed(Failed, Seconds, Tier),
     Receipt = #{tier => atom_to_binary(Tier), result => verdict(Passed),
                 budget_seconds => budget(Tier), dispatch_seconds => Seconds,
@@ -192,18 +188,17 @@ marked(Run) ->
     end.
 
 %% Keep the output, print the verdict line and build the receipt entry.
-record(Tier, Output, Prefix, Number, {Command, budget_exceeded}) ->
-    _ = {Tier, Output, Prefix, Number, Command},
+record(_, _, _, {_, budget_exceeded}) ->
     #{result => <<"FAIL">>, reason => <<"loop_budget_exceeded">>};
-record(Tier, Output, Prefix, Number, {Command, Outcome}) ->
+record(Tier, Output, Number, {Command, Outcome}) ->
     #{exit_status := Status, seconds := Seconds, timed_out := TimedOut, output := Text} = Outcome,
     Log = filename:join(Output, atom_to_list(Tier) ++ "-" ++ integer_to_list(Number) ++ ".log"),
     ok = file:write_file(Log, Text),
     Passed = Status =:= 0 andalso not TimedOut,
-    Line = lists:join(" ", Prefix ++ Command),
+    Line = lists:join(" ", Command),
     io:format("~s ~.3fs ~s~n", [verdict(Passed), Seconds, Line]),
     Passed orelse io:format("~ts~n", [Text]),
-    #{command => [list_to_binary(Part) || Part <- Prefix ++ Command],
+    #{command => [list_to_binary(Part) || Part <- Command],
       exit_status => Status, seconds => Seconds, result => verdict(Passed),
       timed_out => TimedOut, log => list_to_binary(filename:join("_build/checks", filename:basename(Log)))}.
 

@@ -26,11 +26,11 @@ capture. A signal is returned as `{signal, Signal}`.
 From the checkout, compile the core and run [the example](../examples/program_demo.erl).
 
 ```console
-$ mise exec -- rebar3 compile
+$ rebar3 compile
 ```
 
 ```console
-$ mise exec -- escript scripts/check/run_examples.escript program
+$ escript scripts/check/run_examples.escript program
 ```
 
 On tmux 3.8 the example checks the literal line, the interactive reply
