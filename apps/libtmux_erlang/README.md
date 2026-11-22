@@ -122,10 +122,10 @@ It returns a map with the `sessions`, `windows` and `panes` counts.
 - [Filter captured data](../../docs/querying.md): map criteria, Boolean
   functions, quantifiers and source queries.
 - [Run and stop a private terminal program](../../docs/programs.md) on tmux 3.8.
-- [List IDs in one control group](../../docs/control.md#submit-a-read-group)
-  on an owned server.
 - [Read live pane output](../../docs/control.md#read-pane-output) on an owned
-  server.
+  server. The source checkout also supports borrowed servers.
+- [Rename a session and resize a window together](../../docs/control.md#change-a-session-and-its-window)
+  on an owned server from the source checkout.
 - [Submit and cancel work](../../docs/jobs.md): await completion, exit status
   and output bytes.
 - [Build the API browser](../../docs/api.md): module, function and type docs
@@ -149,7 +149,7 @@ More: [Support and gaps](../../docs/compatibility.md) ·
 ## What it leaves out
 
 - **General control commands.** Use one-shot operations for commands outside
-  the [fixed control reads](../../docs/control.md#submit-a-read-group).
+  the [qualified control groups](../../docs/control.md#change-a-session-and-its-window).
 
 ## Contribute
 

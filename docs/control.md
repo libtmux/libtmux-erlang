@@ -3,9 +3,11 @@
 Attach to an existing session, verify identity on that persistent connection,
 inspect its attachment effects and close the client.
 
-[Submit a read group](#submit-a-read-group) on an owned server. The one-shot
-APIs support the general command catalogue. To receive pane bytes, use a
-[separate stream attachment](#read-pane-output).
+Receive pane bytes on a [separate stream attachment](#read-pane-output).
+Hex 0.0.3 supports streams on owned servers. The source checkout also
+supports [command groups](#change-a-session-and-its-window) on owned servers
+and streams on borrowed servers. The one-shot APIs cover the general command
+catalogue.
 
 The program owns its session. The runner supplies a private tmux server:
 
@@ -132,7 +134,7 @@ the session IDs and the pane IDs in the selected session's current window.
 ```
 
 Run the [complete example](../examples/control_read_demo.erl) to check both
-counts and close the attachment and its daemon.
+counts, resize the window and retire the attachment and daemon.
 
 ```console
 $ escript scripts/check/run_examples.escript control-read
@@ -144,25 +146,54 @@ $ escript scripts/check/run_examples.escript control-read
 {
   "panes": 1,
   "sessions": 1,
+  "window_width": 110,
   "cleanup": "complete"
 }
 ```
 
-Groups accept up to 16 fixed ID reads and 64 KiB of replies. Use native
-session IDs as targets. If a session is missing, tmux skips the remaining
-members. The result includes the failed member's index and prior replies.
-Keep `list-sessions`, `list-windows`, `list-panes` and `display-message` at their
-native meanings. Configured aliases can override full command names, and
-unexpected hook output or reply blocks retire the attachment.
+## Change a session and its window
+
+Build commands from rows captured on the attached endpoint. This example
+renames the session and sets the window width in one group.
+
+<!-- example: examples/control_read_demo.erl#mutate -->
+
+```erlang
+    {ok, Rename} = tmux_session:rename_command(Session, <<"resized">>),
+    {ok, Resize} = tmux_window:resize_command(Window, #{width => 110}),
+    {ok, Work} = tmux_control:submit(Control, [Rename, Resize], #{}),
+    {ok, #{replies := [<<>>, <<>>]}} = tmux_control:await(Work, 900),
+```
+
+A successful mutation returns an empty binary. The example reads the
+session and window again to check the actual name and geometry. You can
+also build a pane resize with `tmux_pane:resize_command/2`.
+
+Groups accept up to 16 qualified reads or mutations and 64 KiB of replies.
+Pass a list or a value from `tmux_command:sequence/1`. When a target is
+missing, tmux skips the remaining members. The result includes the failed
+member's index and prior replies. Successful mutations in that prefix
+still take effect.
+
+Keep the admitted command spellings and `display-message` at their native
+meanings. Configured aliases can override full command names. An unexpected
+reply or hook frame retires the attachment. The error retains confirmed
+replies and reports an unknown outcome for the rest. Check the target before
+deciding whether to submit another mutation.
 
 `tmux_control:await/2` timing out leaves the group running. Cancelling a
 running group retires the attachment. If the result reports incomplete
 cleanup, await it again to observe later retirement. Attach again to submit
-further reads.
+another group.
 
 ## Read pane output
 
-Use `tmux_stream:subscribe/3` with a session captured on an owned server.
+Use `tmux_stream:subscribe/3` with a session captured on an owned or borrowed
+endpoint. The separate client uses the same-connection daemon and session
+check. Attaching skips environment updates and ignores its size. Native
+attach and detach hooks still run. Keep `attach-session` and `display-message`
+at their native meanings for the attachment and its identity check.
+
 The example subscribes before sending input and waits for the bytes
 `hello\r\n` from one pane. Its outer scope stops the private server.
 

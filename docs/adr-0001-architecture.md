@@ -310,10 +310,11 @@ The selected no-output/ignore-size and environment-update policies remain
 visible. Existing hooks and destruction policies can still produce effects;
 closing a client is not a rollback.
 
-The [control guide](control.md) qualifies groups of fixed ID reads on owned
-daemons. A group checks each native reply, reports the successful prefix if a
-session disappears, and retires the client on cancellation. Adding commands
-requires evidence for framing, ordering, eligibility, certainty and cleanup.
+The [control guide](control.md) qualifies groups of ID reads, session renames
+and window or pane resizes on owned daemons. A group checks each native reply,
+reports the successful prefix if a target disappears, and retires the client
+on cancellation. Adding commands requires evidence for framing, ordering,
+eligibility, certainty and cleanup.
 tmux's [reply guards](https://github.com/tmux/tmux/blob/3.8/control.c#L523-L543)
 coexist with asynchronous notifications. Its
 [alias-expansion path](https://github.com/tmux/tmux/blob/3.3/cmd-parse.y#L744-L779) means a
@@ -326,9 +327,11 @@ view needs a separately named contract rather than silently subtracting the
 observer.
 
 `tmux_stream:subscribe/3` delivers live pane bytes and native notifications on
-owned sessions. Credits bound mailbox delivery, acknowledgements release
-capacity and a terminal gap ends an incomplete stream. A future sampled
-observation stream needs to state which changes can be missed between samples.
+owned or borrowed sessions. Streams use their own control client, with
+same-connection identity checks. Credits bound mailbox delivery,
+acknowledgements release capacity and a terminal gap ends an incomplete
+stream. A future sampled observation stream needs to state which changes
+can be missed between samples.
 
 ### AD-8: Keep runtime dependencies within OTP
 

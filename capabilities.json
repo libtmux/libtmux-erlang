@@ -43,7 +43,7 @@
       "id": "control-stream",
       "name": "Pane output and notifications",
       "since": "3.3a",
-      "summary": "Read live pane bytes and events from an owned session."
+      "summary": "Read live pane bytes and events on an owned or borrowed endpoint."
     },
     {
       "apis": [

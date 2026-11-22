@@ -582,7 +582,8 @@ resize(Pane, Options) ->
 Build a resize command without tmux I/O. Uses the dimensions and validation
 rules of `resize/2`, preserving the row's captured origin and stable pane ID.
 Endpoint liveness and native layout constraints are checked during execution.
-Submit through `tmux_server:command/3` or `tmux_operation:start/3`.
+Submit through `tmux_server:command/3` or `tmux_operation:start/3`, or through
+`tmux_control:submit/3` on an attachment to the same owned endpoint.
 
 ```erlang
 1> tmux_pane:resize_command(invalid_row, #{}).

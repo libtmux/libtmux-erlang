@@ -18,7 +18,9 @@ its API documentation on [HexDocs](https://libtmux-erlang.hexdocs.pm/readme.html
 | Ubuntu 24.04 arm64 | 3.3a, 3.8 |
 
 - CI uses only the latest stable Erlang/OTP and tests the oldest and newest
-  tmux. Releases between them stay supported.
+  tmux. 3.3a is the oldest release in this port's native qualification. The
+  endpoint refuses earlier clients and daemons. Releases between the tested
+  endpoints stay supported.
 - Earlier intermediate-version results keep their recorded scope.
 - Read the [workflow](../.github/workflows/ci.yml) jobs at the commit you will
   use. A minimum-version check does not prove support on every newer release.
@@ -109,8 +111,8 @@ This table describes the source checkout. See the
 | [Pane exit](jobs.md) | Exit status or signal. Waits can time out on unpatched tmux builds before 3.6 linked with `libutempter`, including Ubuntu `3.4-1ubuntu0.2`. [Fixed upstream in tmux 3.6](https://github.com/tmux/tmux/commit/fa5f3cef3d651b0eb9abfa77fc37ccade81679b5). |
 | Pane text | Bounded current-screen waits on live owned or borrowed panes, with explicit cancellation and process checks |
 | Control attachment | Explicit session, same-connection identity, no-output/ignore-size, skipped environment update and separate native cleanup |
-| [Control reads](control.md#submit-a-read-group) | One bounded group of session, window and pane ID reads on an owned attachment, with ordered replies and cancellation |
-| Pane stream | Live pane bytes and native notifications on owned sessions, with credit, acknowledgements and terminal gaps |
+| [Control groups](control.md#submit-a-read-group) | Bounded ID reads, session rename and window or pane resize on an owned attachment, with ordered replies and cancellation |
+| [Pane stream](control.md#read-pane-output) | Live pane bytes and native notifications on owned or borrowed sessions, with credit, acknowledgements and terminal gaps |
 | Daemon ownership | Empty private startup, separate ownership token, caller lifetime, explicit stop and identity-checked namespace cleanup |
 | Borrowed daemon shutdown | Explicit `tmux_server:kill/1` with process preflight and a native daemon PID guard |
 | Domain commands | Initial create/read/rename/kill calls, explicit client/session selection, checked window memberships, pane split/break/join/move/swap/resize, pane/window respawn, window layouts, literal/key input and capture |

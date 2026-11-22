@@ -446,9 +446,11 @@ More: [Daemon ownership](docs/ownership.md) ·
 ### [`tmux_control:attach/3`][api-attach]: hold a control attachment
 
 Attach to a session over a persistent connection, check its identity, then
-close it and confirm cleanup. On a private server, use a
-[read group](docs/control.md#submit-a-read-group) or a
-[separate pane stream](docs/control.md#read-pane-output).
+close it and confirm cleanup. Use a
+[separate pane stream](docs/control.md#read-pane-output) on an owned server.
+The source checkout also supports
+[command groups](docs/control.md#change-a-session-and-its-window) on owned
+servers and pane streams on borrowed servers.
 
 ```console
 $ escript scripts/check/run_examples.escript control
@@ -598,7 +600,7 @@ More: [Support and gaps](docs/compatibility.md) ·
 ## What it leaves out
 
 - **General control commands.** Use one-shot clients for commands outside the
-  [fixed control reads](docs/control.md#submit-a-read-group).
+  [qualified control groups](docs/control.md#change-a-session-and-its-window).
 
 ## Contribute
 

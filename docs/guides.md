@@ -19,6 +19,7 @@
 - [Prepare and submit command values](commands.md).
 - [Attach a control client](control.md).
 - [Submit a read group](control.md#submit-a-read-group).
+- [Rename and resize in one group](control.md#change-a-session-and-its-window).
 - [Read live pane output](control.md#read-pane-output).
 - [Run or stop a program in a private terminal](programs.md).
 - [Wait for a job and capture its output](jobs.md).

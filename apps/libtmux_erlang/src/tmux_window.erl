@@ -161,7 +161,8 @@ resize(Window, Options) ->
 Build the resize command without tmux I/O, preserving the row's captured origin
 and physical window ID. Uses `resize/2` validation. Execution checks endpoint
 liveness and native layout constraints. Submit through `tmux_server:command/3`
-or `tmux_operation:start/3`.
+or `tmux_operation:start/3`, or through `tmux_control:submit/3` on an attachment
+to the same owned endpoint.
 """.
 -spec resize_command(tmux_model:window(), resize_options()) ->
     {ok, tmux_command:t()} | {error, map()}.

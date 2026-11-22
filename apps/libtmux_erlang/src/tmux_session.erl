@@ -103,9 +103,10 @@ rename(Session, Name) ->
 
 -doc """
 Build a literal rename command without tmux I/O. Validates the row and keeps
-its captured origin; endpoint liveness is checked during execution. Submit
+its captured origin. Execution checks endpoint liveness. Submit
 the value to `tmux_server:command/3` or `tmux_operation:start/3` with its original
-endpoint. Existing session records retain their captured name.
+endpoint, or to `tmux_control:submit/3` on an attachment to that owned endpoint.
+Existing session records retain their captured name.
 
 Detached rows require `tmux_server:bind/2` first. Building a command does not
 execute it or make a repeated mutation safe.

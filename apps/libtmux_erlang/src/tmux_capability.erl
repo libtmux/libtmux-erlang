@@ -230,7 +230,7 @@ registry() ->
           apis => [<<"tmux_buffer:delete/2">>, <<"tmux_buffer:rename/3">>],
           handling => fallback, fallback => <<"show-buffer-before-named-operation">>},
       control_stream => #{minimum => <<"3.3a">>, name => <<"Pane output and notifications">>,
-          description => <<"Read live pane bytes and events from an owned session.">>,
+          description => <<"Read live pane bytes and events on an owned or borrowed endpoint.">>,
           commands => [<<"attach-session">>, <<"display-message">>],
           flags => #{<<"attach-session">> => [<<"-E">>, <<"-f">>], <<"display-message">> => [<<"-p">>]},
           apis => [<<"tmux_stream:subscribe/3">>], handling => refuse},

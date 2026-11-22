@@ -122,7 +122,8 @@ through `tmux_server:command/3` or `tmux_operation:start/3`.
 Execution is not atomic. A failed member can leave a completed prefix, and
 commands can wait or interleave with other work. The one-shot result contains
 combined bounded stdout/stderr and native exit status, without per-member
-completion attribution or rollback. Control-mode eligibility is separate.
+completion attribution or rollback. Submit supported control groups through
+`tmux_control:submit/3` for ordered member replies.
 `to_config/1` can serialize a sequence with the same origin-loss policy as
 other configuration text.
 """.

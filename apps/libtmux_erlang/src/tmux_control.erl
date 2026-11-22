@@ -9,7 +9,7 @@ uses no-output and ignore-size; -E skips attachment's environment update.
 The library issues no session-option writes or session-creation commands.
 Configured hooks and native lifetime policies can still change state,
 including on failed attach or detachment. Those effects are not rolled back.
-Use `submit/3` for qualified reads on an owned daemon, `m:tmux_operation`
+Use `submit/3` for qualified commands on an owned daemon, `m:tmux_operation`
 for one-shot commands, and `m:tmux_stream` for pane output from a
 separate client.
 
@@ -28,9 +28,9 @@ shutdown alone is not a verified cleanup result.
 
 -doc "A generation-bound connection handle. Passing it does not transfer lifetime ownership.".
 -opaque t() :: {control, pid(), reference()}.
--doc "An admitted control read or group of reads.".
+-doc "An admitted control command or group of commands.".
 -opaque submission() :: {control_submission, t(), reference()}.
--doc "Read group deadline in milliseconds, including admission. Defaults to 2500.".
+-doc "Group deadline in milliseconds, including admission. Defaults to 2500.".
 -type submit_options() :: #{deadline_ms => 1..600000}.
 -doc "Finite attachment budget, including parent registration, exec and identity. Defaults to 2500 ms.".
 -type attach_options() :: #{startup_timeout_ms => 1..600000}.
@@ -128,8 +128,14 @@ Use `tmux_command:raw/2` for `list-sessions -F '#{session_id}'`,
 `list-panes -t $ID -F '#{pane_id}'`. Targets are native session IDs. The
 pane reply is for the targeted session's current window. Replies are bounded
 to 64 KiB per group. These spellings and `display-message` must retain their
-native behavior in the owned daemon's configuration. Hooks can affect
-execution. A failed member ends the group. Groups do not provide rollback.
+native behavior in the owned daemon's configuration.
+
+Use `tmux_session:rename_command/2`, `tmux_window:resize_command/2` and
+`tmux_pane:resize_command/2` for mutations. Their target rows must belong to
+the attached endpoint. Pass a list or use `tmux_command:sequence/1` to group
+reads and mutations. Keep these commands at their native meanings too.
+Hooks can affect execution. A failed member ends the group. A successful
+prefix can change the daemon even though the group fails.
 
 On an admission reply timeout, the error includes the submission handle
 so you can observe its outcome or retire it with `cancel/1`.
@@ -152,10 +158,14 @@ submit(Control, Commands, Options) ->
     end.
 
 -doc """
-Read a group's replies in submission order. Each reply is the native ID
-output as bytes. A missing session error includes its one-based index and
-the successful prefix. The attachment retires on unexpected replies.
-It retains its latest result. A wait timeout leaves the group running.
+Read a group's replies in submission order. Reads return native ID bytes.
+A successful mutation returns an empty binary. Read the target again to
+observe its stored name or actual geometry.
+
+A missing target error includes its one-based index and the successful
+prefix. An unexpected reply retires the attachment and reports the confirmed
+replies with an unknown outcome for the remaining work. The attachment
+retains its latest result. A wait timeout leaves the group running.
 """.
 -spec await(submission(), timeout()) -> {ok, #{replies := [binary()]}} | {error, map()}.
 await({control_submission, Control, Id}, Timeout)
@@ -379,6 +389,9 @@ submission_unavailable(_, #{phase := open, config := #{mode := commands},
 submission_unavailable(_, #{phase := open}) -> {error, #{code => control_requires_owned_server}};
 submission_unavailable(_, _) -> {error, #{code => control_closed}}.
 
+admit_group(_, #{origin := Origin}, _, #{config := #{origin := OriginOnAttach}} = State)
+  when Origin =/= none, Origin =/= OriginOnAttach ->
+    {reply, {error, #{code => different_owner, outcome => not_started}}, State};
 admit_group(Id, Plan, Deadline, State) ->
     Remaining = Deadline - now_ms(),
     case Remaining > 0 of
@@ -429,10 +442,8 @@ launch_channel(#{context := #{config := Native}, config := #{mode := Mode}} = St
     end.
 
 attachment_capability(commands, _) -> ok;
-attachment_capability({stream, _}, #{owned := true, version := Version}) ->
-    tmux_capability:require(Version, control_stream);
-attachment_capability({stream, _}, _) ->
-    {error, #{code => stream_requires_owned_server}}.
+attachment_capability({stream, _}, #{version := Version}) ->
+    tmux_capability:require(Version, control_stream).
 
 start_channel(#{context := #{config := Native}, config := Config} = State) ->
     Remaining = maps:get(deadline, Config) - now_ms(),
@@ -603,8 +614,9 @@ finish_group(Result, #{command := #{id := Id, timer := Timer}} = State) ->
 retire_group(Cause, #{command := #{phase := Phase, timer := Timer} = Command} = State) ->
     cancel_timer(Timer),
     Outcome = case Phase of queued -> not_started; sent -> unknown end,
+    Replies = tmux_control_group:progress(maps:get(group, Command, none)),
     State#{command => #{id => maps:get(id, Command), timer => none,
-                        failure => #{code => Cause, outcome => Outcome}}};
+                        failure => #{code => Cause, outcome => Outcome, replies => Replies}}};
 retire_group(_, State) -> State.
 
 retirement_result(Cleanup, #{command := #{failure := Failure}} = State) ->

@@ -3,12 +3,14 @@
 -export([all/0, init_per_suite/1, end_per_suite/1, attachment/1,
          parent_closing/1, caller_death/1, attachment_hook/1, cleanup_pending/1,
          expired_startup/1, endpoint_unavailable/1, malformed_identity_tail/1,
-         submitted_read_group/1, cancelled_read_group/1]).
+         submitted_read_group/1, cancelled_mutation_group/1,
+         submitted_mutation_group/1, mutation_hook_gap/1, overridden_marker/1]).
 
 %% Outer: real control clients and owned process retirement on both branches.
 all() -> [attachment, parent_closing, caller_death, attachment_hook, cleanup_pending,
           expired_startup, endpoint_unavailable, malformed_identity_tail,
-          submitted_read_group, cancelled_read_group].
+          submitted_read_group, cancelled_mutation_group, submitted_mutation_group,
+          mutation_hook_gap, overridden_marker].
 
 init_per_suite(Config) ->
     {ok, _} = application:ensure_all_started(libtmux_erlang),
@@ -31,6 +33,8 @@ submitted_read_group(Config) ->
             [<<"-t">>, Id, <<"-F">>, <<"#{pane_id}">>]),
         {ok, #{stdout := WindowIds}} = tmux_server:command(Server, Windows, #{}),
         {ok, #{stdout := PaneIds}} = tmux_server:command(Server, Panes, #{}),
+        {error, #{code := control_group_limit}} =
+            tmux_control:submit(Control, lists:duplicate(17, Sessions), #{}),
         {ok, Success} = tmux_control:submit(Control, [Sessions, Windows, Panes], #{}),
         {ok, #{replies := [First, WindowIds, PaneIds]}} = tmux_control:await(Success, 900),
 
@@ -50,22 +54,25 @@ submitted_read_group(Config) ->
         ok
     end).
 
-cancelled_read_group(Config) ->
-    with_owned_control(Config, fun(_, _, Control = {control, Owner, _}) ->
+cancelled_mutation_group(Config) ->
+    with_owned_control(Config, fun(Server, Session, Control = {control, Owner, _}) ->
         {ok, #{helper_pid := Helper}} = tmux_control:status(Control),
         Identity = tmux_test_fixture:process_identity(Helper),
+        Id = tmux_model:get(id, Session),
+        {ok, Rename} = tmux_session:rename_command(Session, <<"pending">>),
         try
             signal_helper(Helper, Identity, <<"-STOP">>),
-            Sessions = sessions_read(),
-            {ok, Pending} = tmux_control:submit(Control, Sessions, #{}),
+            {ok, Pending} = tmux_control:submit(Control, Rename, #{}),
             {error, #{code := await_timeout}} = tmux_control:await(Pending, 0),
-            {error, #{code := busy}} = tmux_control:submit(Control, Sessions, #{}),
+            {error, #{code := busy}} = tmux_control:submit(Control, sessions_read(), #{}),
+            {ok, Current} = tmux_session:get(Server, Id),
+            <<"reads">> = tmux_model:get(name, Current),
             ok = tmux_control:cancel(Pending),
             {ok, #{phase := closing, cleanup := pending}} = tmux_control:status(Control),
             #{close_timer := Timer} = sys:get_state(Owner),
             Owner ! {timeout, Timer, cleanup},
-            {error, #{code := cancelled, outcome := unknown, cleanup := incomplete}} =
-                tmux_control:await(Pending, 900),
+            {error, #{code := cancelled, outcome := unknown, replies := [],
+                      cleanup := incomplete}} = tmux_control:await(Pending, 900),
             Retired = tmux_control:send_request(Control, retired),
             signal_helper(Helper, Identity, <<"-CONT">>),
             {reply, ok} = gen_server:receive_response(Retired, 900),
@@ -84,6 +91,111 @@ cancelled_read_group(Config) ->
 sessions_read() ->
     {ok, Command} = tmux_command:raw(<<"list-sessions">>, [<<"-F">>, <<"#{session_id}">>]),
     Command.
+
+submitted_mutation_group(Config) ->
+    with_owned_control(Config, fun(Server, Session, Control) ->
+        {ok, Snapshot} = tmux_server:snapshot(Server),
+        [Window] = tmux_snapshot:windows(Snapshot),
+        [Pane] = tmux_snapshot:panes(Snapshot),
+        {ok, _} = tmux_pane:split(Pane, #{direction => horizontal,
+            launch => #{argv => [<<"/bin/cat">>]}}),
+        {ok, Vertical} = tmux_pane:split(Pane, #{direction => vertical,
+            launch => #{argv => [<<"/bin/cat">>]}}),
+        {ok, Alias} = tmux_command:raw(<<"set-option">>,
+            [<<"-s">>, <<"command-alias[100]">>, <<"read-label=list-sessions">>]),
+        {ok, _} = tmux_server:command(Server, Alias, #{}),
+        {ok, Rename} = tmux_session:rename_command(Session, <<"working; still literal">>),
+        {ok, ResizeWindow} = tmux_window:resize_command(Window, #{width => 110, height => 31}),
+        {ok, ResizePane} = tmux_pane:resize_command(Pane, #{width => 31, height => 11}),
+        {ok, Group} = tmux_command:sequence([Rename, ResizeWindow, ResizePane, sessions_read()]),
+        {ok, Work} = tmux_control:submit(Control, Group, #{}),
+        Id = tmux_model:get(id, Session),
+        IdLine = <<Id/binary, 10>>,
+        {ok, #{replies := [<<>>, <<>>, <<>>, IdLine]}} =
+            tmux_control:await(Work, 900),
+        {ok, Fresh} = tmux_server:snapshot(Server),
+        [CurrentWindow] = tmux_snapshot:windows(Fresh),
+        110 = tmux_model:get(width, CurrentWindow),
+        31 = tmux_model:get(height, CurrentWindow),
+        {ok, CurrentPane} = tmux_pane:get(Server, tmux_model:get(id, Pane)),
+        31 = tmux_model:get(width, CurrentPane),
+        11 = tmux_model:get(height, CurrentPane),
+        {ok, ReadAlias} = tmux_command:raw(<<"read-label">>, [<<"-F">>, <<"#{session_name}">>]),
+        {ok, #{stdout := <<"working; still literal\n">>}} =
+            tmux_server:command(Server, ReadAlias, #{}),
+        reject_foreign_command(Config, Server, Id, Control),
+
+        assert_missing_targets(Server, Session, Vertical, Control),
+        {ok, Again} = tmux_control:submit(Control, sessions_read(), #{}),
+        {ok, #{replies := [IdLine]}} = tmux_control:await(Again, 900),
+        ok
+    end).
+
+assert_missing_targets(Server, Session, Vertical, Control) ->
+    Launch = #{launch => #{argv => [<<"/bin/cat">>]}},
+    {ok, GoneSession} = tmux_session:create(Server, Launch#{name => <<"gone">>}),
+    {ok, Rename} = tmux_session:rename_command(GoneSession, <<"absent">>),
+    {ok, _} = tmux_session:kill(GoneSession),
+    {ok, GoneWindow} = tmux_window:create(Session, Launch),
+    {ok, ResizeWindow} = tmux_window:resize_command(GoneWindow, #{width => 90}),
+    {ok, _} = tmux_window:kill(GoneWindow),
+    {ok, ResizePane} = tmux_pane:resize_command(Vertical, #{height => 9}),
+    {ok, _} = tmux_pane:kill(Vertical),
+    {ok, Prefix} = tmux_session:rename_command(Session, <<"prefix">>),
+    {ok, Tail} = tmux_session:rename_command(Session, <<"skipped">>),
+    lists:foreach(fun(Missing) ->
+        {ok, Work} = tmux_control:submit(Control, [Prefix, Missing, Tail], #{}),
+        {error, #{code := command_error, index := 2, replies := [<<>>]}} =
+            tmux_control:await(Work, 900),
+        {ok, Current} = tmux_session:get(Server, tmux_model:get(id, Session)),
+        <<"prefix">> = tmux_model:get(name, Current)
+    end, [Rename, ResizeWindow, ResizePane]).
+
+reject_foreign_command(Config, Server, Id, Control) ->
+    {ok, #{endpoint := #{socket_path := Socket}}} = tmux_server:observation_context(Server),
+    Executable = proplists:get_value(executable, Config),
+    {ok, Other} = tmux_server:open(#{socket_path => Socket, executable => Executable}),
+    try
+        {ok, Foreign} = tmux_session:get(Other, Id),
+        {ok, Rename} = tmux_session:rename_command(Foreign, <<"another endpoint">>),
+        {error, #{code := different_owner, outcome := not_started}} =
+            tmux_control:submit(Control, Rename, #{}),
+        {ok, Unchanged} = tmux_session:get(Server, Id),
+        <<"working; still literal">> = tmux_model:get(name, Unchanged),
+        ok
+    after ok = tmux_server:close(Other)
+    end.
+
+mutation_hook_gap(Config) ->
+    with_owned_control(Config, fun(Server, Session, Control) ->
+        {ok, Hook} = tmux_command:raw(<<"set-hook">>,
+            [<<"-g">>, <<"after-rename-session">>, <<"display-message -p hook-visible">>]),
+        {ok, _} = tmux_server:command(Server, Hook, #{}),
+        {ok, Rename} = tmux_session:rename_command(Session, <<"applied">>),
+        {ok, Work} = tmux_control:submit(Control, Rename, #{}),
+        {error, #{code := unexpected_control_block, outcome := unknown,
+                  replies := [<<>>], cleanup := complete}} = tmux_control:await(Work, 900),
+        {ok, Fresh} = tmux_session:get(Server, tmux_model:get(id, Session)),
+        <<"applied">> = tmux_model:get(name, Fresh),
+        ok
+    end).
+
+overridden_marker(Config) ->
+    with_owned_control(Config, fun(Server, Session, Control) ->
+        Alias = <<"display-message=list-sessions">>,
+        {ok, SetAlias} = tmux_command:raw(<<"set-option">>,
+            [<<"-s">>, <<"command-alias[100]">>, Alias]),
+        {ok, _} = tmux_server:command(Server, SetAlias, #{}),
+        {ok, Rename} = tmux_session:rename_command(Session, <<"renamed">>),
+        {ok, Work} = tmux_control:submit(Control, Rename, #{}),
+        {error, #{code := unexpected_control_reply, outcome := unknown,
+                  replies := [<<>>], cleanup := complete}} = tmux_control:await(Work, 900),
+        {ok, GetAlias} = tmux_command:raw(<<"show-options">>,
+            [<<"-sv">>, <<"command-alias[100]">>]),
+        {ok, #{stdout := <<Alias:(byte_size(Alias))/binary, 10>>}} =
+            tmux_server:command(Server, GetAlias, #{}),
+        ok
+    end).
 
 with_owned_control(Config, Function) ->
     Executable = proplists:get_value(executable, Config),

@@ -43,9 +43,10 @@ to read the rendered screen.
                    subscribers := #{reference() => map()}, terminal := atom()}.
 
 -doc """
-Start a dedicated client on an owned server and subscribe this process.
-Pass a session captured on that endpoint. The client ignores size changes
-from attaching and retires when tmux reports a different session.
+Start a dedicated client on an owned or borrowed server and subscribe this
+process. Pass a session captured on that endpoint. Attaching skips the
+session environment update and ignores the client's size. Native hooks still
+run. The client retires when tmux reports a different session.
 The returned subscription includes its initial credit. Start effects after
 this call returns to observe their output.
 A startup error can return a control handle for `tmux_control:close/1`

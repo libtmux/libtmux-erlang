@@ -3,12 +3,12 @@
 -export([all/0, init_per_suite/1, end_per_suite/1, delivers_and_accounts/1,
          bounded_subscribers/1, abandoned_join/1, delayed_activation/1,
          retired_before_activation/1, fragmented_output/1, owner_death/1,
-         session_retirement/1, borrowed_refusal/1]).
+         session_retirement/1, borrowed_delivery/1]).
 
 %% Outer: a real control attachment delivers pane bytes and notifications.
 all() -> [delivers_and_accounts, bounded_subscribers, abandoned_join, delayed_activation,
           retired_before_activation, fragmented_output, owner_death, session_retirement,
-          borrowed_refusal].
+          borrowed_delivery].
 
 init_per_suite(Config) ->
     {ok, _} = application:ensure_all_started(libtmux_erlang),
@@ -292,18 +292,45 @@ await_session_end(Sub, Session, Reasons, Deadline) ->
     after max(0, Deadline - erlang:monotonic_time(millisecond)) -> ct:fail(stream_survived_session)
     end.
 
-borrowed_refusal(Config) ->
+borrowed_delivery(Config) ->
     Executable = proplists:get_value(executable, Config),
-    with_session(Config, fun(Server, Session, _, _) ->
+    with_session(Config, fun(Server, Session, Pane, Window) ->
         {ok, #{endpoint := #{socket_path := Socket}}} = tmux_server:observation_context(Server),
         {ok, Borrowed} = tmux_server:open(#{socket_path => Socket, executable => Executable}),
         try
-            {ok, Current} = tmux_session:get(Borrowed, tmux_model:get(id, Session)),
-            {error, #{code := stream_requires_owned_server, cleanup := complete}} =
-                tmux_stream:subscribe(Borrowed, Current, #{}),
-            detached(Session, Borrowed)
+            Id = tmux_model:get(id, Session),
+            {ok, Current} = tmux_session:get(Borrowed, Id),
+            {ok, Update} = tmux_command:raw(<<"set-option">>,
+                [<<"-t">>, <<Id/binary, ":">>, <<"update-environment">>, <<"PATH">>]),
+            {ok, _} = tmux_server:command(Server, Update, #{}),
+            {ok, Keep} = tmux_command:raw(<<"set-environment">>,
+                [<<"-t">>, Id, <<"PATH">>, <<"/borrowed-stream-original">>]),
+            {ok, _} = tmux_server:command(Server, Keep, #{}),
+            {ok, Sub = {tmux_stream, Control, _}} = tmux_stream:subscribe(Borrowed, Current, #{}),
+            {ok, #{child_pid := Client, helper_pid := Helper, identity := same_connection}} =
+                tmux_control:status(Control),
+            Processes = [{Pid, observed(Pid)} || Pid <- [Client, Helper]],
+            try
+                {ok, _} = tmux_window:rename(Window, <<"borrowed-visible">>),
+                {Generation, _, _} = rename_event(Sub, <<"borrowed-visible">>),
+                Expected = <<"bytes", 0, 9, 92, 195, 169, 13, 10>>,
+                {ok, _} = tmux_pane:send_text(Pane, <<"go\n">>),
+                Expected = pane_output(Sub, tmux_model:get(id, Pane), Generation, byte_size(Expected))
+            after ok = tmux_stream:close(Sub)
+            end,
+            detached(Session, Borrowed),
+            {ok, #{phase := closed, cleanup := complete}} = tmux_control:status(Control),
+            {ok, Show} = tmux_command:raw(<<"show-environment">>, [<<"-t">>, Id, <<"PATH">>]),
+            {ok, #{stdout := <<"PATH=/borrowed-stream-original\n">>}} =
+                tmux_server:command(Borrowed, Show, #{}),
+            {ok, Resized} = tmux_window:get(Borrowed, tmux_model:get(id, Window)),
+            true = tmux_model:get(width, Window) =:= tmux_model:get(width, Resized),
+            lists:foreach(fun({Pid, Identity}) ->
+                {error, #{code := stale_server}} = tmux_identity:check(Identity, Pid)
+            end, Processes)
         after ok = tmux_server:close(Borrowed)
-        end
+        end,
+        detached(Session, Server)
     end).
 
 detached(Session, Server) ->
