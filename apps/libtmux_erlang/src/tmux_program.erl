@@ -218,6 +218,10 @@ run_program(#{pane := Pane} = Target, Pin, Config, Context) ->
         {ok, TimeLeft} ?= remaining(Config),
         {ok, #{exit := Outcome}} ?= tmux_pane:wait_exit(Pane, #{deadline_ms => TimeLeft}, Start),
         finish(Target, Pin, Outcome, Config)
+    else
+        {error, #{code := stale_pane} = Detail} ->
+            {error, Detail#{code => program_generation_changed}};
+        {error, _} = Error -> Error
     end.
 
 release_gate(Target, #{channel := Channel} = Config, {Controller, Token} = Context) ->
