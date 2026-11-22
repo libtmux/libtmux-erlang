@@ -106,6 +106,8 @@ bounded_subscribers(Config) ->
     with_session(Config, fun(Server, Session, _, _) ->
         {ok, Sub} = tmux_stream:subscribe(Server, Session, #{}),
         try
+            {error, #{code := invalid_stream_options}} =
+                tmux_stream:join(Sub, #{startup_timeout_ms => 99}),
             Joined = [begin {ok, Item} = tmux_stream:join(Sub, #{}), Item end || _ <- lists:seq(1, 15)],
             {error, #{code := subscriber_limit}} = tmux_stream:join(Sub, #{}),
             [First | Rest] = Joined,

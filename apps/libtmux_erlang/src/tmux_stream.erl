@@ -72,7 +72,8 @@ receiving data when it joins.
 -spec join(subscription(), #{credit => credit()}) -> {ok, subscription()} | {error, map()}.
 join({tmux_stream, Control, _} = Subscription, Options) ->
     maybe
-        {ok, Credit, #{}} ?= initial_credit(Options),
+        {ok, Credit, Startup} ?= initial_credit(Options),
+        true ?= Startup =:= #{},
         Id = make_ref(),
         Deadline = now_ms() + ?REQUEST_MS,
         case call(Subscription, {join, Id, Credit, Deadline}, ?REQUEST_MS) of
@@ -80,7 +81,7 @@ join({tmux_stream, Control, _} = Subscription, Options) ->
             {error, _} = Failure -> abandon(Control, Id, Failure)
         end
     else
-        {ok, _, _} -> invalid_options();
+        false -> invalid_options();
         {error, _} = Error -> Error
     end;
 join(_, _) -> invalid_subscription().
