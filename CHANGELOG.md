@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Document explicit borrowed-daemon destruction, borrowed pane-text waits and
+  native command-alias behavior in the ownership, job and compatibility guides.
+
 ## 0.0.3 - 2026-11-22
 
 - [Set up Erlang and Rebar3](docs/installation.md#set-up-erlang-and-rebar3)
