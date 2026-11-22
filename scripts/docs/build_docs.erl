@@ -299,7 +299,7 @@ guide_groups(Root) ->
     Reference = [<<"docs/api.md">>, <<"docs/fields.md">>, <<"docs/options-reference.md">>,
                  <<"docs/commands-reference.md">>, <<"docs/compatibility.md">>],
     Project = [<<"docs/project-policy.md">> | docs_util:wildcard(Root, "docs/adr-*.md")]
-        ++ [<<"docs/branding.md">>, <<"LICENSE">>],
+        ++ [<<"LICENSE">>],
     Tasks = docs_util:wildcard(Root, "docs/*.md") -- (Start ++ Reference ++ Project),
     [{'Start here', Start}, {'Tasks', Tasks}, {'Reference', Reference}, {'Project', Project}].
 

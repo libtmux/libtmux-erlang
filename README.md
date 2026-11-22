@@ -1,8 +1,8 @@
 <!-- libtmux-logo -->
 <div align="center">
   <picture>
-    <source srcset="docs/assets/logo.svg" type="image/svg+xml">
-    <img src="docs/assets/logo-512.png" width="128" height="128" alt="libtmux for Erlang">
+    <source srcset="assets/logo.svg" type="image/svg+xml">
+    <img src="assets/logo.png" width="128" height="128" alt="libtmux for Erlang">
   </picture>
 </div>
 <!-- /libtmux-logo -->
@@ -616,7 +616,6 @@ $ time escript scripts/check/check.erl outer
 - [CI](https://github.com/libtmux/libtmux-erlang/actions/workflows/ci.yml):
   results per commit.
 - [Hex release instructions](.github/RELEASE.md), for maintainers.
-- [Branding assets](docs/branding.md): logo, icons and social cards.
 - [MIT license](LICENSE).
 
 [tmux-session]: https://libtmux.org/en/erlang/latest/reference/tmux_session/
