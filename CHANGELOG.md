@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Run property checks and release-run selection through Erlang scripts.
+  Preserve the workflow verifier when checking older release tags.
+- Record child VM and escript startup timings in native CI receipts.
+- Keep package-tool cache checks separate from source installation and clear
+  inherited borrowed-socket selectors from package checks.
 - Document explicit borrowed-daemon destruction, borrowed pane-text waits and
   native command-alias behavior in the ownership, job and compatibility guides.
 
