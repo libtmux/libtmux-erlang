@@ -1,8 +1,8 @@
 <!-- libtmux-logo -->
 <div align="center">
   <picture>
-    <source srcset="docs/assets/logo.svg" type="image/svg+xml">
-    <img src="docs/assets/logo-512.png" width="128" height="128" alt="libtmux for Erlang">
+    <source srcset="assets/logo.svg" type="image/svg+xml">
+    <img src="assets/logo.png" width="128" height="128" alt="libtmux for Erlang">
   </picture>
 </div>
 <!-- /libtmux-logo -->
@@ -616,8 +616,12 @@ $ time escript scripts/check/check.erl outer
 - [CI](https://github.com/libtmux/libtmux-erlang/actions/workflows/ci.yml):
   results per commit.
 - [Hex release instructions](.github/RELEASE.md), for maintainers.
-- [Branding assets](docs/branding.md): logo, icons and social cards.
 - [MIT license](LICENSE).
+
+Part of the [libtmux.org](https://libtmux.org/) family alongside Python
+[`libtmux`](https://github.com/tmux-python/libtmux), sibling
+[language ports](https://github.com/libtmux) and
+[`tmux`](https://github.com/tmux/tmux).
 
 [tmux-session]: https://libtmux.org/en/erlang/latest/reference/tmux_session/
 [tmux-window]: https://libtmux.org/en/erlang/latest/reference/tmux_window/
@@ -634,7 +638,7 @@ $ time escript scripts/check/check.erl outer
 [api-with-server]: https://libtmux.org/en/erlang/latest/reference/tmux_server-with_server-2/
 [api-await]: https://libtmux.org/en/erlang/latest/reference/tmux_operation-await-2/
 [api-wait-exit]: https://libtmux.org/en/erlang/latest/reference/tmux_pane-wait_exit-2/
-[api-program-run]: https://libtmux-erlang.hexdocs.pm/0.0.3/tmux_program.html#run/3
+[api-program-run]: https://libtmux-erlang.hexdocs.pm/tmux_program.html#run/3
 [api-explain]: https://libtmux.org/en/erlang/latest/reference/tmux_query-explain-1/
 [api-pushdown]: https://libtmux.org/en/erlang/latest/reference/tmux_query-pushdown-2/
 [api-sequence]: https://libtmux.org/en/erlang/latest/reference/tmux_command-sequence-1/
