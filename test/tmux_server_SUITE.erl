@@ -4,13 +4,13 @@
          borrowed_commands/1, cancellation/1, operation_owner/1, stale_endpoint/1,
          replacement_endpoint/1, retirement_requests/1,
          ownership_transfer/1, transfer_timeout/1, endpoint_owner/1, admission_limits/1, result_retention/1,
-         admission_expiry/1, registry_restart/1, command_origins/1]).
+         admission_expiry/1, registry_restart/1, command_origins/1, capability_bootstrap/1]).
 
 %% Outer: real tmux commands, operation ownership and borrowed-server survival.
 all() -> [borrowed_commands, cancellation, operation_owner, stale_endpoint,
           replacement_endpoint, retirement_requests,
           ownership_transfer, transfer_timeout, endpoint_owner, admission_limits, result_retention,
-          admission_expiry, registry_restart, command_origins].
+          admission_expiry, registry_restart, command_origins, capability_bootstrap].
 
 init_per_suite(Config) ->
     {ok, _} = application:ensure_all_started(libtmux_erlang),
@@ -22,6 +22,59 @@ init_per_suite(Config) ->
     [{executable, unicode:characters_to_binary(Executable)} | Config].
 
 end_per_suite(_) -> ok = application:stop(libtmux_erlang).
+
+capability_bootstrap(Config) ->
+    with_server(Config, fun(Setup, Fixture) ->
+        Executable = proplists:get_value(executable, Config),
+        Client = case os:getenv("LIBTMUX_TEST_CLIENT_TMUX") of
+            false -> Executable;
+            Path -> unicode:characters_to_binary(Path)
+        end,
+        {ok, _} = tmux_session:create(Setup,
+            #{name => <<"capabilities">>, launch => #{argv => [<<"/bin/cat">>]}}),
+        Read = [<<"list-commands">>, <<"-F">>,
+                <<"#{@capability-probe}">>, <<"list-sessions">>],
+        lists:foreach(fun(Hook) ->
+            {ok, #{exit_status := 0}} = tmux_test_fixture:command(Fixture,
+                [<<"set-hook">>, <<"-g">>, Hook,
+                 <<"set-option -g @capability-probe hook">>])
+        end, [<<"after-display-message">>, <<"after-show-options">>]),
+        {ok, #{stdout := <<>>}} = tmux_test_fixture:command(Fixture, Read),
+        #{socket := Socket} = tmux_test_fixture:info(Fixture),
+        {ok, Server} = tmux_server:open(#{socket_path => Socket,
+                                       executable => Client}),
+        try
+            {ok, Version} = tmux_server:version(Server),
+            {ok, #{stdout := Native}} = tmux_test_fixture:command(Fixture,
+                [<<"list-commands">>, <<"-F">>,
+                 <<"#{version}">>, <<"list-sessions">>]),
+            {ok, Version} = tmux_version:parse(<<"tmux ", Native/binary>>),
+            {ok, #{stdout := <<>>}} = tmux_test_fixture:command(Fixture, Read),
+            {ok, _} = tmux_server:command(Server, raw(<<"list-sessions">>, []), #{}),
+            {ok, #{stdout := <<>>}} = tmux_test_fixture:command(Fixture, Read),
+            {ok, _} = tmux_test_fixture:command(Fixture,
+                [<<"display-message">>, <<"-p">>, <<"positive hook control">>]),
+            {ok, #{stdout := <<"hook\n">>}} = tmux_test_fixture:command(Fixture, Read),
+            {ok, _} = tmux_test_fixture:command(Fixture,
+                [<<"set-option">>, <<"-s">>, <<"command-alias[91]">>,
+                 <<"list-sessions=set-option -g @native-alias preserved ; ls">>]),
+            {ok, _} = tmux_server:command(Server, raw(<<"list-sessions">>, []), #{}),
+            {ok, #{stdout := <<"preserved\n">>}} = tmux_test_fixture:command(Fixture,
+                [<<"list-commands">>, <<"-F">>,
+                 <<"#{@native-alias}">>, <<"list-sessions">>])
+        after ok = tmux_server:close(Server)
+        end,
+        {ok, _} = tmux_test_fixture:command(Fixture,
+            [<<"set-option">>, <<"-s">>, <<"command-alias[92]">>,
+             <<"list-commands=set-option -g @capability-probe alias ; lscm">>]),
+        {ok, Aliased} = tmux_server:open(#{socket_path => Socket,
+                                        executable => Client}),
+        try
+            {ok, #{stdout := <<"alias\n">>}} = tmux_test_fixture:command(Fixture,
+                [<<"lscm">> | tl(Read)])
+        after ok = tmux_server:close(Aliased)
+        end
+    end).
 
 command_origins(Config) ->
     with_server(Config, fun(First, _) ->

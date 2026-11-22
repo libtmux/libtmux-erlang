@@ -226,6 +226,11 @@ caller owns that handle. This probes the executable, daemon version and
 observed Linux process incarnation; it never starts a tmux server or attaches
 a control client. Pass an absolute socket_path and optionally an executable.
 
+Discovery uses native `list-commands` to avoid after-hooks. Keep that exact
+spelling unaliased, including during later preflight checks. A configured
+override follows tmux's native rules and can change the probe's effects.
+Discovery does not inspect aliases through `show-options`, which runs hooks.
+
 An unsupported release returns `component` (`client` or `daemon`), the
 `found` and `required` releases, and a `hint`.
 """.
@@ -753,7 +758,7 @@ submission(Command, Options, Started) when is_map(Options), is_integer(Started) 
 submission(_, _, _) -> {error, #{code => invalid_operation_options}}.
 
 endpoint_args(Config, Args) -> [<<"-u">>, <<"-N">>, <<"-S">>, maps:get(socket_path, Config) | Args].
-probe_args() -> [<<"display-message">>, <<"-p">>, <<"#{pid}\t#{version}">>].
+probe_args() -> [<<"list-commands">>, <<"-F">>, <<"#{pid}\t#{version}">>, <<"list-sessions">>].
 
 require_version(Raw, Component) ->
     case tmux_version:require(Raw) of

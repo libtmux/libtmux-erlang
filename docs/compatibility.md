@@ -37,6 +37,13 @@ The [capability manifest](../capabilities.json) lists each gate's minimum,
 APIs, commands, and refusal or fallback behavior. The endpoint caches its
 observed version. Commands recheck endpoint identity before dispatch.
 
+Configured `command-alias` entries keep tmux's native behavior, including
+overrides of full command names. Identity discovery and preflight use native
+`list-commands`, which has no supported after-hook. Keep that exact spelling
+unaliased while an endpoint is in use. The library does not audit the alias
+table through `show-options`, which can run hooks. An override of a probe or
+guard command can change its effects and defeats that command's checks.
+
 ## Linux process interface
 
 - Linux must provide a readable `/proc/self/task/<pid>/children`, enabled by
