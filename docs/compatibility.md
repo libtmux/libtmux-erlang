@@ -99,6 +99,7 @@ This table describes the source checkout. See the
 | Source query | Explicit plans/fetch, conservative candidates, full residuals and final limits |
 | Operations | Bounded one-shot submission, waits, cancellation, transfer and cleanup |
 | Managed programs | Private PTY, literal arguments and input, bounded final screen and verified retirement on tmux 3.8 |
+| [Pane exit](jobs.md) | Exit status or signal. Waits can time out on unpatched tmux builds before 3.6 linked with `libutempter`, including Ubuntu `3.4-1ubuntu0.2`. [Fixed upstream in tmux 3.6](https://github.com/tmux/tmux/commit/fa5f3cef3d651b0eb9abfa77fc37ccade81679b5). |
 | Pane text | Bounded current-screen waits on live owned panes, with explicit cancellation and process checks |
 | Control attachment | Explicit session, same-connection identity, no-output/ignore-size, skipped environment update and separate native cleanup |
 | Pane stream | Live pane bytes and native notifications on owned sessions, with credit, acknowledgements and terminal gaps |
