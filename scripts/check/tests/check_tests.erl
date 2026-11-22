@@ -122,7 +122,9 @@ overrun_kills_a_descendant_in_its_own_session_test() ->
         {false, _} -> ok;
         {_, false} -> ok;
         _ ->
-            Seconds = "299.4217",
+            % Only this invocation may match the cleanup scan's sleep argument.
+            Seconds = lists:flatten(io_lib:format("299.~10..0B~B", [
+                list_to_integer(os:getpid()), erlang:unique_integer([positive])])),
             Options = #{cwd => element(2, file:get_cwd()), env => [], timeout_ms => 500},
             try check:runner(["timeout", "299", "setsid", "sleep", Seconds], Options) of
                 Outcome ->
