@@ -9,6 +9,10 @@
   owned daemons with their ownership token instead.
 - Wait for screen text on live borrowed panes with `tmux_pane:wait_for_text/3`
   or `tmux_pane_text:start/3`. Replacement and respawn end the observation.
+- Supervise `tmux_pane:wait_exit/2` so caller death triggers private-hook
+  cleanup and wait-client retirement. Registered live waits reject pane
+  replacements. A wait can return `pane_generation_unavailable` if it cannot
+  pin the PTY and confirm the live process during registration.
 
 ## 0.0.3 - 2026-11-22
 
