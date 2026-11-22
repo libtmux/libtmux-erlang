@@ -1,37 +1,23 @@
 # Writing
 
-This guide covers documentation, user-facing text, comments, commits, and
-review descriptions. [CONTRIBUTING.md](CONTRIBUTING.md) owns setup and checks.
+This file adds Erlang, OTP/ExDoc, and umbrella-package rules to
+[`libtmux/.github/WRITING.md`][org-writing], which governs voice, plain
+CommonMark, 80-column repository wrapping, unwrapped issue and pull-request
+bodies, slop removal, and commit and pull-request format.
+[CONTRIBUTING.md](CONTRIBUTING.md) owns setup and checks.
 
-## Voice
+Distinguish planned features from implemented behavior and verified
+compatibility. Omit installation and usage examples for packages or APIs that
+do not exist.
 
-Lead with the conclusion or the reader's task. Use active voice, concrete
-nouns, and short sentences. Assume no shared history: explain the purpose
-of a referenced issue, decision, or commit instead of giving only its ID.
+## Code blocks
 
-Describe observable behavior. Remove filler, marketing claims, emojis, and
-tool signatures. Distinguish planned features from implemented behavior and
-verified compatibility. Omit installation and usage examples for packages
-or APIs that do not exist.
-
-## Markdown
-
-Use CommonMark with blank lines around headings and lists. Wrap repository
-prose near 80 columns except tables, links, and commands. Keep personal
-information and local absolute paths out of published text.
-
-### Code blocks
-
-- Use `console` fences with a `$ ` prefix for shell commands.
-- Put one paste-and-run command in each block. An explicit `&&`, `;`, or
-  `\` chain counts as one command.
-- Put comments, prerequisites, and explanations outside the fence.
-- Split long commands with `\`, using one flag per continuation line.
+- Use `console` fences with a `$ ` prefix, one paste-and-run command per block,
+  `\` continuations with one flag per line, and explanations outside the fence.
 - Use relative links for repository files and check that targets exist.
-
-Run examples as documented and verify their stated results. Future examples
-that touch tmux must own their socket and cleanup. Compiling an example
-alone does not prove its runtime behavior.
+- Run examples as documented and verify their stated results. Examples that
+  touch tmux must own their socket and cleanup; compiling alone does not prove
+  runtime behavior.
 
 ## Examples
 
@@ -215,29 +201,19 @@ Comments explain constraints, invariants, and non-obvious choices. Remove
 comments that repeat names or narrate the next expression. Preserve tooling
 directives and explanations of protocol or platform workarounds.
 
-## Commits and reviews
+## Changelogs and commits
 
-Each independently published application owns its CHANGELOG.md. The root
-changelog holds changes spanning applications, including documentation, CI
-and release tooling. Source-package assembly must include the relevant file;
+Each independently published application owns its `CHANGELOG.md`. The root
+changelog holds changes spanning applications, including documentation, CI, and
+release tooling. Source-package assembly must include the relevant file;
 release qualification must reject a package without one. Do not invent a
 published release heading for an unreleased application.
 
-Use this commit format; the bracketed detail is optional:
+Follow `scope(type[detail]): concise description` (50-character subject,
+72-character body lines, `why:` and `what:` separated by a blank line) and the
+pull-request rules in [`libtmux/.github/WRITING.md`][org-commits]. Use
+lowercase scopes unless naming a proper product or class, and keep temporary
+validation receipts in the review discussion.
 
-```text
-scope(type[detail]) Concise description
-
-why: Explanation of necessity or impact.
-what:
-- Specific technical changes made
-- Focused on a single topic
-```
-
-Use lowercase scopes unless naming a proper product or class. Explain the
-durable reason and change. Keep temporary validation results in the review
-discussion.
-
-Review descriptions start with the concrete problem and resulting behavior.
-Explain the final change for someone who has not read the conversation.
-Include relevant evidence, failures, and skipped checks.
+[org-writing]: https://github.com/libtmux/.github/blob/main/WRITING.md
+[org-commits]: https://github.com/libtmux/.github/blob/main/WRITING.md#commits-and-pull-requests
