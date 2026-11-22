@@ -43,3 +43,18 @@ lifecycle, cleanup, framing and installed-consumer cases, including native
 ct_doctest examples. The initial generated properties check portable-filter
 round trips, Boolean composition and arbitrary byte operands. Generated
 state-machine sequences remain part of the lifecycle qualification work.
+
+## Documentation previews
+
+Pull requests build documentation through the same pinned producer as manual
+builds. Production publication requires an explicit `publish: true` dispatch.
+Preview publication stays disabled: the approved shared publisher rechecks the
+current head, tested merge and open state, but still needs to recheck draft
+status and the `no-preview` label immediately before uploading.
+
+The caller also excludes draft, fork and `no-preview` pull requests from
+publication. Publication and cleanup share one queue so a cleanup cannot race
+a preview upload. The default-branch close workflow checks current state again
+before deletion and removes only that pull request's `en/erlang/pr-N/` prefix.
+The [cleanup script](../../scripts/docs/README.md#remove-a-closed-preview) runs
+without checking out pull request content.
