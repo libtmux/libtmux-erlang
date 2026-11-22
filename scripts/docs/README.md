@@ -6,7 +6,7 @@ guide, an example or a doc comment. Run both from the repository root after
 the library compiles, because they load the helpers that Rebar3 builds.
 
 ```console
-$ mise exec -- rebar3 compile
+$ rebar3 compile
 ```
 
 ## check_docs
@@ -45,7 +45,7 @@ check fails.
 The script verifies the HTTPS peer, the size and the SHA-256 digest.
 
 ```console
-$ mise exec -- escript scripts/docs/build_docs.erl --prepare
+$ escript scripts/docs/build_docs.erl --prepare
 ```
 
 The build compiles the library and stages guides, source pages and media
@@ -68,6 +68,6 @@ The EUnit modules in `tests/` build temporary trees and check each failure
 for its reason. They need `git` but no network, ExDoc or tmux.
 
 ```console
-$ mise exec -- rebar3 eunit \
+$ rebar3 eunit \
     --module docs_util_tests,check_docs_tests,build_docs_tests
 ```

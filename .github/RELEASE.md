@@ -82,7 +82,7 @@ $ git pull --ff-only origin master
 Validate the candidate metadata and clean source tree.
 
 ```console
-$ mise exec -- escript scripts/release/check_release.erl
+$ escript scripts/release/check_release.erl
 ```
 
 Enter the new release tag, including its `v` prefix. It must match the updated
@@ -100,7 +100,7 @@ $ git tag --annotate "$LIBTMUX_RELEASE_TAG" \
 Check that the tag resolves to this commit and matches the package version.
 
 ```console
-$ mise exec -- escript scripts/release/check_release.erl \
+$ escript scripts/release/check_release.erl \
     --tag "$LIBTMUX_RELEASE_TAG"
 ```
 
@@ -148,9 +148,9 @@ The native source-package check remains available without any Hex account:
 it builds the real tarball and installs it through a signed local registry.
 
 ```console
-$ mise exec -- escript scripts/package/check_source_package.erl --prepare
+$ escript scripts/package/check_source_package.erl --prepare
 ```
 
 ```console
-$ mise exec -- escript scripts/package/check_source_package.erl
+$ escript scripts/package/check_source_package.erl
 ```

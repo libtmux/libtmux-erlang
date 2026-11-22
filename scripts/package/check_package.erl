@@ -325,7 +325,7 @@ select_tmux(Variable, Found) ->
 plt(Root) ->
     case filelib:wildcard(filename:join([Root, "_build", "default", "*_plt"])) of
         [Plt] -> Plt;
-        _ -> fail("Run mise exec -- rebar3 dialyzer first", [])
+        _ -> fail("Run rebar3 dialyzer first", [])
     end.
 
 -doc """

@@ -41,7 +41,7 @@ members(Root, App) ->
     Beams = [Name || Name <- list_sorted(Ebin), filelib:is_regular(filename:join(Ebin, Name))],
     case Beams =/= [] andalso filelib:is_regular(filename:join(Ebin, App ++ ".app")) of
         true -> ok;
-        false -> fail("Run mise exec -- rebar3 compile first", [])
+        false -> fail("Run rebar3 compile first", [])
     end,
     Compiled = [{"ebin/" ++ Name, filename:join(Ebin, Name)} || Name <- Beams],
     Texts = [{Name, filename:join([Root, "apps", App, Name])}

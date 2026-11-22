@@ -13,8 +13,9 @@ each command.
 The commands of each tier are listed in `check.erl`. Each runs under the
 remaining budget; the first failure or timeout ends the loop. Output goes to
 `_build/checks/<tier>-<n>.log` and a receipt to `_build/checks/<tier>.json`.
-Outside GitHub Actions each command runs through `mise exec --`. The default
-`ERL_FLAGS` is `+S 4:4`.
+Each command uses the tools on `PATH`. See the
+[toolchain setup](../../docs/installation.md#set-up-erlang-and-rebar3) for
+version selection. The default `ERL_FLAGS` is `+S 4:4`.
 
 A command that overruns its remaining budget is killed together with every
 process it started, including one that moved to another session or process
@@ -27,7 +28,7 @@ The runner loads the fixture helper before it compiles the library. The helper
 starts each run with a private directory and clears inherited tmux selectors.
 Cleanup requires the original directory and reports any remaining sockets.
 
-Run it from anywhere:
+Run it from the checkout root.
 
 ```console
 $ escript scripts/check/check.erl mid

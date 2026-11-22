@@ -15,20 +15,20 @@ Run the entity generator before compiling when you change `schema/entities.json`
 The field reference, catalogues and capability manifest read compiled modules.
 
 ```console
-$ mise exec -- rebar3 compile
+$ rebar3 compile
 ```
 
 After updating an operation gate and compiling, write the manifest.
 
 ```console
-$ mise exec -- escript scripts/generate/generate_capabilities.erl
+$ escript scripts/generate/generate_capabilities.erl
 ```
 
 The [mid loop](../check/README.md) runs the drift checks. It uses the tracked
 schemas and compiled modules, so it needs no tmux checkout.
 
 ```console
-$ mise exec -- escript scripts/check/check.erl mid
+$ escript scripts/check/check.erl mid
 ```
 
 ## Refresh command and option schemas from tmux
@@ -39,7 +39,7 @@ Git clone containing those commits. The option generator also uses a C
 preprocessor to expand hook macros.
 
 ```console
-$ mise exec -- escript scripts/generate/generate_options.erl \
+$ escript scripts/generate/generate_options.erl \
     --refresh-from /path/to/tmux
 ```
 
