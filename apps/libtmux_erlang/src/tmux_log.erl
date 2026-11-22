@@ -1,7 +1,7 @@
 -module(tmux_log).
 -moduledoc false.
 -include_lib("kernel/include/logger.hrl").
--export([transport/2, credit/4, operation/4, capture/4, owned/3, shutdown/1]).
+-export([transport/2, credit/4, stream_gap/3, operation/4, capture/4, owned/3, shutdown/1]).
 
 %% Reports are built only after Logger's module-level check. Keep these closed
 %% projections separate from status/error maps, which can contain user bytes.
@@ -32,6 +32,13 @@ credit(State, Stream, Sequence, Bytes) ->
     ?LOG_DEBUG(#{event => transport_credit_held, transport => maps:get(token, State),
         stream => Stream, sequence => Sequence, held_bytes => Bytes},
         #{domain => [libtmux, transport]}),
+    ok.
+
+-spec stream_gap(reference(), atom(), non_neg_integer()) -> ok.
+stream_gap(Generation, Reason, After) ->
+    ?LOG_DEBUG(#{event => stream_gap, generation => Generation, reason => Reason,
+                 after_sequence => After},
+               #{domain => [libtmux, stream]}),
     ok.
 
 -spec operation(reference(), reference(), map(), {ok | error, map()}) -> ok.

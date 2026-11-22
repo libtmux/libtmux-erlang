@@ -21,7 +21,7 @@ verify the endpoint before dispatch. A minimum check compares versions only.
 -doc "Native capabilities described by this library.".
 -type feature() :: native_list_filter | send_client_keys | key_list_format | layout_json |
     paste_sanitize | cleaned_names | rename_replaces | strict_named_target | control_no_detach |
-    program_history.
+    control_stream | program_history.
 -doc """
 The minimum release, public APIs and native commands. `handling` reports
 refusal, fallback, or a native behavior difference. `versions` lists the
@@ -229,6 +229,11 @@ registry() ->
                     <<"set-buffer">> => [<<"-b">>, <<"-n">>]},
           apis => [<<"tmux_buffer:delete/2">>, <<"tmux_buffer:rename/3">>],
           handling => fallback, fallback => <<"show-buffer-before-named-operation">>},
+      control_stream => #{minimum => <<"3.3a">>, name => <<"Pane output and notifications">>,
+          description => <<"Read live pane bytes and events from an owned session.">>,
+          commands => [<<"attach-session">>, <<"display-message">>],
+          flags => #{<<"attach-session">> => [<<"-E">>, <<"-f">>], <<"display-message">> => [<<"-p">>]},
+          apis => [<<"tmux_stream:subscribe/3">>], handling => refuse},
       control_no_detach => #{minimum => <<"3.6">>, name => <<"Control session switching">>,
           description => <<"Keep a control client attached when its session is destroyed.">>,
           commands => [<<"attach-session">>], flags => #{<<"attach-session">> => [<<"-f">>]},

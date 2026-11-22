@@ -9,7 +9,8 @@ uses no-output and ignore-size; -E skips attachment's environment update.
 The library issues no session-option writes or session-creation commands.
 Configured hooks and native lifetime policies can still change state,
 including on failed attach or detachment. Those effects are not rolled back.
-Command submission and terminal streaming are not yet exposed.
+Use `m:tmux_operation` for one-shot commands and `m:tmux_stream` for pane
+output from a separate client.
 
 Use `close/1` before closing the parent endpoint. Parent closing, invalidation
 or caller death requests retirement, but parent close alone does not prove
@@ -20,7 +21,8 @@ shutdown alone is not a verified cleanup result.
 -behaviour(gen_server).
 -export([attach/3, close/1, status/1]).
 -export([start_link/4, init/1, handle_continue/2, handle_call/3, handle_cast/2,
-         handle_info/2, terminate/2, format_status/1, send_request/2]).
+         handle_info/2, terminate/2, format_status/1, send_request/2, request/3,
+         attach_stream/4, resolve_stream/3]).
 -export_type([t/0, attach_options/0, state/0]).
 
 -doc "A generation-bound connection handle. Passing it does not transfer lifetime ownership.".
@@ -53,12 +55,28 @@ observe cleanup, including when the parent endpoint is already closed.
 -spec attach(tmux_server:t(), tmux_model:session(), attach_options()) ->
     {ok, t()} | {error, map()}.
 attach(Server, Session, Options) ->
+    attach(Server, Session, Options, commands).
+
+-doc false.
+-spec attach_stream(tmux_server:t(), tmux_model:session(), attach_options(),
+                    {reference(), tmux_stream:credit()}) -> {ok, t()} | {error, map()}.
+attach_stream(Server, Session, Options, Subscriber) ->
+    attach(Server, Session, Options, {stream, Subscriber}).
+
+-doc false.
+-spec resolve_stream(t(), reference(), activate | abandon) -> ok.
+resolve_stream({control, Pid, Generation}, Id, Action) when is_pid(Pid), is_reference(Generation) ->
+    gen_server:cast(Pid, {Generation, resolve_stream, Id, self(), Action});
+resolve_stream(_, _, _) -> ok.
+
+attach(Server, Session, Options, Mode) ->
     Started = now_ms(),
     maybe
         {ok, Timeout} ?= options(Options),
         {ok, Origin, Target} ?= tmux_target:captured_target(session, Session),
         Generation = make_ref(),
-        Config = #{origin => Origin, target => Target, deadline => Started + Timeout},
+        Config = #{origin => Origin, target => Target, session_id => tmux_model:get(id, Session),
+                   deadline => Started + Timeout, mode => Mode},
         Child = #{id => Generation, start => {?MODULE, start_link,
             [self(), Generation, Server, Config]}, restart => temporary, shutdown => 1000},
         try supervisor:start_child(tmux_sup, Child) of
@@ -96,6 +114,8 @@ expire after 60 seconds and then return control_expired.
 -spec status(t()) -> {ok, state()} | {error, map()}.
 status(Control) -> request(Control, status, 900).
 
+-doc false.
+-spec request(t(), term(), timeout()) -> term().
 request({control, Pid, Generation}, Kind, Timeout)
   when is_pid(Pid), is_reference(Generation) ->
     Tag = make_ref(),
@@ -104,7 +124,11 @@ request({control, Pid, Generation}, Kind, Timeout)
         {reply, Reply} -> Reply;
         timeout ->
             gen_server:cast(Pid, {Generation, unwait, Tag}),
-            Code = case Kind of close -> cleanup_incomplete; _ -> await_timeout end,
+            Code = case Kind of
+                close -> cleanup_incomplete;
+                {stream, _, close} -> cleanup_incomplete;
+                _ -> await_timeout
+            end,
             {error, #{code => Code, cleanup => unverified}};
         {error, _} -> {error, #{code => control_expired, cleanup => unverified}}
     end;
@@ -131,7 +155,7 @@ init({Owner, Generation, Server, Config}) ->
         codec => tmux_control_codec:new(Generation), block => none, probe => none,
         write => none, child_pid => none, helper_pid => none,
         identity => unverified, cleanup => pending, cause => none,
-        failure => none, diagnostics => <<>>, startup_bytes => 0,
+        failure => none, diagnostics => <<>>, startup_bytes => 0, stream => none,
         timer => none, close_timer => none, retention_timer => none, waiters => #{}},
         {continue, launch}}.
 
@@ -143,13 +167,22 @@ handle_continue(launch, State) -> {noreply, launch(State)}.
 -spec handle_call(term(), gen_server:from(), map()) -> {reply, term(), map()} | {noreply, map()}.
 handle_call({Generation, status, _}, _, #{generation := Generation} = State) ->
     {reply, {ok, public_status(State)}, State};
+handle_call({Generation, {stream, Id, Action}, Tag}, {Caller, _} = From,
+            #{generation := Generation, stream := Stream, phase := Phase} = State)
+  when is_map(Stream), (Phase =:= open orelse Action =:= close) ->
+    {Reply, Updated} = tmux_stream:change(Id, Caller, Action, Stream),
+    Next = State#{stream => Updated},
+    case Action =:= close andalso Reply =:= ok andalso
+         (Phase =/= open orelse tmux_stream:empty(Updated)) of
+        true -> reply_or_wait(close, Tag, From, retire(closed, Next));
+        false -> {reply, Reply, Next}
+    end;
+handle_call({Generation, {stream, _, _}, _}, _, #{generation := Generation} = State) ->
+    {reply, {error, #{code => subscription_closed}}, State};
 handle_call({Generation, Kind, Tag}, From, #{generation := Generation} = State)
   when Kind =:= ready; Kind =:= close; Kind =:= retired ->
     Next = case Kind of close -> retire(closed, State); _ -> State end,
-    case answer(Kind, Next) of
-        pending -> add_waiter(Kind, Tag, From, Next);
-        Reply -> {reply, Reply, Next}
-    end;
+    reply_or_wait(Kind, Tag, From, Next);
 handle_call(_, _, State) -> {reply, {error, #{code => invalid_control}}, State}.
 
 -doc false.
@@ -158,6 +191,11 @@ handle_cast({Generation, close}, #{generation := Generation} = State) ->
     {noreply, retire(closed, State)};
 handle_cast({Generation, unwait, Tag}, #{generation := Generation} = State) ->
     {noreply, remove_waiter(Tag, State)};
+handle_cast({Generation, resolve_stream, Id, Caller, Action},
+            #{generation := Generation, stream := Stream} = State)
+  when is_map(Stream), (Action =:= activate orelse Action =:= abandon) ->
+    Next = tmux_stream:resolve(Id, Caller, Action, Stream),
+    {noreply, retire_empty_stream(State#{stream => Next})};
 handle_cast(_, State) -> {noreply, State}.
 
 -doc false.
@@ -255,15 +293,24 @@ launch(#{server := Server, config := Config} = State) ->
             end
     end.
 
-launch_channel(#{context := #{config := Native}, config := Config} = State) ->
+launch_channel(#{context := #{config := Native}, config := #{mode := Mode}} = State) ->
+    case attachment_capability(Mode, Native) of
+        ok -> start_channel(State);
+        {error, Error} -> fail(Error, State)
+    end.
+
+attachment_capability(commands, _) -> ok;
+attachment_capability({stream, _}, #{owned := true, version := Version}) ->
+    tmux_capability:require(Version, control_stream);
+attachment_capability({stream, _}, _) ->
+    {error, #{code => stream_requires_owned_server}}.
+
+start_channel(#{context := #{config := Native}, config := Config} = State) ->
     Remaining = maps:get(deadline, Config) - now_ms(),
     case authorized(State) andalso Remaining > 0 of
         false -> fail(#{code => parent_closed}, State);
         true ->
-            Flags = case tmux_capability:require(maps:get(version, Native), control_no_detach) of
-                ok -> <<"no-output,ignore-size,no-detach-on-destroy">>;
-                {error, #{code := unsupported_capability}} -> <<"no-output,ignore-size">>
-            end,
+            Flags = attach_flags(maps:get(mode, Config), maps:get(version, Native)),
             Args = [<<"-u">>, <<"-C">>, <<"-N">>, <<"-S">>, maps:get(socket_path, Native),
                 <<"attach-session">>, <<"-E">>, <<"-f">>, Flags, <<"-t">>, maps:get(target, Config)],
             case tmux_transport:start_channel(maps:get(executable, Native), Args,
@@ -276,6 +323,13 @@ launch_channel(#{context := #{config := Native}, config := Config} = State) ->
                         requests => Requests, timer => erlang:start_timer(Remaining, self(), startup)};
                 {error, Error} -> fail(Error, State)
             end
+    end.
+
+attach_flags({stream, _}, _) -> <<"ignore-size">>;
+attach_flags(commands, Version) ->
+    case tmux_capability:require(Version, control_no_detach) of
+        ok -> <<"no-output,ignore-size,no-detach-on-destroy">>;
+        {error, #{code := unsupported_capability}} -> <<"no-output,ignore-size">>
     end.
 
 authorized(#{context := #{admission := Admission}, owner := Owner}) ->
@@ -300,6 +354,14 @@ events([], State) -> maybe_ready(State);
 events(_, #{phase := Phase} = State) when Phase =:= closing; Phase =:= closed -> State;
 events([Event | Rest], State) -> events(Rest, event(Event, State)).
 
+event({notification, Generation, <<"%session-changed ", Fields/binary>> = Line},
+      #{generation := Generation, config := #{mode := {stream, _}, session_id := Expected}} = State) ->
+    case binary:split(Fields, <<" ">>) of
+        [Expected, _] -> stream_event(Line, State);
+        _ -> fail(#{code => stream_session_changed}, State)
+    end;
+event({notification, Generation, Line}, #{generation := Generation} = State) ->
+    stream_event(Line, State);
 event({notification, _, _}, State) -> State;
 event({exit, _, _}, State) -> fail(#{code => control_exit}, State);
 event({block_begin, #{flags := 0} = Guard}, #{startup := attachment, block := none} = State) ->
@@ -317,39 +379,59 @@ event({block_end, Guard, ok}, #{startup := probe, block := {Guard, Bytes}} = Sta
 event({block_end, _, error}, State) -> fail(#{code => control_attach_error}, State);
 event(_, State) -> fail(#{code => unqualified_control_reply}, State).
 
-probe(State) ->
+stream_event(Line, #{phase := open, stream := Stream} = State) when is_map(Stream) ->
+    case tmux_stream:event(Line, Stream) of
+        {ok, Next} -> retire_empty_stream(State#{stream => Next});
+        {error, Code} -> fail(#{code => Code}, State)
+    end;
+stream_event(_, State) -> State.
+
+probe(#{config := #{mode := Mode}} = State) ->
     case {within_deadline(State), authorized(State)} of
         {false, _} -> fail(#{code => startup_timeout}, State);
         {_, false} -> fail(#{code => parent_closed}, State);
         {true, true} ->
             Nonce = binary:encode_hex(crypto:strong_rand_bytes(16), lowercase),
-            Bytes = <<"display-message -p \"", Nonce/binary, ":#{pid}:#{version}\"\n">>,
+            SessionFormat = case Mode of
+                commands -> <<>>;
+                {stream, _} -> <<":#{session_id}">>
+            end,
+            Bytes = <<"display-message -p \"", Nonce/binary, ":#{pid}:#{version}",
+                      SessionFormat/binary, "\"\n">>,
             case tmux_transport:write(maps:get(channel, State), Bytes) of
                 {ok, Id} -> State#{startup => probe, probe => Nonce, write => {Id, byte_size(Bytes)}};
                 {error, Error} -> fail(Error, State)
             end
     end.
 
-verify_probe(Bytes, #{context := #{config := Native}, probe := Nonce} = State) ->
+verify_probe(Bytes, #{context := #{config := Native}, probe := Nonce,
+                      config := #{mode := Mode, session_id := Session}} = State) ->
     Prefix = <<Nonce/binary, $:>>, Size = byte_size(Prefix),
     case Bytes of
         <<Prefix:Size/binary, Rest/binary>> ->
             ExpectedPid = integer_to_binary(maps:get(server_pid, Native)),
-            case binary:split(Rest, <<":">>, [global]) of
-                [ExpectedPid, Version] ->
-                    case {tmux_version:require(<<"tmux ", Version/binary>>),
-                          tmux_identity:check(maps:get(identity, Native), maps:get(server_pid, Native))} of
-                        {{ok, Parsed}, ok} ->
-                            Known = maps:get(version, Native),
-                            case maps:without([raw], Parsed) =:= maps:without([raw], Known) of
-                                true -> State#{startup => verified, identity => same_connection};
-                                false -> fail(#{code => stale_server}, State)
-                            end;
-                        _ -> fail(#{code => stale_server}, State)
-                    end;
+            SessionLine = <<Session/binary, 10>>,
+            case {Mode, binary:split(Rest, <<":">>, [global])} of
+                {commands, [ExpectedPid, Version]} -> verify_daemon(Version, Native, State);
+                {{stream, _}, [ExpectedPid, Version, SessionLine]} ->
+                    verify_daemon(Version, Native, State);
+                {{stream, _}, [ExpectedPid, _, _]} ->
+                    fail(#{code => stream_session_changed}, State);
                 _ -> fail(#{code => stale_server}, State)
             end;
         _ -> fail(#{code => invalid_control_identity}, State)
+    end.
+
+verify_daemon(Version, Native, State) ->
+    case {tmux_version:require(<<"tmux ", Version/binary>>),
+          tmux_identity:check(maps:get(identity, Native), maps:get(server_pid, Native))} of
+        {{ok, Parsed}, ok} ->
+            Known = maps:get(version, Native),
+            case maps:without([raw], Parsed) =:= maps:without([raw], Known) of
+                true -> State#{startup => verified, identity => same_connection};
+                false -> fail(#{code => stale_server}, State)
+            end;
+        _ -> fail(#{code => stale_server}, State)
     end.
 
 maybe_ready(#{phase := attaching, startup := verified, write := none,
@@ -357,11 +439,22 @@ maybe_ready(#{phase := attaching, startup := verified, write := none,
     case {within_deadline(State), authorized(State)} of
         {true, true} ->
             cancel_timer(maps:get(timer, State)),
-            reply_waiters(State#{phase => open, timer => none, probe => none, startup_bytes => 0});
+            reply_waiters(start_stream(State#{phase => open, timer => none, probe => none, startup_bytes => 0}));
         {false, _} -> fail(#{code => startup_timeout}, State);
         _ -> fail(#{code => parent_closed}, State)
     end;
 maybe_ready(State) -> State.
+
+start_stream(#{config := #{mode := {stream, Subscriber}}, owner := Owner, generation := Generation} = State) ->
+    State#{stream => tmux_stream:new(Owner, {control, self(), Generation}, Generation, Subscriber)};
+start_stream(State) -> State.
+
+retire_empty_stream(#{phase := open, stream := Stream} = State) ->
+    case tmux_stream:empty(Stream) of
+        true -> retire(stream_empty, State);
+        false -> State
+    end;
+retire_empty_stream(State) -> State.
 
 within_deadline(#{config := #{deadline := Deadline}}) -> now_ms() < Deadline.
 
@@ -375,15 +468,22 @@ native_reply(_, _, State) -> fail(#{code => invalid_channel_response}, State).
 
 fail(_, #{phase := closed} = State) -> State;
 fail(Error, State) ->
-    Next = case maps:get(failure, State) of none -> State#{failure => maps:with([code], Error)}; _ -> State end,
+    Next = case maps:get(failure, State) of
+        none -> State#{failure => maps:with([code, capability, minimum, found, required, hint], Error)};
+        _ -> State
+    end,
     retire(maps:get(code, Error), Next).
 
 retire(_, #{phase := Phase} = State) when Phase =:= closing; Phase =:= closed -> State;
 retire(Cause, State) ->
     cancel_timer(maps:get(timer, State)),
     unwatch(State),
+    Stream = case maps:get(stream, State) of
+        none -> none;
+        Active -> tmux_stream:finish(Cause, Active)
+    end,
     Next = State#{phase => closing, cause => Cause, timer => none, watch => none,
-        block => none, codec => none, probe => none, write => none},
+        block => none, codec => none, probe => none, write => none, stream => Stream},
     case maps:get(channel, Next) of
         none -> closed(Next);
         Channel ->
@@ -413,6 +513,12 @@ answer(close, #{cleanup := incomplete}) -> {error, #{code => cleanup_incomplete}
 answer(retired, #{cleanup := complete}) -> ok;
 answer(_, _) -> pending.
 
+reply_or_wait(Kind, Tag, From, State) ->
+    case answer(Kind, State) of
+        pending -> add_waiter(Kind, Tag, From, State);
+        Reply -> {reply, Reply, State}
+    end.
+
 add_waiter(Kind, Tag, {Pid, _} = From, #{waiters := Waiters} = State) when map_size(Waiters) < 16 ->
     {noreply, State#{waiters => Waiters#{Tag => {Kind, From, monitor(process, Pid)}}}};
 add_waiter(_, _, _, State) -> {reply, {error, #{code => too_many_waiters}}, State}.
@@ -432,9 +538,13 @@ reply_waiters(State) ->
     end, State, maps:get(waiters, State)).
 
 subscriber_down({'DOWN', Ref, process, _, _}, State) ->
-    maps:fold(fun(Tag, {_, _, Monitor}, Acc) ->
+    Next = maps:fold(fun(Tag, {_, _, Monitor}, Acc) ->
         case Ref =:= Monitor of true -> remove_waiter(Tag, Acc); false -> Acc end
-    end, State, maps:get(waiters, State));
+    end, State, maps:get(waiters, State)),
+    case maps:get(stream, Next) of
+        none -> Next;
+        Stream -> retire_empty_stream(Next#{stream => tmux_stream:down(Ref, Stream)})
+    end;
 subscriber_down(_, State) -> State.
 
 public_status(State) -> maps:with([phase, generation, owner, identity, cleanup,

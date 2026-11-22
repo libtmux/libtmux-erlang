@@ -21,6 +21,32 @@
     },
     {
       "apis": [
+        "tmux_stream:subscribe/3"
+      ],
+      "commands": [
+        {
+          "command": "attach-session",
+          "flags": [
+            "-E",
+            "-f"
+          ]
+        },
+        {
+          "command": "display-message",
+          "flags": [
+            "-p"
+          ]
+        }
+      ],
+      "error": "unsupported_capability",
+      "handling": "refuse",
+      "id": "control-stream",
+      "name": "Pane output and notifications",
+      "since": "3.3a",
+      "summary": "Read live pane bytes and events from an owned session."
+    },
+    {
+      "apis": [
         "tmux_capability:require/2"
       ],
       "commands": [
