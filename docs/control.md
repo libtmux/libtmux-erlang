@@ -115,6 +115,7 @@ run(Socket, Executable) ->
 ## Read pane output
 
 Use `tmux_stream:subscribe/3` with a session captured on an owned server.
+The stream API is in the [Unreleased changelog](../CHANGELOG.md#unreleased).
 The example subscribes before sending input and waits for the bytes
 `hello\r\n` from one pane. Its outer scope stops the private server.
 
@@ -122,14 +123,14 @@ The example subscribes before sending input and waits for the bytes
 
 ```erlang
     {ok, Subscription} = tmux_stream:subscribe(Server, Session, #{}),
-    try
+    tmux_scope:run_or_error(fun() ->
+        {error, #{code := credit_limit}} =
+            tmux_stream:demand(Subscription, #{bytes => 1, messages => 1}),
         {ok, _} = tmux_pane:send_text(Pane, <<"go\n">>),
         Deadline = erlang:monotonic_time(millisecond) + 900,
         ok = receive_bytes(Subscription, PaneId, Expected, Deadline),
         Expected
-    after
-        ok = tmux_stream:close(Subscription)
-    end.
+    end, fun() -> tmux_stream:close(Subscription) end).
 ```
 
 Run the [full example](../examples/stream_demo.erl) from the compiled checkout.
@@ -156,6 +157,8 @@ $ mise exec -- escript scripts/check/run_examples.escript stream
 - `tmux_stream:ack/3` frees the exact event's capacity. Request more credit
   for future events with `tmux_stream:demand/2`. Each subscriber has up to
   64 KiB and eight messages, including events waiting for acknowledgement.
+- The default subscription starts with full credit. The example checks
+  the `credit_limit` error before reading any events.
 - A client admits up to 16 subscriptions, for at most 1 MiB and 128 messages
   of total credit. The byte count covers event data and identifiers.
 - `tmux_stream:join/2` shares the client with another process. A slow

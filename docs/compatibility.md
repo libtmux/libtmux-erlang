@@ -88,6 +88,9 @@ To use a stored ID as a target, construct a row and call
 
 ## Implemented surfaces
 
+This table describes the source checkout. See the
+[changelog](../CHANGELOG.md) for released APIs.
+
 | Surface | Current behavior |
 | --- | --- |
 | Model | Exported native session/window/window-link/pane records; runtime validation |

@@ -595,9 +595,8 @@ More: [Support and gaps](docs/compatibility.md) ·
 
 ## What it leaves out
 
-- **Control command submission and output streams.** Control attachments
-  verify their connection and clean up their client; commands still run
-  through one-shot clients.
+- **Control command submission and grouping.** Run commands through
+  one-shot clients.
 
 ## Contribute
 

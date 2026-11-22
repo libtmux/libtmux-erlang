@@ -21,14 +21,14 @@ read_pane(Server) ->
     Expected = <<"hello\r\n">>,
     % docs:begin subscribe
     {ok, Subscription} = tmux_stream:subscribe(Server, Session, #{}),
-    try
+    tmux_scope:run_or_error(fun() ->
+        {error, #{code := credit_limit}} =
+            tmux_stream:demand(Subscription, #{bytes => 1, messages => 1}),
         {ok, _} = tmux_pane:send_text(Pane, <<"go\n">>),
         Deadline = erlang:monotonic_time(millisecond) + 900,
         ok = receive_bytes(Subscription, PaneId, Expected, Deadline),
         Expected
-    after
-        ok = tmux_stream:close(Subscription)
-    end.
+    end, fun() -> tmux_stream:close(Subscription) end).
     % docs:end subscribe
 
 receive_bytes(_, _, <<>>, _) -> ok;
