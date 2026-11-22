@@ -42,6 +42,12 @@ reads its output (`version`, `head`, `sha256`, `published`) from
 push event and checks no tag on any other event. Only HTTP 404 means a version
 is unpublished; any other registry answer or a different payload fails.
 
+Public verification selects `--submission-run RUN_ID` through the Actions API.
+It requires this repository's release workflow, a tag push, SemVer and an exact
+commit. The workflow keeps its verifier before checking out the submitted tag;
+`--checkout DIRECTORY --submitted-head HEAD` then binds that checkout to the
+selected run before checking the artifact and native qualification receipt.
+
 After the public install check, the workflow requires HTTP 200 on the
 versioned HexDocs README. Run the same read-only check with a published version.
 

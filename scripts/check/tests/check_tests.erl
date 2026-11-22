@@ -27,6 +27,11 @@ outer_runs_the_integration_suites_test() ->
                   [["rebar3", "dialyzer"], ["rebar3", "ct"],
                    ["escript", "scripts/check/run_examples.escript"]]).
 
+properties_run_in_the_logged_runner_with_an_outer_budget_test() ->
+    ?assertEqual([["rebar3", "as", "property", "proper", "--dir", "property",
+                   "--numtests", "300"]], check:plan(properties, none)),
+    ?assertEqual(300, check:budget(properties)).
+
 a_loop_passes_only_when_nothing_failed_inside_the_budget_test() ->
     ?assert(check:passed(false, 4.9, inner)),
     ?assertNot(check:passed(true, 1.0, inner)),
@@ -69,6 +74,11 @@ real_runner_reports_status_output_and_deadline_test() ->
     ?assertMatch(#{exit_status := 1, timed_out := false}, check:runner(["false"], Options)),
     ?assertMatch(#{timed_out := true},
                  check:runner(["sleep", "30"], Options#{timeout_ms => 200})).
+
+real_runner_retains_both_streams_when_a_command_fails_test() ->
+    Options = #{cwd => element(2, file:get_cwd()), env => [], timeout_ms => 1000},
+    ?assertMatch(#{exit_status := 7, timed_out := false, output := <<"out\nerr\n">>},
+        check:runner(["sh", "-c", "printf 'out\\n'; printf 'err\\n' >&2; exit 7"], Options)).
 
 runner_scrubs_tmux_selectors_and_cleans_its_private_directory_test() ->
     Script = "test -z \"${TMUX+x}${TMUX_PANE+x}${LIBTMUX_SOCKET+x}"

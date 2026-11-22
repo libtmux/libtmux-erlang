@@ -10,6 +10,10 @@ each command.
 - `outer` compiles, runs Dialyzer, Common Test, the reader examples and the
   installed-archive consumer, under 5 minutes.
 
+`properties` runs the isolated PropEr profile with a 5-minute outer budget.
+Prepare its dependencies first; see
+[CI source builds](../../tools/ci/README.md).
+
 The commands of each tier are listed in `check.erl`. Each runs under the
 remaining budget; the first failure or timeout ends the loop. Output goes to
 `_build/checks/<tier>-<n>.log` and a receipt to `_build/checks/<tier>.json`.

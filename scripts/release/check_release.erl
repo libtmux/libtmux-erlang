@@ -2,10 +2,12 @@
 %% Usage: escript scripts/release/check_release.erl [--tag vVERSION | --from-actions]
 %%        [--artifact TARBALL [--qualified-receipt RECEIPT]] [--require-published]
 %% Usage: escript scripts/release/check_release.erl --hexdocs VERSION
+%% Usage: escript scripts/release/check_release.erl --submission-run RUN_ID
 -module(check_release).
 -mode(compile).
 -export([main/1, validate_version/2, validate_checkout/2, published_artifact/3,
-         validate_qualification/3, application_version/1, actions_tag/2, verify_hexdocs/2]).
+         validate_qualification/3, application_version/1, actions_tag/2, verify_hexdocs/2,
+         submission_run/3, submission/2]).
 -export_type([fetch/0]).
 
 -define(APP, "libtmux_erlang").
@@ -17,6 +19,25 @@
 -type fetch() :: fun((string()) -> {ok, non_neg_integer(), binary()} | {error, term()}).
 
 -spec main([string()]) -> no_return().
+main(["--submission-run", Id]) ->
+    try
+        Repo = os:getenv("GITHUB_REPOSITORY"),
+        Token = os:getenv("GH_TOKEN"),
+        is_list(Repo) andalso is_list(Token) orelse
+            fail("GITHUB_REPOSITORY and GH_TOKEN are required"),
+        Fetch = fun(Url) -> fetch(Url, false,
+            [{"accept", "application/vnd.github+json"},
+             {"user-agent", "libtmux-erlang-release"},
+             {"authorization", "Bearer " ++ Token}]) end,
+        Result = submission_run(Id, Repo, Fetch),
+        output(Result),
+        io:format("~s~n", [json:format(Result)]),
+        halt(0)
+    catch
+        error:{release, Message} ->
+            io:format(standard_error, "~s~n", [Message]),
+            halt(1)
+    end;
 main(["--hexdocs", Version]) ->
     try verify_hexdocs(Version, fun(Url) -> fetch(Url, false) end) of
         ok ->
@@ -27,9 +48,15 @@ main(["--hexdocs", Version]) ->
             io:format(standard_error, "~s~n", [Message]),
             halt(1)
     end;
+main(["--checkout", Root | Arguments]) ->
+    check_checkout(filename:absname(Root), Arguments);
 main(Arguments) ->
     Root = filename:dirname(filename:dirname(filename:dirname(
         filename:absname(escript:script_name())))),
+    check_checkout(Root, Arguments).
+
+-spec check_checkout(file:filename(), [string()]) -> no_return().
+check_checkout(Root, Arguments) ->
     ok = code:add_pathsa([filename:join(Root, "_build/default/extras/scripts")]),
     ok = script_util:boot(Root),
     case run(Root, parse(Arguments, #{})) of
@@ -52,6 +79,8 @@ parse(["--from-actions" | Rest], Options) ->
 parse(["--artifact", Path | Rest], Options) -> parse(Rest, Options#{artifact => Path});
 parse(["--qualified-receipt", Path | Rest], Options) ->
     parse(Rest, Options#{receipt => Path});
+parse(["--submitted-head", Head | Rest], Options) ->
+    parse(Rest, Options#{submitted_head => Head});
 parse(["--require-published" | Rest], Options) ->
     parse(Rest, Options#{require_published => true});
 parse(Other, _) ->
@@ -66,6 +95,36 @@ any other event.
 actions_tag("push", Ref) when is_list(Ref), Ref =/= "" -> Ref;
 actions_tag("push", _) -> error(missing_ref_name);
 actions_tag(_, _) -> none.
+
+-doc "Select a release tag push in this repository from the Actions run API.".
+-spec submission_run(string(), string(), fetch()) -> map().
+submission_run(Id, Repo, Fetch) ->
+    re:run(Id, "\\A[1-9][0-9]*\\z", [{capture, none}]) =:= match orelse
+        fail("use the numeric run ID of a Hex release tag push"),
+    Url = "https://api.github.com/repos/" ++ Repo ++ "/actions/runs/" ++ Id,
+    case Fetch(Url) of
+        {ok, 200, Body} ->
+            Run = try json:decode(Body)
+                  catch error:_ -> fail("release run response is not JSON")
+                  end,
+            submission(Run, Repo);
+        {ok, Status, _} -> fail(io_lib:format("release run API answered HTTP ~B", [Status]));
+        {error, _} -> fail("release run API request failed")
+    end.
+
+-doc "Validate the release workflow, push event, repository, tag and commit.".
+-spec submission(term(), string()) -> map().
+submission(#{<<"path">> := <<".github/workflows/release.yml">>,
+             <<"event">> := <<"push">>, <<"head_sha">> := Head,
+             <<"head_branch">> := <<"v", Version/binary>> = Tag,
+             <<"head_repository">> := #{<<"full_name">> := Repo}}, Repository)
+        when is_binary(Head) ->
+    Repo =:= list_to_binary(Repository) orelse fail("release run belongs to another repository"),
+    re:run(Head, "\\A[0-9a-f]{40}\\z", [{capture, none}]) =:= match orelse
+        fail("release run must name an exact commit"),
+    _ = validate_version(binary_to_list(Version), binary_to_list(Tag)),
+    #{tag => Tag, head => Head, version => Version};
+submission(_, _) -> fail("run must be a release workflow tag push from this repository").
 
 run(Root, Options) ->
     case usage(Options) of
@@ -85,7 +144,7 @@ release(Root, Options) ->
     try
         Tag = maps:get(tag, Options, none),
         Version = validate_version(application_version(Root), Tag),
-        Head = validate_checkout(Root, Tag),
+        Head = validate_checkout(Root, {Tag, maps:get(submitted_head, Options, none)}),
         Base = #{version => list_to_binary(Version), head => list_to_binary(Head)},
         {ok, case maps:find(artifact, Options) of
             error -> Base;
@@ -152,7 +211,13 @@ is_digit(Char) -> Char >= $0 andalso Char =< $9.
 Require a clean tree, and with a tag that the tag points at HEAD. Returns
 HEAD's commit ID.
 """.
--spec validate_checkout(file:filename_all(), string() | none) -> string().
+-spec validate_checkout(file:filename_all(), string() | none |
+                        {string() | none, string() | none}) -> string().
+validate_checkout(Root, {Tag, ExpectedHead}) ->
+    Head = validate_checkout(Root, Tag),
+    (ExpectedHead =:= none orelse ExpectedHead =:= Head) orelse
+        fail("submitted release run must identify HEAD"),
+    Head;
 validate_checkout(Root, Tag) ->
     Status = script_util:git(["status", "--porcelain", "--untracked-files=all"], Root),
     Status =:= <<>> orelse fail("release requires a clean checkout"),
@@ -213,13 +278,16 @@ validate_qualification(Proof, Head, Sha256) ->
 fetch(Url) -> fetch(Url, true).
 
 fetch(Url, FollowRedirects) ->
+    fetch(Url, FollowRedirects, []).
+
+fetch(Url, FollowRedirects, Headers) ->
     {ok, _} = application:ensure_all_started(ssl),
     {ok, _} = application:ensure_all_started(inets),
     Ssl = [{verify, verify_peer}, {cacerts, public_key:cacerts_get()},
            {customize_hostname_check,
             [{match_fun, public_key:pkix_verify_hostname_match_fun(https)}]}],
     Options = [{timeout, 30000}, {autoredirect, FollowRedirects}, {ssl, Ssl}],
-    case httpc:request(get, {Url, []}, Options, [{body_format, binary}]) of
+    case httpc:request(get, {Url, Headers}, Options, [{body_format, binary}]) of
         {ok, {{_, Status, _}, _, Body}} when byte_size(Body) =< ?LIMIT -> {ok, Status, Body};
         {ok, {{_, _, _}, _, _}} -> {error, body_too_large};
         {error, Reason} -> {error, Reason}

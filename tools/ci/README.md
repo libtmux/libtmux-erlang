@@ -33,10 +33,11 @@ $ rebar3 as property,test get-deps
 Run the generated properties separately:
 
 ```console
-$ time rebar3 as property proper \
-    --dir property \
-    --numtests 300
+$ time escript scripts/check/check.erl properties
 ```
+
+The runner preserves both output streams, failure status and whole-command
+timing in `_build/checks/properties-1.log` and `properties.json`.
 
 EUnit owns the small deterministic checks. Common Test owns real tmux
 lifecycle, cleanup, framing and installed-consumer cases, including native

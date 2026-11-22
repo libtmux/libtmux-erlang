@@ -204,17 +204,14 @@ jobs:
           version-type: strict
       - name: Prepare isolated test dependencies
         run: rebar3 as property,test get-deps
-      - name: Create the check log directory
-        run: mkdir -p _build/checks
       - name: Run PropEr properties
-        shell: bash
-        run: rebar3 as property proper --dir property --numtests 300 2>&1 | tee _build/checks/properties.log
+        run: escript scripts/check/check.erl properties
       - name: Preserve property counterexamples and log
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: generated-properties
-          path: _build/checks/properties.log
+          path: _build/checks/properties*
           if-no-files-found: warn
           retention-days: 14
 

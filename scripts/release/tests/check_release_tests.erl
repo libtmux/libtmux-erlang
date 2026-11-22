@@ -23,6 +23,38 @@ actions_release_only_a_push_names_a_tag_test() ->
     end, ["pull_request", "workflow_dispatch", false]),
     ?assertError(missing_ref_name, check_release:actions_tag("push", false)).
 
+submission_run_must_identify_this_repositories_release_tag_push_test() ->
+    Repo = "libtmux/libtmux-erlang",
+    Head = binary:copy(<<"a">>, 40),
+    Run = #{<<"path">> => <<".github/workflows/release.yml">>,
+            <<"event">> => <<"push">>, <<"head_sha">> => Head,
+            <<"head_branch">> => <<"v0.0.3">>,
+            <<"head_repository">> => #{<<"full_name">> => list_to_binary(Repo)}},
+    ?assertEqual(#{tag => <<"v0.0.3">>, head => Head, version => <<"0.0.3">>},
+                 check_release:submission(Run, Repo)),
+    Invalid = [Run#{<<"path">> := <<".github/workflows/ci.yml">>},
+               Run#{<<"event">> := <<"workflow_dispatch">>},
+               Run#{<<"head_branch">> := <<"master">>},
+               Run#{<<"head_branch">> := <<"v0.0.3\nhead=other">>},
+               Run#{<<"head_sha">> := <<"short">>},
+               Run#{<<"head_repository">> := #{<<"full_name">> => <<"other/repo">>}}, #{}],
+    lists:foreach(fun(Other) ->
+        ?assertError({release, _}, check_release:submission(Other, Repo))
+    end, Invalid).
+
+submission_run_id_rejects_non_numeric_input_before_a_request_test() ->
+    Self = self(),
+    Fetch = fun(_) -> Self ! unexpected_request, {error, unexpected_request} end,
+    lists:foreach(fun(Id) ->
+        ?assertError({release, _}, check_release:submission_run(Id,
+            "libtmux/libtmux-erlang", Fetch))
+    end, ["", "0", "-1", "1/other", "12\noutput=bad"]),
+    receive unexpected_request -> ?assert(false) after 0 -> ok end,
+    ?assertError({release, _}, check_release:submission_run("42",
+        "libtmux/libtmux-erlang", fun(_) -> {ok, 404, <<>>} end)),
+    ?assertError({release, _}, check_release:submission_run("42",
+        "libtmux/libtmux-erlang", fun(_) -> {ok, 200, <<"invalid json">>} end)).
+
 checkout_test_() ->
     {setup,
      fun() -> {ok, _} = application:ensure_all_started(libtmux_erlang) end,
@@ -44,6 +76,10 @@ tag_must_resolve_to_clean_checkout() ->
         _ = Git(["tag", "v0.0.1"]),
         Head = check_release:validate_checkout(Directory, "v0.0.1"),
         ?assertEqual(Head, check_release:validate_checkout(Directory, none)),
+        ?assertEqual(Head, check_release:validate_checkout(Directory,
+            {"v0.0.1", Head})),
+        ?ASSERT_FAILS("submitted release run must identify HEAD",
+            check_release:validate_checkout(Directory, {"v0.0.1", lists:duplicate(40, $0)})),
         ok = file:write_file(filename:join(Directory, "source"), "dirty"),
         ?ASSERT_FAILS("release requires a clean checkout",
             check_release:validate_checkout(Directory, "v0.0.1")),

@@ -2,6 +2,7 @@
 %% Usage: escript scripts/check/check.erl inner --module MODULE
 %%        escript scripts/check/check.erl mid
 %%        escript scripts/check/check.erl outer
+%%        escript scripts/check/check.erl properties
 %%
 %% Each tier runs its commands in order under one time budget, keeps every
 %% command's output in _build/checks/<tier>-<n>.log and writes a receipt to
@@ -15,7 +16,7 @@
 %% Set in every command's environment so its descendants can be found.
 -define(RUN_VARIABLE, "LIBTMUX_CHECK_RUN").
 
--type tier() :: inner | mid | outer.
+-type tier() :: inner | mid | outer | properties.
 -type command() :: [string()].
 -type outcome() :: #{exit_status := integer(), seconds := float(), timed_out := boolean(),
                      output := binary()}.
@@ -55,7 +56,8 @@ parse(["inner", "--module", Module]) -> {inner, Module};
 parse(["inner" | _]) -> usage("inner requires --module; use mid for the full unit suite");
 parse(["mid"]) -> {mid, none};
 parse(["outer"]) -> {outer, none};
-parse(_) -> usage("usage: check.erl inner --module MODULE | mid | outer").
+parse(["properties"]) -> {properties, none};
+parse(_) -> usage("usage: check.erl inner --module MODULE | mid | outer | properties").
 
 -spec usage(string()) -> no_return().
 usage(Message) ->
@@ -65,7 +67,8 @@ usage(Message) ->
 -spec budget(tier()) -> pos_integer().
 budget(inner) -> 5;
 budget(mid) -> 30;
-budget(outer) -> 300.
+budget(outer) -> 300;
+budget(properties) -> 300.
 
 %% The commands of each tier. Scripts run after the library is compiled.
 -spec plan(tier(), string() | none) -> [command()].
@@ -89,7 +92,9 @@ plan(outer, _) ->
      ["rebar3", "ct"],
      ["escript", "scripts/check/run_examples.escript"],
      ["escript", "scripts/docs/check_docs.erl", "--examples-receipt", "_build/checks/examples.json"],
-     ["escript", "scripts/package/check_package.erl", "--dialyzer"]].
+     ["escript", "scripts/package/check_package.erl", "--dialyzer"]];
+plan(properties, _) ->
+    [["rebar3", "as", "property", "proper", "--dir", "property", "--numtests", "300"]].
 
 %% Run commands in order within Budget seconds. Returns whether the loop
 %% failed and one result per command run: {Command, Outcome} or an overrun.
