@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- [Read live pane output and native notifications](docs/control.md#read-pane-output)
+  on an owned tmux server. Subscriptions track credit and report gaps.
+
 ## 0.0.2
 
 - Install the core from Hex in a fresh Rebar3 project. The quickstart counts
