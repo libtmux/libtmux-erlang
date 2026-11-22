@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.0.3
+
 - Use `tmux_stream:subscribe/3` to read pane bytes and native notifications
   from an owned session. Acknowledge each event and request more credit
   as needed.
