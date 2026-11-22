@@ -22,12 +22,21 @@ on:
         description: Verify Hex workload identity without publishing
         type: boolean
         default: false
+      verify_publication_run:
+        description: Run ID of the tag submission to verify after Hex approval
+        type: string
+      check_ubuntu_tmux:
+        description: Run the pane-exit example with Ubuntu's packaged tmux
+        type: boolean
+        default: false
 
 permissions:
   contents: read
 
 concurrency:
-  group: hex-release-${{ github.event_name == 'push' && 'publish' || github.ref }}
+  group: >-
+    hex-release-${{ github.event_name == 'push' && 'publish' ||
+      github.event_name == 'workflow_dispatch' && github.run_id || github.ref }}
   cancel-in-progress: false
 
 env:
@@ -59,11 +68,9 @@ jobs:
 
   candidate:
     name: Build package and native docs without publishing
-    if: ${{ !inputs.verify_identity }}
+    if: ${{ !inputs.verify_identity && !inputs.verify_publication_run && !inputs.check_ubuntu_tmux }}
     runs-on: ubuntu-24.04
     timeout-minutes: 10
-    outputs:
-      version: ${{ steps.metadata.outputs.version }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -78,7 +85,7 @@ jobs:
       - name: Compile the library and scripts
         run: rebar3 compile
       - name: Test the release checks
-        run: rebar3 eunit --module check_release_tests
+        run: rebar3 eunit --module=check_release_tests,publish_hex_tests,check_hex_install_tests
       - name: Validate release source
         id: metadata
         run: escript scripts/release/check_release.erl --from-actions
@@ -92,10 +99,8 @@ jobs:
         env:
           VERSION: ${{ steps.metadata.outputs.version }}
         run: cp "_build/release/lib/libtmux_erlang/hex/libtmux_erlang-$VERSION.tar" _build/libtmux_erlang-release.tar
-      - name: Exercise the package publisher without credentials or upload
-        run: rebar3 as release hex publish package --app libtmux_erlang --yes --dry-run
-      - name: Exercise the documentation publisher without credentials or upload
-        run: rebar3 as release hex publish docs --app libtmux_erlang --yes --dry-run --doc-dir "$PWD/_build/docs/core"
+      - name: Exercise combined submission without credentials or upload
+        run: rebar3 as release hex publish --yes --dry-run --doc-dir "$PWD/_build/docs/core"
       - name: Retain candidate package and docs
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
@@ -115,11 +120,11 @@ jobs:
     uses: ./.github/workflows/ci.yml
 
   publish:
-    name: Publish qualified tag to Hex
+    name: Submit qualified tag to Hex
     needs: [candidate, qualify]
     if: github.event_name == 'push' && github.ref_type == 'tag'
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: 5
     environment: hexpm
     permissions:
       contents: read
@@ -160,54 +165,131 @@ jobs:
         env:
           VERSION: ${{ steps.release.outputs.version }}
         run: cmp _build/libtmux_erlang-release.tar "_build/release/lib/libtmux_erlang/hex/libtmux_erlang-$VERSION.tar"
-      - name: Publish package and prebuilt docs
+      - name: Submit package and prebuilt docs
         env:
           ALREADY_PUBLISHED: ${{ steps.release.outputs.published }}
         run: escript scripts/release/publish_hex.erl --published "$ALREADY_PUBLISHED"
-      - name: Verify public artifact
-        env:
-          TAG: ${{ github.ref_name }}
-        run: |
-          escript scripts/release/check_release.erl \
-            --tag "$TAG" \
-            --artifact _build/libtmux_erlang-release.tar \
-            --require-published
 
-  install:
-    name: Install public Hex package without publisher credentials
-    needs: [candidate, publish]
+  verify:
+    name: Verify an approved Hex release
+    if: github.event_name == 'workflow_dispatch' && inputs.verify_publication_run
     runs-on: ubuntu-24.04
     timeout-minutes: 10
+    permissions:
+      actions: read
+      contents: read
     steps:
+      - name: Identify the tag push and its commit
+        id: release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SUBMISSION_RUN: ${{ inputs.verify_publication_run }}
+        run: |
+          if ! [[ "$SUBMISSION_RUN" =~ ^[1-9][0-9]*$ ]]; then
+            echo 'Use the numeric run ID of a Hex release tag push.' >&2
+            exit 1
+          fi
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$SUBMISSION_RUN" |
+            jq -er '
+              select(.path == ".github/workflows/release.yml" and .event == "push" and
+                     .head_repository.full_name == env.GITHUB_REPOSITORY and
+                     (.head_branch | test("^v[0-9]+\\.[0-9]+\\.[0-9]+(-[0-9A-Za-z.-]+)?$")) and
+                     (.head_sha | test("^[0-9a-f]{40}$")))
+              | "tag=\(.head_branch)\nhead=\(.head_sha)\nversion=\(.head_branch | ltrimstr("v"))"
+            ' >> "$GITHUB_OUTPUT"
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          ref: refs/tags/${{ steps.release.outputs.tag }}
+          fetch-depth: 0
           persist-credentials: false
+      - name: Check the tag still identifies the submitted commit
+        env:
+          RELEASE_HEAD: ${{ steps.release.outputs.head }}
+        run: test "$(git rev-parse HEAD)" = "$RELEASE_HEAD"
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: hex-candidate
+          github-token: ${{ github.token }}
+          run-id: ${{ inputs.verify_publication_run }}
+          path: _build
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: checks-ubuntu-24.04-tmux-3.8
+          github-token: ${{ github.token }}
+          run-id: ${{ inputs.verify_publication_run }}
+          path: _build/qualified
       - name: Install the OTP and Rebar3 versions in .tool-versions
-        id: beam
         uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1.24.1
         with:
           version-file: .tool-versions
           version-type: strict
-      - name: Install consumer prerequisites
-        uses: libtmux/.github/actions/apt-get@30f81842b1e639ea4e25f93f1f2543504178e228
-        with:
-          update: "true"
-          args: install --yes --no-install-recommends build-essential tmux
       - name: Compile the library and scripts
         run: rebar3 compile
-      - name: Install and execute public package
+      - name: Verify the public tarball against native source qualification
         env:
-          VERSION: ${{ needs.candidate.outputs.version }}
-        run: escript scripts/package/check_hex_install.erl "$VERSION"
-      - name: Verify HexDocs is public
+          TAG: ${{ steps.release.outputs.tag }}
+        run: |
+          escript scripts/release/check_release.erl \
+            --tag "$TAG" \
+            --artifact _build/libtmux_erlang-release.tar \
+            --qualified-receipt _build/qualified/source-package-check/receipt.json \
+            --require-published
+      - name: Verify versioned HexDocs
         env:
-          VERSION: ${{ needs.candidate.outputs.version }}
+          VERSION: ${{ steps.release.outputs.version }}
         run: escript scripts/release/check_release.erl --hexdocs "$VERSION"
+      - name: Build pinned tmux 3.8
+        id: tmux
+        uses: libtmux/.github/actions/build-tmux@30f81842b1e639ea4e25f93f1f2543504178e228
+        with:
+          ref: '3.8'
+      - name: Run the quickstart from a clean public install
+        env:
+          VERSION: ${{ steps.release.outputs.version }}
+          LIBTMUX_TEST_TMUX: ${{ steps.tmux.outputs.binary }}
+        run: escript scripts/package/check_hex_install.erl "$VERSION"
       - name: Preserve public install receipt
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: hex-public-install
           path: _build/checks/hex-install.json
+          if-no-files-found: warn
+          retention-days: 14
+
+  ubuntu-tmux:
+    name: Check pane exit on Ubuntu's packaged tmux
+    if: github.event_name == 'workflow_dispatch' && inputs.check_ubuntu_tmux
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    env:
+      LIBTMUX_TEST_TMUX: /usr/bin/tmux
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install the OTP and Rebar3 versions in .tool-versions
+        uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1.24.1
+        with:
+          version-file: .tool-versions
+          version-type: strict
+      - name: Install Ubuntu's tmux and the compiler
+        uses: libtmux/.github/actions/apt-get@30f81842b1e639ea4e25f93f1f2543504178e228
+        with:
+          update: "true"
+          args: install --yes --no-install-recommends build-essential tmux
+      - name: Record the installed tmux package version
+        run: dpkg-query -W tmux
+      - name: Compile the library
+        run: rebar3 compile
+      - name: Run the pane-exit example
+        run: escript scripts/check/run_examples.escript job
+      - name: Preserve the example receipt
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: ubuntu-packaged-tmux
+          path: _build/checks/examples.json
           if-no-files-found: warn
           retention-days: 14

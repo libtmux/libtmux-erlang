@@ -1,14 +1,14 @@
-% Install the public Hex release in a clean consumer and execute its examples.
+% Install the public Hex release in a clean consumer and run the quickstart.
 -module(check_hex_install).
 -moduledoc """
 Install a published `libtmux_erlang` release from Hex into an empty consumer
-and run the installed consumers from `check_package:exercise_consumer/4`.
+and run the reader quickstart on an owned tmux server.
 
 ```console
 $ escript scripts/package/check_hex_install.erl VERSION
 ```
 
-The release workflow runs it after publishing. `VERSION` must be SemVer without
+The release verifier runs it after approval. `VERSION` must be SemVer without
 build metadata. The consumer has no checkout, plugin or build cache and no Hex
 credentials, and the C helper must build from the packaged source. The script
 writes `_build/checks/hex-install.json`: `UNVERIFIED` when the install starts and
@@ -50,7 +50,7 @@ run(Root, Version) ->
                                                 version => check_package:bin(Version),
                                                 reason => <<"public installation started">>}),
                                   "\n"]),
-    {Compile, Consumers, Temp} = script_util:with_tmp_dir("erlang-hex-consumer", fun(Temp) ->
+    {Compile, Quickstart, Temp} = script_util:with_tmp_dir("erlang-hex-consumer", fun(Temp) ->
         Consumer = filename:join(Temp, "consumer"),
         ok = file:make_dir(Consumer),
         Env = check_package:rebar_env(filename:join(Temp, "config"), filename:join(Temp, "cache")),
@@ -62,14 +62,15 @@ run(Root, Version) ->
         Installed = filename:join([Consumer, "_build", "default", "lib", ?APP]),
         filelib:is_regular(filename:join([Installed, "priv", "tmux_owned_io"])) orelse
             check_package:fail("public source installation did not build the helper", []),
-        {Compile, check_package:exercise_consumer(Root, Consumer, filename:join(Installed, "ebin"),
-                                                  #{}), Temp}
+        Quickstart = check_package:exercise_quickstart(Root, Consumer,
+                                                      filename:join(Installed, "ebin")),
+        {Compile, Quickstart, Temp}
     end),
     Receipt = #{result => <<"PASS">>,
                 version => check_package:bin(Version),
                 source => <<"public hexpm registry; empty consumer and build cache">>,
                 compile => Compile,
-                consumers => Consumers,
+                consumers => [Quickstart],
                 temporary_consumer_removed => not filelib:is_file(Temp),
                 seconds => check_package:round6((erlang:monotonic_time(microsecond) - Started)
                                                 / 1.0e6)},

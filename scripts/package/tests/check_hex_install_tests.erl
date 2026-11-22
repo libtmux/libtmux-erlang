@@ -6,9 +6,26 @@
     #!/usr/bin/env escript
     main(_) ->
         {ok, Config} = file:read_file("rebar.config"),
+        Names = ["REBAR_CACHE_DIR", "REBAR_GLOBAL_CONFIG_DIR", "HEX_API_KEY", "ERL_LIBS"],
+        Present = [Name ++ "=" || Name <- Names, os:getenv(Name) =/= false],
         io:format(standard_error, "fake rebar3 failure~n~s~n~s~n",
-                  [Config, lists:join("\n", os:getenv())]),
+                  [Config, lists:join("\n", Present)]),
         halt(1).
+    """).
+
+-define(REBAR3_WITH_HELPER, ~"""
+    #!/bin/sh
+    set -eu
+    mkdir -p _build/default/lib/libtmux_erlang/priv
+    touch _build/default/lib/libtmux_erlang/priv/tmux_owned_io
+    """).
+
+-define(QUICKSTART_ERL, ~"""
+    #!/bin/sh
+    set -eu
+    test "$3" = "_build/default/lib/libtmux_erlang/ebin"
+    test -f quickstart.erl
+    printf '{"panes":1}\n'
     """).
 
 invalid_versions_are_rejected_before_any_file_is_written_test_() ->
@@ -69,6 +86,23 @@ install_that_builds_no_helper_is_rejected_test_() ->
         end)
     end}.
 
+public_install_runs_the_installed_quickstart_test_() ->
+    {setup, fun start/0, fun stop/1, fun() ->
+        with_tmp(fun(Root) ->
+            ok = write(filename:join([Root, "examples", "quickstart.erl"]), <<>>),
+            ok = write_executable(filename:join([Root, "bin", "erl"]), ?QUICKSTART_ERL),
+            ok = write_executable(filename:join([Root, "bin", "tmux"]), <<"#!/bin/sh\n">>),
+            with_rebar3(Root, ?REBAR3_WITH_HELPER, fun() ->
+                ?assertEqual(0, check_hex_install:run(Root, "0.1.0"))
+            end),
+            {ok, Text} = file:read_file(receipt(Root)),
+            ?assertMatch(#{<<"result">> := <<"PASS">>,
+                           <<"consumers">> := [#{<<"output">> := #{<<"panes">> := 1},
+                                                 <<"owned_cleanup">> := <<"complete">>}],
+                           <<"temporary_consumer_removed">> := true}, json:decode(Text))
+        end)
+    end}.
+
 start() ->
     {ok, _} = application:ensure_all_started(libtmux_erlang),
     ok.
@@ -86,11 +120,14 @@ write(Path, Text) ->
     ok = filelib:ensure_path(filename:dirname(Path)),
     file:write_file(Path, Text).
 
+write_executable(Path, Text) ->
+    ok = write(Path, Text),
+    file:change_mode(Path, 8#755).
+
 % Put a fake `rebar3` first on PATH for the duration of Fun.
 with_rebar3(Root, Script, Fun) ->
     Bin = filename:join(Root, "bin"),
-    ok = write(filename:join(Bin, "rebar3"), Script),
-    ok = file:change_mode(filename:join(Bin, "rebar3"), 8#755),
+    ok = write_executable(filename:join(Bin, "rebar3"), Script),
     Path = os:getenv("PATH"),
     true = os:putenv("PATH", Bin ++ ":" ++ Path),
     try Fun()

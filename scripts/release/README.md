@@ -57,7 +57,7 @@ $ escript scripts/release/check_release.erl --tag v0.0.1
 
 ## publish_hex
 
-Publishes the qualified package and the prebuilt documentation to Hex. The
+Submits the qualified package and the prebuilt documentation together. The
 publish job of `.github/workflows/release.yml` runs it with the `published`
 output of `check_release.erl`:
 
@@ -65,12 +65,10 @@ output of `check_release.erl`:
 $ escript scripts/release/publish_hex.erl --published false
 ```
 
-`--published true` skips the package, which Hex already holds, and publishes
-only the documentation from `_build/docs/core`. An empty or unset
-`HEX_API_KEY` is removed from the environment of the Rebar3 commands, so a run
-without the repository secret authenticates the way an unset key does. Each
-command waits for Hex within ten minutes, prints its output and stops the
-script at the first failure.
+`--published true` submits only the documentation from `_build/docs/core`
+when the exact package is already public. An empty or unset `HEX_API_KEY`
+is removed from the Rebar3 environment. The command prints Hex's submission
+status and any approval links.
 
 ## Tests
 
