@@ -4,8 +4,10 @@
 -include_lib("kernel/include/file.hrl").
 
 -define(APP, "libtmux_erlang").
--define(SESSION_VARIABLES, ["ERL_LIBS", "TMUX", "TMUX_PANE"]).
+-define(SESSION_VARIABLES, ["ERL_LIBS", "TMUX", "TMUX_PANE",
+                            "LIBTMUX_SOCKET", "LIBTMUX_SOCKET_PATH"]).
 -define(REBAR_VARIABLES, ["ERL_LIBS", "TMUX", "TMUX_PANE", "REBAR_CONFIG", "HEX_API_KEY",
+                          "LIBTMUX_SOCKET", "LIBTMUX_SOCKET_PATH",
                           "HEX_CDN", "HEX_UNSAFE_REGISTRY", "HEX_NO_VERIFY_REPO_ORIGIN",
                           "HEX_TRUSTED_MIRROR_URL", "HEX_MIRROR_URL"]).
 

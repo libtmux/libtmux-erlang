@@ -26,8 +26,10 @@ installation. `check_hex_install` runs the installed quickstart.
 
 -define(APP, "libtmux_erlang").
 -define(COMMAND_TIMEOUT_MS, 30000).
--define(CONSUMER_SCRUBBED, ["ERL_LIBS", "TMUX", "TMUX_PANE"]).
+-define(CONSUMER_SCRUBBED, ["ERL_LIBS", "TMUX", "TMUX_PANE",
+                           "LIBTMUX_SOCKET", "LIBTMUX_SOCKET_PATH"]).
 -define(REBAR_SCRUBBED, ["ERL_LIBS", "TMUX", "TMUX_PANE", "REBAR_CONFIG", "HEX_API_KEY",
+                         "LIBTMUX_SOCKET", "LIBTMUX_SOCKET_PATH",
                          "HEX_CDN", "HEX_UNSAFE_REGISTRY", "HEX_NO_VERIFY_REPO_ORIGIN",
                          "HEX_TRUSTED_MIRROR_URL", "HEX_MIRROR_URL"]).
 
