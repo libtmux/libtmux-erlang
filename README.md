@@ -618,6 +618,11 @@ $ time escript scripts/check/check.erl outer
 - [Hex release instructions](.github/RELEASE.md), for maintainers.
 - [MIT license](LICENSE).
 
+Part of the [libtmux.org](https://libtmux.org/) family alongside Python
+[`libtmux`](https://github.com/tmux-python/libtmux), sibling
+[language ports](https://github.com/libtmux) and
+[`tmux`](https://github.com/tmux/tmux).
+
 [tmux-session]: https://libtmux.org/en/erlang/latest/reference/tmux_session/
 [tmux-window]: https://libtmux.org/en/erlang/latest/reference/tmux_window/
 [tmux-pane]: https://libtmux.org/en/erlang/latest/reference/tmux_pane/
@@ -633,7 +638,7 @@ $ time escript scripts/check/check.erl outer
 [api-with-server]: https://libtmux.org/en/erlang/latest/reference/tmux_server-with_server-2/
 [api-await]: https://libtmux.org/en/erlang/latest/reference/tmux_operation-await-2/
 [api-wait-exit]: https://libtmux.org/en/erlang/latest/reference/tmux_pane-wait_exit-2/
-[api-program-run]: https://libtmux-erlang.hexdocs.pm/0.0.3/tmux_program.html#run/3
+[api-program-run]: https://libtmux-erlang.hexdocs.pm/tmux_program.html#run/3
 [api-explain]: https://libtmux.org/en/erlang/latest/reference/tmux_query-explain-1/
 [api-pushdown]: https://libtmux.org/en/erlang/latest/reference/tmux_query-pushdown-2/
 [api-sequence]: https://libtmux.org/en/erlang/latest/reference/tmux_command-sequence-1/
