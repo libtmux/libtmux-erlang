@@ -98,6 +98,7 @@ To use a stored ID as a target, construct a row and call
 | Managed programs | Private PTY, literal arguments and input, bounded final screen and verified retirement on tmux 3.8 |
 | Pane text | Bounded current-screen waits on live owned panes, with explicit cancellation and process checks |
 | Control attachment | Explicit session, same-connection identity, no-output/ignore-size, skipped environment update and separate native cleanup |
+| Pane stream | Live pane bytes and native notifications on owned sessions, with credit, acknowledgements and terminal gaps |
 | Daemon ownership | Empty private startup, separate ownership token, caller lifetime, explicit stop and identity-checked namespace cleanup |
 | Domain commands | Initial create/read/rename/kill calls, explicit client/session selection, checked window memberships, pane split/break/join/move/swap/resize, pane/window respawn, window layouts, literal/key input and capture |
 | Options | Explicit local/global tables, local or inherited reads, indexed writes/unsets and generated source metadata; hooks remain outside the option API |
@@ -112,8 +113,7 @@ To use a stored ID as a target, construct a row and call
 
 ## Not yet built
 
-- Control command submission, command groups and output subscriptions or
-  streams.
+- Control command submission and command groups.
 - Complete performance qualification.
 - Complete typed command coverage, public cross-port
   filter conformance and independent implementation reviews.
@@ -133,8 +133,7 @@ To use a stored ID as a target, construct a row and call
 
 ## Performance
 
-- The suite checks behavior and resource limits. It makes no control, grouping
-  or streaming comparison, because those lanes are not built.
+- The suite checks behavior and resource limits.
 - A published benchmark must compare equal workloads and values, name the
   source, tool and platform, and report errors and cleanup as well as time.
 - Test-loop durations are not throughput benchmarks.

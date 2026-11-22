@@ -3,9 +3,8 @@
 Attach to an existing session, verify identity on that persistent connection,
 inspect its attachment effects and close the client.
 
-- This covers the connection's lifetime only. Commands still run through the
-  one-shot APIs.
-- Control command submission and groups are not built.
+Run commands through the one-shot APIs. To receive pane bytes, use a
+[separate stream attachment](#read-pane-output) on an owned server.
 
 The program owns its session. The runner supplies a private tmux server:
 
@@ -112,6 +111,59 @@ run(Socket, Executable) ->
   client. The library does not disable borrowed hooks.
 - Startup is bounded across parent registration, native exec and the identity
   probe. An incomplete error carries the control handle for recovery.
+
+## Read pane output
+
+Use `tmux_stream:subscribe/3` with a session captured on an owned server.
+The example subscribes before sending input and waits for the bytes
+`hello\r\n` from one pane. Its outer scope stops the private server.
+
+<!-- example: examples/stream_demo.erl#subscribe -->
+
+```erlang
+    {ok, Subscription} = tmux_stream:subscribe(Server, Session, #{}),
+    try
+        {ok, _} = tmux_pane:send_text(Pane, <<"go\n">>),
+        Deadline = erlang:monotonic_time(millisecond) + 900,
+        ok = receive_bytes(Subscription, PaneId, Expected, Deadline),
+        Expected
+    after
+        ok = tmux_stream:close(Subscription)
+    end.
+```
+
+Run the [full example](../examples/stream_demo.erl) from the compiled checkout.
+
+```console
+$ mise exec -- escript scripts/check/run_examples.escript stream
+```
+
+<!-- example-output: stream_demo -->
+
+```json
+{
+  "pane_output": "hello\r\n",
+  "cleanup": "complete"
+}
+```
+
+- `{pane_output, PaneId, Bytes}` carries raw terminal bytes. Other native
+  notifications carry their name and fields as binaries. Fetch a fresh
+  snapshot when you need current session, window or pane state.
+- The command attachment's `no-output` flag applies to that client. The
+  stream leaves pane output enabled. If tmux reports paused pane output
+  or sends extended output, the stream retires with a gap.
+- `tmux_stream:ack/3` frees the exact event's capacity. Request more credit
+  for future events with `tmux_stream:demand/2`. Each subscriber has up to
+  64 KiB and eight messages, including events waiting for acknowledgement.
+- A client admits up to 16 subscriptions, for at most 1 MiB and 128 messages
+  of total credit. The byte count covers event data and identifiers.
+- `tmux_stream:join/2` shares the client with another process. A slow
+  subscriber gets a terminal gap while others can keep reading. Closing
+  the last subscription waits for native client and helper retirement.
+- A gap reports the last delivered sequence and an unknown loss extent.
+  Start a new subscription for subsequent bytes. Use `tmux_pane:capture/2`
+  for the current rendered screen.
 
 See [daemon ownership](ownership.md) for private versus borrowed lifetimes,
 [jobs](jobs.md) for one-shot waits and cancellation, and

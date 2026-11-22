@@ -445,7 +445,8 @@ More: [Daemon ownership](docs/ownership.md) ·
 
 Attach to a session over a persistent connection, check its identity on that
 connection, then close it and confirm cleanup. Commands still run through
-one-shot clients; control command submission and output streams are not built.
+one-shot clients. [Read pane output](docs/control.md#read-pane-output) with
+a separate stream attachment on a private server.
 
 ```console
 $ mise exec -- escript scripts/check/run_examples.escript control

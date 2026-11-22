@@ -137,7 +137,8 @@ consumer_files() ->
 demos() ->
     ["quickstart", "filter_demo", "inspect_demo", "readme_demo", "linked_graph", "job_demo", "program_demo",
      "options_demo", "buffer_demo", "pane_demo", "config_demo", "pipe_demo", "hook_demo",
-     "key_demo", "command_demo", "control_demo", "plan_demo", "batch_demo", "typing_demo"].
+     "key_demo", "command_demo", "control_demo", "stream_demo", "plan_demo", "batch_demo",
+     "typing_demo"].
 
 -doc """
 Create the consumer's working directories and copy `consumer_files/0` and the
@@ -408,8 +409,8 @@ receipt(ArchiveSha256, Commands, Seconds) ->
                                   "cardinality and prepared context">>,
       public_option_consumer => <<"PASS: local ownership, sparse arrays and inherited "
                                   "restoration">>,
-      documentation_examples => <<"PASS: installed guide examples, including managed "
-                                  "programs or their version refusal">>,
+      documentation_examples => <<"PASS: installed guide examples, including pane output "
+                                  "and managed programs or their version refusal">>,
       public_tmux_command_api => <<"PARTIAL: command values, operations and initial "
                                    "domain facades">>,
       publication => <<"UNVERIFIED">>}.

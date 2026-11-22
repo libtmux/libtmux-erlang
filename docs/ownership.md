@@ -89,5 +89,5 @@ For nested resources:
   ownership tokens expire with that application lifetime.
 
 See [jobs and operations](jobs.md) for per-command ownership, cancellation and
-uncertain remote effects, and [support and gaps](compatibility.md) for control
-and streaming work that is not built.
+uncertain remote effects, and [control attachments](control.md) for the separate
+client lifetimes.

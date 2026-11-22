@@ -56,6 +56,12 @@ The core emits structured OTP Logger reports under the `[libtmux]` domain.
   `output_limit` in its result report.
 - See [control attachments](control.md) for the control surface that exists.
 
+### `[libtmux, stream]`
+
+- `stream_gap` is a debug report with the generation, last delivered
+  sequence and reason. The subscriber also receives its terminal gap in
+  the mailbox.
+
 ### `[libtmux, operation]`
 
 - `operation_result` carries `generation` and `operation` reference IDs.
@@ -109,8 +115,6 @@ The core emits structured OTP Logger reports under the `[libtmux]` domain.
   standard handler can switch to synchronous backpressure under load.
 - Set handler levels and overload protection for production. Debug on a large
   capture emits a report per transport and operation.
-- Reports cover the one-shot and attachment lanes. They say nothing about
-  command submission or public streams, which are not built.
 
 ## Local programming errors
 

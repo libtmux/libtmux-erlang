@@ -37,7 +37,7 @@ run(Arguments, Root) ->
     Modules = case Selected of
         [] -> [quickstart, filter_demo, inspect_demo, readme_demo, linked_graph, job_demo, program_demo,
                options_demo, buffer_demo, pane_demo, config_demo, pipe_demo,
-               hook_demo, key_demo, command_demo, control_demo, plan_demo,
+               hook_demo, key_demo, command_demo, control_demo, stream_demo, plan_demo,
                batch_demo, typing_demo];
         ["quickstart"] -> [quickstart];
         ["filter"] -> [filter_demo];
@@ -55,6 +55,7 @@ run(Arguments, Root) ->
         ["keys"] -> [key_demo];
         ["commands"] -> [command_demo];
         ["control"] -> [control_demo];
+        ["stream"] -> [stream_demo];
         ["plan"] -> [plan_demo];
         ["batch"] -> [batch_demo];
         ["typing"] -> [typing_demo]
@@ -117,6 +118,7 @@ example(program_demo, Executable) ->
     end,
     #{module => program_demo, output => Output, sessions_removed => true, owned_cleanup => complete};
 example(Module, Executable) when Module =:= readme_demo;
+                                 Module =:= stream_demo;
                                  Module =:= plan_demo;
                                  Module =:= batch_demo;
                                  Module =:= typing_demo ->
