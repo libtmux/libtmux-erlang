@@ -100,7 +100,7 @@ dead state through `remain-on-exit`.
 
 `wait_exit/2`, `t:wait_exit_options/0`, `t:wait_exit_result/0` and `t:exit/0`
 
-**Waiting for text.** `wait_for_text/3` reads a live pane on a private owned
+**Waiting for text.** `wait_for_text/3` reads a live pane on a registered
 server until its current screen contains the requested bytes. Use
 `tmux_pane_text:start/3` to begin sampling before sending input.
 """.
@@ -654,7 +654,7 @@ capture(Pane, Options) ->
         {ok, Bytes}
     end.
 
--doc "Wait for literal bytes on a live owned pane. See `tmux_pane_text:start/3` for limits and cancellation.".
+-doc "Wait for literal bytes on a live registered pane. See `tmux_pane_text:start/3` for limits and cancellation.".
 -spec wait_for_text(tmux_model:pane(), binary(), tmux_pane_text:options()) ->
     tmux_pane_text:result().
 wait_for_text(Pane, Needle, Options) -> tmux_pane_text:wait(Pane, Needle, Options).

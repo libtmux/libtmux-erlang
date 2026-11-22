@@ -135,10 +135,11 @@ run(Socket, Executable) ->
 
 ## Wait for visible text
 
-`tmux_pane_text:start/3` samples a live pane on a library-owned server before
-it returns. Send input afterward, then call `tmux_pane_text:await/2` to collect
-the matching screen. The [workspace example](../examples/readme_demo.erl) runs
-this sequence against a pane running `cat`.
+`tmux_pane_text:start/3` samples a live pane on an owned or borrowed endpoint
+before it returns. Send input afterward, then call `tmux_pane_text:await/2`
+to collect the matching screen. The
+[workspace example](../examples/readme_demo.erl) runs this sequence against a
+pane running `cat`.
 
 <!-- example: examples/readme_demo.erl#watch_text -->
 
@@ -157,5 +158,8 @@ screen observation. Use `tmux_pane:wait_exit/2` for process completion.
 An `await_timeout` leaves the observation running. Cancel with
 `tmux_pane_text:cancel/1` and await its result to confirm cleanup. Release a
 completed handle when you no longer need the result. An expired wait or pane
-respawn ends the observation. Start again from a fresh pane record if the
-application launches a replacement.
+respawn ends the observation. Daemon replacement also ends it. Start again
+from a fresh pane record if the application launches a replacement. The wait
+installs no hooks, options or pipes, and closing a borrowed endpoint preserves
+its daemon and panes. Native capture commands must retain their behavior;
+see [configured aliases](compatibility.md#check-a-feature-before-use).

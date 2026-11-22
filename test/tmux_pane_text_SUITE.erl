@@ -2,11 +2,13 @@
 -compile(nowarn_missing_spec).
 -export([all/0, init_per_suite/1, end_per_suite/1,
          notices_visible_text/1, cancel_and_deadline/1, refuses_respawn/1,
-         retires_admitted_capture/1, endpoint_death_retires_result/1]).
+         retires_admitted_capture/1, endpoint_death_retires_result/1,
+         borrowed_endpoint/1, borrowed_replacement/1]).
 
 %% Outer: observe real text and lifetime changes on a private daemon.
 all() -> [notices_visible_text, cancel_and_deadline, refuses_respawn,
-          retires_admitted_capture, endpoint_death_retires_result].
+          retires_admitted_capture, endpoint_death_retires_result,
+          borrowed_endpoint, borrowed_replacement].
 
 init_per_suite(Config) ->
     {ok, _} = application:ensure_all_started(libtmux_erlang),
@@ -17,6 +19,57 @@ init_per_suite(Config) ->
     [{executable, list_to_binary(Path)} | Config].
 
 end_per_suite(_) -> ok = application:stop(libtmux_erlang).
+
+borrowed_endpoint(Config) ->
+    Executable = proplists:get_value(executable, Config),
+    tmux_test_fixture:with_server(Executable, fun(Server, Fixture) ->
+        Pane = start_pane(Server),
+        Text = <<"borrowed-pane-ready">>,
+        Options = #{deadline_ms => 900, max_bytes => 4096},
+        {ok, Wait} = tmux_pane_text:start(Pane, Text, Options),
+        {ok, _} = tmux_pane:send_text(Pane, Text),
+        {ok, #{screen := Screen}} = tmux_pane_text:await(Wait, 900),
+        {_, _} = binary:match(Screen, Text),
+        ok = tmux_pane_text:release(Wait),
+        {ok, Cancelled} = tmux_pane_text:start(Pane, <<"absent">>, Options),
+        {ok, cancel_requested} = tmux_pane_text:cancel(Cancelled),
+        {error, #{code := cancelled, cleanup := complete}} =
+            tmux_pane_text:await(Cancelled, 900),
+        ok = tmux_pane_text:release(Cancelled),
+        {ok, #{owner := Endpoint, operations := 0}} = tmux_server:status(Server),
+        #{closing_watchers := Watchers} = sys:get_state(Endpoint),
+        0 = map_size(Watchers),
+        ok = tmux_server:close(Server),
+        {ok, #{stdout := Screen}} = tmux_test_fixture:command(Fixture,
+            [<<"capture-pane">>, <<"-p">>, <<"-t">>, tmux_model:get(id, Pane)])
+    end).
+
+borrowed_replacement(Config) ->
+    Executable = proplists:get_value(executable, Config),
+    tmux_test_fixture:with_server(Executable, fun(Server, Fixture) ->
+        Pane = start_pane(Server),
+        {ok, Wait} = tmux_pane_text:start(Pane, <<"replacement">>,
+                                         #{deadline_ms => 900}),
+        Observer = element(2, Wait),
+        ok = sys:suspend(Observer),
+        try
+            ok = tmux_test_fixture:replace(Fixture),
+            #{socket := Socket} = tmux_test_fixture:info(Fixture),
+            {ok, Replacement} = tmux_server:open(#{socket_path => Socket,
+                                                  executable => Executable}),
+            try
+                NextPane = start_pane(Replacement),
+                Id = tmux_model:get(id, Pane),
+                Id = tmux_model:get(id, NextPane),
+                {ok, _} = tmux_pane:send_text(NextPane, <<"replacement">>)
+            after ok = tmux_server:close(Replacement)
+            end
+        after ok = sys:resume(Observer)
+        end,
+        {error, #{code := stale_pane, cleanup := complete}} =
+            tmux_pane_text:await(Wait, 900),
+        ok = tmux_pane_text:release(Wait)
+    end).
 
 notices_visible_text(Config) ->
     with_pane(Config, fun(Server, Pane) ->

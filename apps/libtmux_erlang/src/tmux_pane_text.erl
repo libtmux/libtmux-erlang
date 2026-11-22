@@ -1,14 +1,17 @@
 -module(tmux_pane_text).
 -moduledoc """
-Wait for literal bytes in a pane's current screen on a server started by
-`tmux_server:start_owned/1` or `tmux_server:with_owned/2`. The pane must
-still contain the same live process. Respawn and removal end the wait.
+Wait for literal bytes in a pane's current screen on a registered endpoint.
+Owned and borrowed endpoints use their captured Linux daemon identity. The
+pane must still contain the same live process. Replacement, respawn and
+removal end the wait.
 
 `start/3` reads the first screen before returning a handle. Text already on
 the screen can match at this point. Send any input after it returns.
 The wait uses bounded captures at intervals, so text can appear and disappear
 between samples. A match reports visible content only.
-The wait uses the owned server's default capture commands.
+The wait installs no hooks, options or pipes. Its capture guard requires native
+`if-shell`, `display-message` and `capture-pane` behavior. Configured aliases
+and hooks retain their native effects; see [compatibility](compatibility.md).
 
 The starting process owns the wait. `await/2` can time out independently
 while the wait continues. Cancel it explicitly or let the owner exit.
@@ -30,7 +33,7 @@ sooner. The endpoint limits concurrent and retained waits.
 -type result() :: {ok, #{screen := binary(), match := {non_neg_integer(), pos_integer()}}} |
                   {error, map()}.
 
--doc "Start sampling a live owned pane. Returns after the first bounded capture.".
+-doc "Start sampling a live registered pane. Returns after the first bounded capture.".
 -spec start(tmux_model:pane(), binary(), options()) -> {ok, t()} | {error, map()}.
 start(Pane, Needle, Options) ->
     Started = now_ms(),
@@ -141,9 +144,8 @@ handle_continue(sample, #{server := Server, deadline := Deadline} = State) ->
 
 watch(Server, Timeout, State) ->
     case tmux_server:watch_closing(Server, Timeout) of
-        {ok, Watch, #{owner := Endpoint, config := #{owned := true, server_pid := Daemon}}} ->
+        {ok, Watch, #{owner := Endpoint, config := #{server_pid := Daemon}}} ->
             prepare(Daemon, State#{watch => Watch, endpoint_monitor => monitor(process, Endpoint)});
-        {ok, Watch, _} -> complete(failure(owned_endpoint_required), State#{watch => Watch});
         {error, Error} -> complete({error, Error}, State)
     end.
 
