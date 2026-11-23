@@ -28,9 +28,9 @@
 
 </div>
 
-Drive tmux from Erlang: create [sessions][tmux-session],
-[windows][tmux-window] and [panes][tmux-pane], capture the
-[object graph][tmux-snapshot] as immutable data, filter it, ask tmux again.
+Drive tmux from Erlang. Create [sessions][tmux-session],
+[windows][tmux-window] and [panes][tmux-pane]. Capture and filter the
+[object graph][tmux-snapshot] as immutable data, then fetch again to see changes.
 
 **Contents**
 
@@ -73,21 +73,19 @@ Rebar3 project, or
 
 ### [`tmux_server:with_owned/2`][api-with-owned]: create a private tmux graph
 
-The [complete program](examples/readme_demo.erl) creates a session with an
-editor window and a two-pane worker window. Compile from a checkout.
+Run the [complete program](examples/readme_demo.erl) from a checkout. It
+creates an editor window and a two-pane worker window on a private server.
 
 ```console
 $ rebar3 compile
 ```
 
-Run it on a private tmux server.
-
 ```console
 $ escript scripts/check/run_examples.escript readme
 ```
 
-`with_owned/2` stops the private daemon when the program finishes. A cleanup
-error keeps the callback's outcome and the ownership token.
+`with_owned/2` stops the daemon when the callback ends. A cleanup error
+carries the callback's outcome and the ownership token.
 
 ### [`tmux_select`][tmux-select] filters the captured worker window
 
@@ -97,12 +95,12 @@ from memory.
 <!-- example: examples/readme_demo.erl#capture -->
 
 ```erlang
-        {ok, Snapshot} = tmux_server:snapshot(Server),
-        Windows = tmux_select:windows(Snapshot),
-        Workers = #{name => <<"workers">>, panes => #{count => 2,
-            every => #{current_command => <<"cat">>}}},
-        {ok, Captured} = tmux_select:one(Workers, Windows),
-        {ok, Children} = tmux_snapshot:related(panes, Captured, Snapshot),
+{ok, Snapshot} = tmux_server:snapshot(Server),
+Windows = tmux_select:windows(Snapshot),
+Workers = #{name => <<"workers">>, panes => #{count => 2,
+    every => #{current_command => <<"cat">>}}},
+{ok, Captured} = tmux_select:one(Workers, Windows),
+{ok, Children} = tmux_snapshot:related(panes, Captured, Snapshot),
 ```
 
 ### [`tmux_query:fetch/1`][api-fetch] reads the renamed window
@@ -112,12 +110,12 @@ The captured row keeps `workers`. Fetch asks tmux again and finds `finished`.
 <!-- example: examples/readme_demo.erl#refresh -->
 
 ```erlang
-        {ok, _} = tmux_window:rename(Worker, <<"finished">>),
-        <<"workers">> = tmux_model:get(name, Captured),
-        {ok, Fresh} = tmux_query:fetch(tmux_query:where(
-            #{name => <<"finished">>}, tmux_query:windows(Server))),
-        {ok, Renamed} = tmux_select:one(Fresh),
-        <<"finished">> = tmux_model:get(name, Renamed),
+{ok, _} = tmux_window:rename(Worker, <<"finished">>),
+<<"workers">> = tmux_model:get(name, Captured),
+{ok, Fresh} = tmux_query:fetch(tmux_query:where(
+    #{name => <<"finished">>}, tmux_query:windows(Server))),
+{ok, Renamed} = tmux_select:one(Fresh),
+<<"finished">> = tmux_model:get(name, Renamed),
 ```
 
 It returns:
@@ -139,44 +137,26 @@ More: [Daemon ownership](docs/ownership.md).
 
 ### [`tmux_pane:send_text/2`][api-send-text] and [`tmux_pane:capture/2`][api-capture]: type into a pane and read it back
 
-[`tmux_pane:send_keys/2`][api-send-keys] sends named keys such as Enter. A send
-returns before the program reads it, so the shell signals a tmux channel and
-the program awaits that signal before it captures:
+The [typing example](examples/typing_demo.erl) sends Enter with
+[`tmux_pane:send_keys/2`][api-send-keys]. The shell signals a tmux channel
+after printing so the example knows when to capture.
 
 ```console
 $ escript scripts/check/run_examples.escript typing
 ```
 
-<!-- example: examples/typing_demo.erl -->
+<!-- example: examples/typing_demo.erl#send_and_capture -->
 
 ```erlang
--module(typing_demo).
--moduledoc "Type a command into a shell pane, wait for it, read the screen.".
--export([run/1]).
-
--spec run(binary()) -> map().
-run(Executable) ->
-    {ok, Result} = tmux_server:with_owned(#{executable => Executable},
-        fun(Server) ->
-            Shell = #{argv => [<<"/bin/sh">>]},
-            {ok, _} = tmux_session:create(Server, #{name => <<"typing">>,
-                width => 120, height => 30, launch => Shell}),
-            {ok, Snapshot} = tmux_server:snapshot(Server),
-            [Pane] = tmux_snapshot:panes(Snapshot),
-            % The shell signals a tmux channel once it has printed.
-            {ok, Wait} = tmux_command:wait_for(<<"typed">>, wait),
-            {ok, Operation} = tmux_operation:start(Server, Wait, #{}),
-            Signal = <<"'", Executable/binary, "' wait-for -S typed">>,
-            Line = <<"echo hello; ", Signal/binary>>,
-            {ok, _} = tmux_pane:send_text(Pane, Line),
-            {ok, _} = tmux_pane:send_keys(Pane, [enter]),
-            {ok, _} = tmux_operation:await(Operation, 2000),
-            {ok, Screen} = tmux_pane:capture(Pane, #{}),
-            Rows = binary:split(Screen, <<"\n">>, [global]),
-            true = lists:member(<<"hello">>, Rows),
-            #{typed => <<"echo hello">>, screen_row => <<"hello">>}
-        end),
-    Result.
+% The shell signals a tmux channel once it has printed.
+{ok, Wait} = tmux_command:wait_for(<<"typed">>, wait),
+{ok, Operation} = tmux_operation:start(Server, Wait, #{}),
+Signal = <<"'", Executable/binary, "' wait-for -S typed">>,
+Line = <<"echo hello; ", Signal/binary>>,
+{ok, _} = tmux_pane:send_text(Pane, Line),
+{ok, _} = tmux_pane:send_keys(Pane, [enter]),
+{ok, _} = tmux_operation:await(Operation, 2000),
+{ok, Screen} = tmux_pane:capture(Pane, #{}),
 ```
 
 It returns:
@@ -209,53 +189,12 @@ More: [Linked windows and relationship queries](docs/graph.md).
 
 ### [`tmux_select:where/2`][api-where]: filter captured rows
 
-Filtering runs locally on captured rows and never calls tmux.
-[`tmux_filter`][tmux-filter] validates a filter and encodes it as portable
-JSON. This program needs no tmux server:
+The [filter example](examples/filter_demo.erl) matches captured rows without
+contacting tmux. [`tmux_filter`][tmux-filter] validates the filter and encodes
+it as portable JSON.
 
 ```console
 $ escript scripts/check/run_examples.escript filter
-```
-
-<!-- example: examples/filter_demo.erl -->
-
-```erlang
--module(filter_demo).
--moduledoc "Validate portable JSON and filter captured rows without tmux I/O.".
--export([run/0]).
-
--spec run() -> map().
-run() ->
-    {ok, Editor} = tmux_model:pane(#{id => <<"%1">>, active => true,
-        width => 120, current_command => <<"nvim">>}),
-    {ok, Shell} = tmux_model:pane(#{id => <<"%2">>, active => false,
-        width => 80, current_command => <<"bash">>}),
-    Panes = tmux_select:from_list(pane, [Editor, Shell]),
-    Criteria = #{active => true, 'or' => [
-        #{current_command => #{in => [<<"nvim">>, <<"vim">>]}},
-        #{width => #{gte => 160}}
-    ]},
-    {ok, Filter} = tmux_filter:new(pane, Criteria),
-    Encoded = iolist_to_binary(json:encode(tmux_filter:to_wire(Filter))),
-    {ok, Document} = tmux_filter:decode_json(Encoded),
-    {ok, RoundTrip} = tmux_filter:from_wire(pane, Document),
-    {ok, Editor} = tmux_select:one(RoundTrip, Panes),
-    [Editor] = tmux_select:to_list(tmux_select:where(Filter, Panes)),
-    {error, #{code := duplicate_key}} = tmux_filter:decode_json(
-        <<"{\"version\":1,\"version\":2}">>),
-    Invalid = #{active => #{contains => <<"yes">>}},
-    try tmux_select:where(Invalid, Panes) of
-        _ -> error(expected_validation_error)
-    catch
-        error:{bad_filter, #{code := unsupported_operator} = Detail}:Stack ->
-            [active, contains] = maps:get(path, Detail),
-            Reason = {bad_filter, Detail},
-            Message = erl_error:format_exception(error, Reason, Stack),
-            Text = unicode:characters_to_binary(Message),
-            {_, _} = binary:match(Text, <<"Allowed:">>)
-    end,
-    #{matched_ids => [tmux_model:get(id, Editor)],
-      wire_round_trip => true, duplicate_keys_rejected => true}.
 ```
 
 It returns:
@@ -287,53 +226,25 @@ More: [Local filters and source queries](docs/querying.md).
 
 ### [`tmux_query:explain/1`][api-explain]: see what tmux runs
 
-`explain/1` describes a query without calling tmux. This program explains one
-query twice, then fetches it and checks that the rows agree:
+The [query planner example](examples/plan_demo.erl) explains a query before
+and after enabling pushdown. It fetches both ways and checks that the rows
+agree.
 
 ```console
 $ escript scripts/check/run_examples.escript plan
 ```
 
-<!-- example: examples/plan_demo.erl -->
+<!-- example: examples/plan_demo.erl#explain -->
 
 ```erlang
--module(plan_demo).
--moduledoc "Explain a query, let tmux exclude candidates, then fetch it.".
--export([run/1]).
-
--spec run(binary()) -> map().
-run(Executable) ->
-    {ok, Result} = tmux_server:with_owned(#{executable => Executable},
-        fun(Server) ->
-            Cat = #{launch => #{argv => [<<"/bin/cat">>]}},
-            Wide = Cat#{name => <<"plan">>, width => 120, height => 30},
-            {ok, Session} = tmux_session:create(Server, Wide),
-            {ok, Window} = tmux_window:create(Session, Cat),
-            {ok, _} = tmux_pane:split(Window, Cat#{direction => horizontal}),
-            Criteria = #{width => #{lt => 100},
-                current_command => <<"cat">>},
-            Query = tmux_query:where(Criteria, tmux_query:panes(Server)),
-            Pushed = tmux_query:pushdown(true, Query),
-            % explain/1 does no I/O: it only describes what fetch would run.
-            #{candidate := #{format := Local}} = tmux_query:explain(Query),
-            #{candidate := #{format := Native, local_only := Kept}} =
-                tmux_query:explain(Pushed),
-            {ok, Everything} = tmux_query:fetch(Query),
-            {ok, Narrowed} = tmux_query:fetch(Pushed),
-            {ok, Isolated} = tmux_query:fetch(Pushed,
-                #{hydration => isolated}),
-            Ids = ids(Narrowed),
-            2 = length(Ids),
-            Ids = ids(Everything),
-            Ids = ids(Isolated),
-            #{local_candidate => Local, native_candidate => Native,
-              kept_local => [maps:get(field, Reason) || Reason <- Kept],
-              matched_panes => length(Ids), same_rows => true}
-        end),
-    Result.
-
-ids(Selection) ->
-    [tmux_model:get(id, Pane) || Pane <- tmux_select:to_list(Selection)].
+Criteria = #{width => #{lt => 100},
+    current_command => <<"cat">>},
+Query = tmux_query:where(Criteria, tmux_query:panes(Server)),
+Pushed = tmux_query:pushdown(true, Query),
+% explain/1 does no I/O: it only describes what fetch would run.
+#{candidate := #{format := Local}} = tmux_query:explain(Query),
+#{candidate := #{format := Native, local_only := Kept}} =
+    tmux_query:explain(Pushed),
 ```
 
 It returns:
@@ -373,45 +284,19 @@ More: [Source plans](docs/querying.md#source-plans).
 
 ### [`tmux_command:sequence/1`][api-sequence]: several commands, one call
 
-Build commands without I/O, join them and run them once. A sequence is not
-atomic: a failing member can leave the commands before it applied.
+The [batch example](examples/batch_demo.erl) renames a session and sets two
+options in one call. A failing member can leave earlier commands applied.
 
 ```console
 $ escript scripts/check/run_examples.escript batch
 ```
 
-<!-- example: examples/batch_demo.erl -->
+<!-- example: examples/batch_demo.erl#submit -->
 
 ```erlang
--module(batch_demo).
--moduledoc "Run several commands in one tmux client and read an option batch.".
--export([run/1]).
-
--spec run(binary()) -> map().
-run(Executable) ->
-    {ok, Result} = tmux_server:with_owned(#{executable => Executable},
-        fun(Server) ->
-            Cat = #{launch => #{argv => [<<"/bin/cat">>]}},
-            {ok, Session} = tmux_session:create(Server,
-                Cat#{name => <<"batch">>}),
-            {ok, Window} = tmux_window:create(Session, Cat),
-            Id = tmux_model:get(id, Session),
-            {ok, Rename} = tmux_session:rename_command(Session, <<"batched">>),
-            {ok, Stage} = tmux_command:raw(<<"set-option">>,
-                [<<"-t">>, Id, <<"@stage">>, <<"built">>]),
-            {ok, Owner} = tmux_command:raw(<<"set-option">>,
-                [<<"-t">>, Id, <<"@owner">>, <<"batch-demo">>]),
-            % Three commands, one native sequence. A failure can leave a prefix.
-            {ok, Sequence} = tmux_command:sequence([Rename, Stage, Owner]),
-            {ok, #{exit_status := 0}} =
-                tmux_server:command(Server, Sequence, #{}),
-            {ok, Renamed} = tmux_session:get(Server, Id),
-            {ok, [<<"built">>, none]} =
-                tmux_option:get_many([Session, Window], <<"@stage">>, #{}),
-            #{commands => 3, session_name => tmux_model:get(name, Renamed),
-              stage => <<"built">>, window_stage => none}
-        end),
-    Result.
+{ok, Sequence} = tmux_command:sequence([Rename, Stage, Owner]),
+{ok, #{exit_status := 0}} =
+    tmux_server:command(Server, Sequence, #{}),
 ```
 
 It returns:
@@ -445,64 +330,13 @@ More: [Daemon ownership](docs/ownership.md) ·
 
 ### [`tmux_control:attach/3`][api-attach]: hold a control attachment
 
-Attach to a session over a persistent connection, check its identity, then
-close it and confirm cleanup. Use a
-[separate pane stream](docs/control.md#read-pane-output) on an owned server.
-The source checkout also supports
-[command groups](docs/control.md#change-a-session-and-its-window) on owned
-servers and pane streams on borrowed servers.
+The [control example](examples/control_demo.erl) attaches to a session,
+reads its window size and checks that detaching preserves the session.
+See the [control guide](docs/control.md) for command groups and pane streams
+and the [support table](docs/compatibility.md) for release coverage.
 
 ```console
 $ escript scripts/check/run_examples.escript control
-```
-
-<!-- example: examples/control_demo.erl -->
-
-```erlang
--module(control_demo).
--moduledoc "Attach explicitly, inspect captured values and prove detachment.".
--export([run/2]).
-
--spec run(binary(), binary()) -> map().
-run(Socket, Executable) ->
-    {ok, Server} = tmux_server:open(
-        #{socket_path => Socket, executable => Executable}),
-    tmux_scope:run_or_error(fun() ->
-        {ok, Session} = tmux_session:create(Server,
-            #{name => <<"control-demo">>, width => 120, height => 30,
-              launch => #{argv => [<<"/bin/cat">>]}}),
-        tmux_scope:run_or_error(fun() ->
-            Id = tmux_model:get(id, Session),
-            0 = tmux_model:get(attached_count, Session),
-            {ok, Control} = tmux_control:attach(Server, Session, #{}),
-            tmux_scope:run_or_error(fun() ->
-                {ok, #{phase := open, identity := same_connection}} =
-                    tmux_control:status(Control),
-                {ok, Attached} = tmux_session:get(Server, Id),
-                1 = tmux_model:get(attached_count, Attached),
-                {ok, Graph} = tmux_server:snapshot(Server),
-                [Window] = tmux_snapshot:windows(Graph),
-                120 = tmux_model:get(width, Window),
-                30 = tmux_model:get(height, Window),
-                ok = tmux_control:close(Control),
-                {ok, #{phase := closed, cleanup := complete}} =
-                    tmux_control:status(Control),
-                {ok, Detached} = tmux_session:get(Server, Id),
-                0 = tmux_model:get(attached_count, Detached),
-                0 = tmux_model:get(attached_count, Session),
-                #{identity => same_connection, attached_count => 1,
-                  detached_count => 0, window_size => [120, 30],
-                  cleanup => complete, session_preserved => true}
-            end, fun() ->
-                ok = tmux_control:close(Control)
-            end)
-        end, fun() ->
-            {ok, _} = tmux_session:kill(Session),
-            ok
-        end)
-    end, fun() ->
-        ok = tmux_server:close(Server)
-    end).
 ```
 
 It returns:
@@ -594,8 +428,8 @@ socket.
 - **Operations:** an await timeout abandons the wait; it does not cancel the
   operation. Cancelling after dispatch can leave the tmux outcome unknown.
 
-More: [Support and gaps](docs/compatibility.md) ·
-[Project policy](docs/project-policy.md).
+[Check a daemon capability](docs/compatibility.md#check-a-feature-before-use)
+· [Diagnose a failure](docs/diagnostics.md) · [Project policy](docs/project-policy.md).
 
 ## What it leaves out
 
@@ -604,21 +438,10 @@ More: [Support and gaps](docs/compatibility.md) ·
 
 ## Contribute
 
-Run `mid` while you work and `outer` before a pull request:
-
-```console
-$ time escript scripts/check/check.erl mid
-```
-
-```console
-$ time escript scripts/check/check.erl outer
-```
-
-- [Contributor setup](.github/CONTRIBUTING.md): prerequisites and test budgets.
-- [CI](https://github.com/libtmux/libtmux-erlang/actions/workflows/ci.yml):
-  results per commit.
-- [Hex release instructions](.github/RELEASE.md), for maintainers.
-- [MIT license](LICENSE).
+- [Contributor setup](.github/CONTRIBUTING.md)
+- [Local checks and test budgets](.github/CONTRIBUTING.md#current-checks)
+- [Hex release instructions](.github/RELEASE.md)
+- [MIT license](LICENSE)
 
 Part of the [libtmux.org](https://libtmux.org/) family alongside Python
 [`libtmux`](https://github.com/tmux-python/libtmux), sibling

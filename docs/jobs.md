@@ -144,12 +144,12 @@ pane running `cat`.
 <!-- example: examples/readme_demo.erl#watch_text -->
 
 ```erlang
-        Text = <<"worker ready">>,
-        {ok, Wait} = tmux_pane_text:start(Right, Text, #{deadline_ms => 2500}),
-        {ok, _} = tmux_pane:send_text(Right, Text),
-        {ok, #{screen := Screen}} = tmux_pane_text:await(Wait, 2500),
-        ok = tmux_pane_text:release(Wait),
-        {_, _} = binary:match(Screen, Text),
+Text = <<"worker ready">>,
+{ok, Wait} = tmux_pane_text:start(Right, Text, #{deadline_ms => 2500}),
+{ok, _} = tmux_pane:send_text(Right, Text),
+{ok, #{screen := Screen}} = tmux_pane_text:await(Wait, 2500),
+ok = tmux_pane_text:release(Wait),
+{_, _} = binary:match(Screen, Text),
 ```
 
 Use `tmux_pane:wait_for_text/3` to start and await in one call. A match is a

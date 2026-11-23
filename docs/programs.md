@@ -14,9 +14,9 @@ literally, including empty arguments and the text below.
 <!-- example: examples/program_demo.erl#run -->
 
 ```erlang
-    Text = <<"build; #{pane_id}">>,
-    Argv = [<<"/usr/bin/printf">>, <<"%s\n">>, Text],
-    Result = tmux_program:run(Executable, Argv, #{height => 4}),
+Text = <<"build; #{pane_id}">>,
+Argv = [<<"/usr/bin/printf">>, <<"%s\n">>, Text],
+Result = tmux_program:run(Executable, Argv, #{height => 4}),
 ```
 
 The rendered screen starts with `build; #{pane_id}`. The result records
@@ -46,10 +46,10 @@ the launch gate before sending input. The example's line reader uses
 <!-- example: examples/program_demo.erl#input -->
 
 ```erlang
-        {ok, #{state := released}} = tmux_program:await_started(Program, 900),
-        {ok, #{bytes := 6}} = tmux_program:send_text(Program, <<"build\n">>),
-        {ok, #{exit := {status, 0}, screen := Screen, cleanup := complete}} =
-            tmux_program:await(Program, 900),
+{ok, #{state := released}} = tmux_program:await_started(Program, 900),
+{ok, #{bytes := 6}} = tmux_program:send_text(Program, <<"build\n">>),
+{ok, #{exit := {status, 0}, screen := Screen, cleanup := complete}} =
+    tmux_program:await(Program, 900),
 ```
 
 The launch gate reports release to the terminal. The application controls its
@@ -63,11 +63,11 @@ deadlines. To stop a running program, request stop and collect the receipt.
 <!-- example: examples/program_demo.erl#stop -->
 
 ```erlang
-        {ok, #{state := released}} = tmux_program:await_started(Program, 900),
-        {error, #{code := await_timeout}} = tmux_program:await(Program, 0),
-        {ok, stop_requested} = tmux_program:stop(Program),
-        {error, #{code := program_stopped, cleanup := complete}} =
-            tmux_program:await(Program, 900),
+{ok, #{state := released}} = tmux_program:await_started(Program, 900),
+{error, #{code := await_timeout}} = tmux_program:await(Program, 0),
+{ok, stop_requested} = tmux_program:stop(Program),
+{error, #{code := program_stopped, cleanup := complete}} =
+    tmux_program:await(Program, 900),
 ```
 
 Call `tmux_program:release/1` after collection. The example uses an `after`

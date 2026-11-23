@@ -401,10 +401,24 @@ example_region(Bytes, [Name]) when Name =/= <<>> ->
                                 Text =:= Begin orelse Text =:= End],
     case Markers of
         [{First, Begin}, {Last, End}] when Last > First + 1 ->
-            iolist_to_binary(lists:join($\n, lists:sublist(Lines, First + 1, Last - First - 1)));
+            dedent(lists:sublist(Lines, First + 1, Last - First - 1));
         _ -> missing
     end;
 example_region(_, _) -> missing.
+
+dedent(Lines) ->
+    Indents = [Indent || Line <- Lines,
+        {match, [Indent]} <- [re:run(Line, "^(\\h*)\\S", [{capture, [1], binary}])]],
+    Width = binary:longest_common_prefix(Indents),
+    iolist_to_binary(lists:join($\n, [dedent_line(Line, Width) || Line <- Lines])).
+
+dedent_line(Line, Width) ->
+    case string:trim(Line) of
+        <<>> -> <<>>;
+        _ ->
+            <<_:Width/binary, Content/binary>> = Line,
+            Content
+    end.
 
 ends_with(Binary, Suffix) ->
     Size = byte_size(Suffix),

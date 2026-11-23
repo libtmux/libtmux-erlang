@@ -11,6 +11,7 @@ run(Executable) ->
                 width => 120, height => 30, launch => Shell}),
             {ok, Snapshot} = tmux_server:snapshot(Server),
             [Pane] = tmux_snapshot:panes(Snapshot),
+            % docs:begin send_and_capture
             % The shell signals a tmux channel once it has printed.
             {ok, Wait} = tmux_command:wait_for(<<"typed">>, wait),
             {ok, Operation} = tmux_operation:start(Server, Wait, #{}),
@@ -20,6 +21,7 @@ run(Executable) ->
             {ok, _} = tmux_pane:send_keys(Pane, [enter]),
             {ok, _} = tmux_operation:await(Operation, 2000),
             {ok, Screen} = tmux_pane:capture(Pane, #{}),
+            % docs:end send_and_capture
             Rows = binary:split(Screen, <<"\n">>, [global]),
             true = lists:member(<<"hello">>, Rows),
             #{typed => <<"echo hello">>, screen_row => <<"hello">>}

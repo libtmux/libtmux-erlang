@@ -11,6 +11,7 @@ run(Executable) ->
             {ok, Session} = tmux_session:create(Server, Wide),
             {ok, Window} = tmux_window:create(Session, Cat),
             {ok, _} = tmux_pane:split(Window, Cat#{direction => horizontal}),
+            % docs:begin explain
             Criteria = #{width => #{lt => 100},
                 current_command => <<"cat">>},
             Query = tmux_query:where(Criteria, tmux_query:panes(Server)),
@@ -19,6 +20,7 @@ run(Executable) ->
             #{candidate := #{format := Local}} = tmux_query:explain(Query),
             #{candidate := #{format := Native, local_only := Kept}} =
                 tmux_query:explain(Pushed),
+            % docs:end explain
             {ok, Everything} = tmux_query:fetch(Query),
             {ok, Narrowed} = tmux_query:fetch(Pushed),
             {ok, Isolated} = tmux_query:fetch(Pushed,

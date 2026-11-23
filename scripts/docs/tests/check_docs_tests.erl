@@ -81,7 +81,8 @@ example_excerpt_must_match_its_source_test() ->
 
 named_examples_match_one_source_region_test() ->
     Reference = <<"examples/demo.erl#run">>,
-    Code = <<"    Value = 1,\n    Value.\n">>,
+    Code = <<"    Value = [\n        1\n    ],\n  \n    Value.\n">>,
+    Excerpt = <<"Value = [\n    1\n],\n\nValue.\n">>,
     Start = <<"    % docs:begin run\n">>,
     End = <<"    % docs:end run\n">>,
     Source = iolist_to_binary(["-module(demo).\nrun() ->\n", Start, Code, End]),
@@ -91,10 +92,11 @@ named_examples_match_one_source_region_test() ->
                  {"README.md", <<Marker/binary, (fenced("erlang", Body))/binary>>}])
     end,
     Drift = {<<"README.md">>, {example_drift, Reference}},
-    ?assertMatch({passed, _}, Check(Source, Code)),
-    ?assertEqual(Drift, Check(Source, <<"    Value = 2.\n">>)),
-    ?assertEqual(Drift, Check(iolist_to_binary([Source, Start, Code, End]), Code)),
-    ?assertEqual(Drift, Check(iolist_to_binary([End, Code, Start]), Code)).
+    ?assertMatch({passed, _}, Check(Source, Excerpt)),
+    ?assertEqual(Drift, Check(Source, Code)),
+    ?assertEqual(Drift, Check(Source, <<"Value = [\n1\n],\n\nValue.\n">>)),
+    ?assertEqual(Drift, Check(iolist_to_binary([Source, Start, Code, End]), Excerpt)),
+    ?assertEqual(Drift, Check(iolist_to_binary([End, Code, Start]), Excerpt)).
 
 unclassified_blocks_fail_test() ->
     ?assertEqual({<<"README.md">>, unclassified_erlang_block},

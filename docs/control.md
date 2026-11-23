@@ -125,12 +125,12 @@ the session IDs and the pane IDs in the selected session's current window.
 <!-- example: examples/control_read_demo.erl#submit -->
 
 ```erlang
-    {ok, Sessions} = tmux_command:raw(<<"list-sessions">>,
-        [<<"-F">>, <<"#{session_id}">>]),
-    {ok, Panes} = tmux_command:raw(<<"list-panes">>,
-        [<<"-t">>, SessionId, <<"-F">>, <<"#{pane_id}">>]),
-    {ok, Read} = tmux_control:submit(Control, [Sessions, Panes], #{}),
-    {ok, #{replies := [SessionIds, PaneIds]}} = tmux_control:await(Read, 900),
+{ok, Sessions} = tmux_command:raw(<<"list-sessions">>,
+    [<<"-F">>, <<"#{session_id}">>]),
+{ok, Panes} = tmux_command:raw(<<"list-panes">>,
+    [<<"-t">>, SessionId, <<"-F">>, <<"#{pane_id}">>]),
+{ok, Read} = tmux_control:submit(Control, [Sessions, Panes], #{}),
+{ok, #{replies := [SessionIds, PaneIds]}} = tmux_control:await(Read, 900),
 ```
 
 Run the [complete example](../examples/control_read_demo.erl) to check both
@@ -159,10 +159,10 @@ renames the session and sets the window width in one group.
 <!-- example: examples/control_read_demo.erl#mutate -->
 
 ```erlang
-    {ok, Rename} = tmux_session:rename_command(Session, <<"resized">>),
-    {ok, Resize} = tmux_window:resize_command(Window, #{width => 110}),
-    {ok, Work} = tmux_control:submit(Control, [Rename, Resize], #{}),
-    {ok, #{replies := [<<>>, <<>>]}} = tmux_control:await(Work, 900),
+{ok, Rename} = tmux_session:rename_command(Session, <<"resized">>),
+{ok, Resize} = tmux_window:resize_command(Window, #{width => 110}),
+{ok, Work} = tmux_control:submit(Control, [Rename, Resize], #{}),
+{ok, #{replies := [<<>>, <<>>]}} = tmux_control:await(Work, 900),
 ```
 
 A successful mutation returns an empty binary. The example reads the
@@ -200,15 +200,15 @@ The example subscribes before sending input and waits for the bytes
 <!-- example: examples/stream_demo.erl#subscribe -->
 
 ```erlang
-    {ok, Subscription} = tmux_stream:subscribe(Server, Session, #{}),
-    tmux_scope:run_or_error(fun() ->
-        {error, #{code := credit_limit}} =
-            tmux_stream:demand(Subscription, #{bytes => 1, messages => 1}),
-        {ok, _} = tmux_pane:send_text(Pane, <<"go\n">>),
-        Deadline = erlang:monotonic_time(millisecond) + 900,
-        ok = receive_bytes(Subscription, PaneId, Expected, Deadline),
-        Expected
-    end, fun() -> tmux_stream:close(Subscription) end).
+{ok, Subscription} = tmux_stream:subscribe(Server, Session, #{}),
+tmux_scope:run_or_error(fun() ->
+    {error, #{code := credit_limit}} =
+        tmux_stream:demand(Subscription, #{bytes => 1, messages => 1}),
+    {ok, _} = tmux_pane:send_text(Pane, <<"go\n">>),
+    Deadline = erlang:monotonic_time(millisecond) + 900,
+    ok = receive_bytes(Subscription, PaneId, Expected, Deadline),
+    Expected
+end, fun() -> tmux_stream:close(Subscription) end).
 ```
 
 Run the [full example](../examples/stream_demo.erl) from the compiled checkout.

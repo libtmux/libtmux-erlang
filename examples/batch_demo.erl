@@ -17,9 +17,11 @@ run(Executable) ->
             {ok, Owner} = tmux_command:raw(<<"set-option">>,
                 [<<"-t">>, Id, <<"@owner">>, <<"batch-demo">>]),
             % Three commands, one native sequence. A failure can leave a prefix.
+            % docs:begin submit
             {ok, Sequence} = tmux_command:sequence([Rename, Stage, Owner]),
             {ok, #{exit_status := 0}} =
                 tmux_server:command(Server, Sequence, #{}),
+            % docs:end submit
             {ok, Renamed} = tmux_session:get(Server, Id),
             {ok, [<<"built">>, none]} =
                 tmux_option:get_many([Session, Window], <<"@stage">>, #{}),
