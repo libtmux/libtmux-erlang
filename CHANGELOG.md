@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Read shorter README examples with links to the complete programs.
+  Named excerpts start at the left margin and keep their inner indentation.
 - Run property checks and release-run selection through Erlang scripts.
   Preserve the workflow verifier when checking older release tags.
 - Record child VM and escript startup timings in native CI receipts.
