@@ -50,15 +50,37 @@ init({Owner, Server, Target, Deadline, Tty}) ->
     Hook = <<"pane-died[", (integer_to_binary(1000000000 + rand:uniform(1000000000)))/binary, "]">>,
     {ok, #{owner_monitor => monitor(process, Owner), server => Server, target => Target,
         deadline => Deadline, tty => Tty, hook => Hook, channel => <<"libtmux-exit-", Suffix/binary>>,
-        holder => none, pin => none, operation => none, ready => none}, {continue, prepare}}.
+        holder => none, pin => none, operation => none, native => false,
+        ready_deadline => erlang:monotonic_time(millisecond) + min(900, Deadline),
+        ready => none}, {continue, prepare}}.
 
 -spec handle_continue(prepare, map()) -> {noreply, map()}.
 handle_continue(prepare, State) ->
     {Result, Next} = prepare(State),
     {noreply, Next#{ready => Result}}.
 
-prepare(#{server := Server, deadline := Deadline, channel := Channel} = State) ->
-    {ok, Wait} = tmux_command:wait_for(Channel, wait),
+prepare(#{server := Server, deadline := Deadline} = State) ->
+    case wait_command(State) of
+        {ok, Wait, Native} ->
+            start_wait(Wait, State#{native => Native}, Server, Deadline);
+        {error, _} = Error -> {Error, State}
+    end.
+
+wait_command(#{server := Server, target := Target, channel := Channel}) ->
+    maybe
+        {ok, Version} ?= tmux_server:version(Server),
+        {ok, #{supported := Native}} ?= tmux_capability:decision(Version, pane_exit_events),
+        {ok, Wait} ?= case Native of
+            true ->
+                Filter = <<"#{==:#{pane},", Target/binary, "}">>,
+                tmux_command:raw(<<"wait-for">>,
+                    [<<"-E">>, <<"-F">>, Filter, <<"pane-died">>]);
+            false -> tmux_command:wait_for(Channel, wait)
+        end,
+        {ok, Wait, Native}
+    end.
+
+start_wait(Wait, State, Server, Deadline) ->
     case tmux_operation:start(Server, Wait, #{deadline_ms => Deadline}) of
         {ok, Operation} ->
             Next = State#{operation => Operation},
@@ -94,6 +116,18 @@ pin_terminal(#{tty := Tty} = State) ->
         {error, Detail} -> {error, Detail, State}
     end.
 
+signal_on_exit(#{native := true, operation := Operation, ready_deadline := Until} = State) ->
+    Remaining = max(0, Until - erlang:monotonic_time(millisecond)),
+    maybe
+        {ok, _} ?= tmux_operation:await_started(Operation, Remaining),
+        TimeLeft = max(0, Until - erlang:monotonic_time(millisecond)),
+        case tmux_operation:client_pid(Operation, TimeLeft) of
+            {ok, Pid} ->
+                Client = <<"client-", (integer_to_binary(Pid))/binary>>,
+                native_registered(Client, State);
+            {error, _} -> completed_wait(Operation)
+        end
+    end;
 %% Register and check together so a published exit cannot fall between them.
 signal_on_exit(#{server := Server, target := Target, channel := Channel,
                  hook := Hook, operation := Operation}) ->
@@ -108,6 +142,39 @@ signal_on_exit(#{server := Server, target := Target, channel := Channel,
         {ok, Sequence} ?= tmux_command:sequence([Set, Check]),
         {ok, _} ?= tmux_target:submit(Server, Sequence, #{deadline_ms => 900}),
         {ok, Operation}
+    end.
+
+%% The native listing proves this exact client registered, rather than merely exec'd.
+native_registered(Client, #{server := Server, operation := Operation,
+                            ready_deadline := Until} = State) ->
+    case Until - erlang:monotonic_time(millisecond) of
+        Remaining when Remaining > 0 ->
+            maybe
+                {ok, #{stdout := Output}} ?= tmux_target:run(Server, <<"wait-for">>,
+                    [<<"-E">>, <<"-l">>, <<"pane-died">>],
+                    #{deadline_ms => Remaining, max_stdout => 8192}),
+                case lists:member(Client, binary:split(Output, <<"\n">>, [global])) of
+                    true -> {ok, Operation};
+                    false ->
+                        case completed_wait(Operation) of
+                            {error, #{code := await_timeout}} -> native_registered(Client, State);
+                            Result -> Result
+                        end
+                end
+            end;
+        _ -> {error, #{code => deadline}}
+    end.
+
+completed_wait(Operation) ->
+    case tmux_operation:status(Operation) of
+        {ok, #{outcome := pending}} -> {error, #{code => await_timeout}};
+        {ok, #{outcome := success, cleanup := complete}} -> {ok, Operation};
+        {ok, _} ->
+            case tmux_operation:await(Operation, 900) of
+                {ok, _} -> {ok, Operation};
+                {error, _} = Error -> Error
+            end;
+        {error, _} = Error -> Error
     end.
 
 -spec handle_call(term(), gen_server:from(), map()) -> {reply, term(), map()}.
@@ -131,9 +198,14 @@ handle_info(_, State) -> {noreply, State}.
 
 -spec terminate(term(), map()) -> ok.
 terminate(_, #{server := Server, target := Target, hook := Hook,
-               operation := Operation, holder := Holder}) ->
-    _ = tmux_target:run(Server, <<"set-hook">>,
-        [<<"-p">>, <<"-u">>, <<"-t">>, Target, <<"--">>, Hook], #{deadline_ms => 900}),
+               operation := Operation, holder := Holder, native := Native}) ->
+    case Native of
+        true -> ok;
+        false ->
+            _ = tmux_target:run(Server, <<"set-hook">>,
+                [<<"-p">>, <<"-u">>, <<"-t">>, Target, <<"--">>, Hook], #{deadline_ms => 900}),
+            ok
+    end,
     case Operation of
         none -> ok;
         _ ->

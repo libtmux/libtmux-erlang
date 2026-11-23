@@ -23,7 +23,7 @@ correlate outcomes by operation and endpoint generation; see
 [runtime diagnostics](diagnostics.md) for levels, fields and data boundaries.
 """.
 -export([start/3, await/2, await_started/2, status/1, cancel/1, transfer/2]).
--export([send_request/2, start_before/4]).
+-export([send_request/2, start_before/4, client_pid/2, pending_until/1]).
 -export_type([t/0, completed/0, failure/0, state/0, outcome/0, cleanup/0]).
 -doc """
 A generation-bound operation handle. Possessing a waiter handle does not
@@ -103,6 +103,16 @@ timeout abandons this wait without cancelling the operation.
 """.
 -spec await_started(t(), timeout()) -> {ok, state()} | {error, failure()}.
 await_started(Operation, Timeout) -> request(Operation, started, Timeout).
+
+-doc false.
+-spec client_pid(t(), 0..900) -> {ok, pos_integer()} | {error, map()}.
+client_pid(Operation, Timeout) when is_integer(Timeout, 0, 900) ->
+    request(Operation, client_pid, Timeout);
+client_pid(_, _) -> {error, #{code => invalid_operation}}.
+
+-doc false.
+-spec pending_until(t()) -> {ok, integer() | inactive} | {error, map()}.
+pending_until(Operation) -> request(Operation, pending_until, 900).
 
 -doc """
 Read the retained lifecycle state without starting a tmux command. Expired

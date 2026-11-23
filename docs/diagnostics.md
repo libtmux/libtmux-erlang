@@ -11,6 +11,29 @@ tmux 3.8. A version-based `unsupported_capability` error names the feature
 in `capability` and gives its `found`, `required` and `hint` fields. See
 [support and feature discovery](compatibility.md#check-a-feature-before-use).
 
+## Read a pane-exit error
+
+- For `remain_on_exit_required`, set `remain-on-exit` to `on` before
+  starting a job whose exit you need.
+- `target_gone`, `stale_pane` or `stale_server` means the original target
+  disappeared or changed. Open a fresh endpoint or capture a fresh pane
+  before acting on the replacement.
+- `pane_generation_unavailable` means the wait could not confirm the
+  original process and terminal. Register the wait while the pane is live.
+- `deadline` means the wait reached its bound. If the original pane is
+  still running, the caller can wait again.
+- In the source checkout, `exit_status_unavailable` means the bound
+  process has exited and tmux still has neither a status nor a signal
+  at the deadline.
+
+Unpatched builds before tmux 3.6 that link `libutempter` can delay native
+exit reporting. Ubuntu 24.04's `3.4-1ubuntu0.2` timed out in the packaged
+check. For jobs that need timely native status, use a daemon with the
+[upstream reaping change](https://github.com/tmux/tmux/commit/fa5f3cef3d651b0eb9abfa77fc37ccade81679b5)
+from tmux 3.6 or verify that your distribution backported it. Restart
+the daemon and reopen the endpoint after changing the executable.
+See the [Ubuntu compatibility issue](https://github.com/libtmux/libtmux-erlang/issues/40).
+
 ## Read log reports
 
 The core emits structured OTP Logger reports under the `[libtmux]` domain.

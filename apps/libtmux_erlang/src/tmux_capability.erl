@@ -21,7 +21,7 @@ verify the endpoint before dispatch. A minimum check compares versions only.
 -doc "Native capabilities described by this library.".
 -type feature() :: native_list_filter | send_client_keys | key_list_format | layout_json |
     paste_sanitize | cleaned_names | rename_replaces | strict_named_target | control_no_detach |
-    control_stream | program_history.
+    control_stream | program_history | pane_exit_events.
 -doc """
 The minimum release, public APIs and native commands. `handling` reports
 refusal, fallback, or a native behavior difference. `versions` lists the
@@ -204,6 +204,12 @@ registry() ->
           [<<"tmux_capability:require/2">>], #{<<"list-keys">> => [<<"-F">>]}),
       layout_json => native_feature(layout_json, <<"JSON window layouts">>,
           [<<"tmux_window:select_layout/2">>, <<"tmux_capability:require/2">>], #{}),
+      pane_exit_events => #{minimum => <<"3.8">>, name => <<"Native pane exit events">>,
+          description => <<"Wait for a pane's native death event without changing hooks.">>,
+          commands => [<<"wait-for">>],
+          flags => #{<<"wait-for">> => [<<"-E">>, <<"-F">>, <<"-l">>]},
+          apis => [<<"tmux_pane:wait_exit/2">>], handling => fallback,
+          fallback => <<"supervised-pane-died-hook">>, versions => [<<"3.8">>]},
       program_history => #{minimum => <<"3.8">>, name => <<"Program history counters">>,
           description => <<"Report discarded lines in an owned program's final screen.">>,
           commands => [<<"display-message">>, <<"capture-pane">>],

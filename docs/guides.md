@@ -23,6 +23,7 @@
 - [Read live pane output](control.md#read-pane-output).
 - [Run or stop a program in a private terminal](programs.md).
 - [Wait for a job and capture its output](jobs.md).
+- [Read a pane-exit error](diagnostics.md#read-a-pane-exit-error).
 - [Wait for visible text in a running pane](jobs.md#wait-for-visible-text).
 - [Read and write scoped options](options.md).
 - [Store bytes and paste into a pane](buffers.md).
@@ -39,6 +40,7 @@
 - [Option catalogue](options-reference.md).
 - [Command catalogue and feature minimums](commands-reference.md).
 - [Supported versions and open gaps](compatibility.md).
+- [Check a daemon capability](compatibility.md#check-a-feature-before-use).
 
 ## Project
 

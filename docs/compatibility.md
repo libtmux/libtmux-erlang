@@ -29,11 +29,21 @@ its API documentation on [HexDocs](https://libtmux-erlang.hexdocs.pm/readme.html
 
 ## Check a feature before use
 
-Read the endpoint's daemon version with `tmux_server:version/1`. Pass that
-version to `tmux_capability:decision/2` to learn the feature's minimum and
-what happens below it. For example, JSON layouts require tmux 3.8. Before
-3.6, control attachment omits the option that keeps the client attached
-when its session is destroyed.
+Read the endpoint's daemon version with `tmux_server:version/1`. In the
+source checkout, the [README program](../examples/readme_demo.erl) checks
+which mechanism `tmux_pane:wait_exit/2` will use on that daemon.
+
+<!-- example: examples/readme_demo.erl#exit_events -->
+
+```erlang
+{ok, Version} = tmux_server:version(Server),
+{ok, #{minimum := <<"3.8">>, supported := NativeEvents,
+       handling := fallback}} =
+    tmux_capability:decision(Version, pane_exit_events),
+```
+
+`NativeEvents` is `true` on tmux 3.8. On older supported daemons, the wait
+uses a supervised hook. The caller uses the same wait function in both cases.
 
 The [capability manifest](../capabilities.json) lists each gate's minimum,
 APIs, commands, and refusal or fallback behavior. The endpoint caches its
@@ -108,7 +118,7 @@ This table describes the source checkout. See the
 | Source query | Explicit plans/fetch, conservative candidates, full residuals and final limits |
 | Operations | Bounded one-shot submission, waits, cancellation, transfer and cleanup |
 | Managed programs | Private PTY, literal arguments and input, bounded final screen and verified retirement on tmux 3.8 |
-| [Pane exit](jobs.md) | Exit status or signal. Waits can time out on unpatched tmux builds before 3.6 linked with `libutempter`, including Ubuntu `3.4-1ubuntu0.2`. [Fixed upstream in tmux 3.6](https://github.com/tmux/tmux/commit/fa5f3cef3d651b0eb9abfa77fc37ccade81679b5). |
+| [Pane exit](jobs.md) | Native event on 3.8, supervised hook on older supported releases. Ubuntu `3.4-1ubuntu0.2` [timed out in the packaged check](https://github.com/libtmux/libtmux-erlang/actions/runs/45023667507). See [pane-exit errors](diagnostics.md#read-a-pane-exit-error) for the remedy. |
 | Pane text | Bounded current-screen waits on live owned or borrowed panes, with explicit cancellation and process checks |
 | Control attachment | Explicit session, same-connection identity, no-output/ignore-size, skipped environment update and separate native cleanup |
 | [Control groups](control.md#submit-a-read-group) | Bounded ID reads, session rename and window or pane resize on an owned attachment, with ordered replies and cancellation |

@@ -269,9 +269,8 @@ More: [Source plans](docs/querying.md#source-plans).
 
 ### [`tmux_query:pushdown/2`][api-pushdown]: let tmux drop rows first
 
-Pushdown is off by default. Turn it on to add a candidate scan that excludes
-rows before capture. The full filter still runs locally, so a candidate can
-admit extra rows but never hides a match.
+Pushdown is off by default. Turn it on to let tmux exclude candidates before
+capture. Erlang applies the full filter to the captured rows.
 
 The program above also fetches with `hydration => isolated`, which reads one
 field per row when a single scan would pass the output limit.

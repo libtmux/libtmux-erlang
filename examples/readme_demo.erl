@@ -7,6 +7,13 @@
 run(Executable) ->
     Options = #{executable => Executable},
     {ok, Result} = tmux_server:with_owned(Options, fun(Server) ->
+        % docs:begin exit_events
+        {ok, Version} = tmux_server:version(Server),
+        {ok, #{minimum := <<"3.8">>, supported := NativeEvents,
+               handling := fallback}} =
+            tmux_capability:decision(Version, pane_exit_events),
+        % docs:end exit_events
+        NativeEvents = tmux_version:at_least(Version, {3, 8}),
         {ok, Session} = tmux_session:create(Server, #{name => <<"workspace">>,
             window_name => <<"editor">>, width => 120, height => 30,
             launch => #{argv => [<<"/bin/cat">>]}}),

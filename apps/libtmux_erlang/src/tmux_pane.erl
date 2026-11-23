@@ -261,44 +261,42 @@ process completion themselves. The endpoint does not own that shell process.
 stop_pipe(Pane) -> tmux_target:act(pane, Pane, <<"pipe-pane">>, []).
 
 -doc """
-Wait until this registered pane's process exits and report how it ended.
-Performs I/O. `exit` (`t:exit/0`) is the observed status or signal. `pane` is a
-fresh observation of the pane ID. A watch registered for a live pane binds
-its observed PID and PTY; a concurrent respawn returns `stale_pane`. An
-already published exit is read as a current native observation, without a
-live-generation pin. Concurrent respawn and PTY reuse can remain undetected
-on that fast path.
+Wait for a retained pane's process. Return its native status or signal
+(`t:exit/0`) and a fresh pane row. Set `remain-on-exit` to `on` before
+starting a job whose exit you need. A live pane with another setting
+returns `remain_on_exit_required`.
 
-tmux keeps a dead pane's status only when `remain-on-exit` is `on` for it, set
-on the pane or inherited from its window, before the process exits. Any other
-value returns `remain_on_exit_required` for a live pane. The call changes no
-option. While it waits it registers one `pane-died` hook entry at a private
-index and a private `wait-for` channel. A supervised owner attempts to remove
-the hook and retires its wait client when the call ends or its caller dies.
-It holds a live pane's PTY allocation through the final observation, without
-consuming terminal bytes. The hook is registered and the pane checked in one
-tmux command sequence, so an exit cannot fall between them. Keep the endpoint open
-through cleanup. A failed native unset can leave the hook installed. The wait
-result carries no hook cleanup receipt.
+A live wait binds the process and pins its PTY allocation. The owner
+holds that pin through the final read without consuming terminal bytes.
+Respawn returns `stale_pane` and replacement of the daemon returns
+`stale_server`. An exit already published at the first read is a current
+observation. The fast path has no live-generation pin.
 
-`deadline_ms` bounds the native wait operation, starting after the initial
-observation. Setup readiness and the caller's cleanup wait each have a 900 ms
-limit. Final pane reads have a separate 2,500 ms capture budget; state probes
-use the endpoint's 2,500 ms command budget. Native client retirement can add
-its cleanup allowance. These are separate limits, not one elapsed-time bound.
-An expired wait returns the operation's `deadline` error and the pane stays
-usable for another call. A pane killed or
-destroyed meanwhile returns `target_gone`. With `remain-on-exit` set to `on`,
-the PTY may close before tmux publishes the exit status or signal. The wait
-continues until tmux reports the exit or the deadline expires. An unpublished
-exit requires a pinned PTY and a matching live observation at registration.
-If either is unavailable, the call returns `pane_generation_unavailable`. Other
-dead panes without a published exit return `exit_status_unavailable`.
+On tmux 3.8, the wait uses a filtered native `pane-died` event. On older
+supported daemons, it registers a private indexed hook and channel.
+Both paths recheck native state before acting on an exit notification.
+Keep the endpoint open through cleanup. The supervised owner retires the
+wait client when the call ends or its caller dies. A native unset failure
+can leave a legacy hook installed.
 
-A returned exit does not prove that the program's output reached the pane;
-a job that needs its output captured acknowledges terminal parsing first, as
-the [job guide](jobs.md) shows. Calling this on an invalid option fails before
-any I/O:
+`deadline_ms` bounds the native wait, starting after the initial
+observation. Setup readiness and cleanup waits each have a 900 ms limit.
+State probes and final capture each use their own 2,500 ms command budget.
+Client retirement can add its cleanup allowance.
+
+- `deadline` means the wait reached its bound. A still-running pane can
+  be waited on again.
+- `exit_status_unavailable` means the original process exited and tmux
+  has yet to publish a native status or signal.
+- `pane_generation_unavailable` means the wait could not bind its
+  original process and terminal.
+- `target_gone` means the pane disappeared.
+
+See [pane-exit errors](diagnostics.md#read-a-pane-exit-error) for remedies.
+To capture a job's final screen, use the [job guide](jobs.md) pattern that
+acknowledges terminal parsing before exit.
+
+Invalid options fail before I/O.
 
 ```erlang
 1> tmux_pane:wait_exit(invalid_row, #{deadline_ms => 0}).
@@ -353,14 +351,13 @@ exit_state(Server, Target) ->
 
 %% display-message tolerates a missing target and prints empty fields.
 parse_exit_state(_, [<<>>, _, _, _, _]) -> {error, #{code => target_gone}};
-parse_exit_state(Target, [Target, <<"1">>, <<"on">>, <<>>, <<>>]) -> {ok, awaiting_exit};
+parse_exit_state(Target, [Target, <<"1">>, _, <<>>, <<>>]) -> {ok, awaiting_exit};
 parse_exit_state(Target, [Target, <<"1">>, _, Status, Signal]) -> parse_exit(Status, Signal);
 parse_exit_state(Target, [Target, <<"0">>, <<"on">>, _, _]) -> {ok, awaiting_exit};
 parse_exit_state(Target, [Target, <<"0">>, Retention, _, _]) ->
     {error, #{code => remain_on_exit_required, remain_on_exit => Retention}};
 parse_exit_state(_, _) -> {error, #{code => invalid_pane_state}}.
 
-parse_exit(<<>>, <<>>) -> {error, #{code => exit_status_unavailable}};
 parse_exit(Status, <<>>) ->
     try binary_to_integer(Status) of
         Code when is_integer(Code, 0, 255) -> {ok, {exited, {status, Code}}};
@@ -382,7 +379,18 @@ await_exit(Server, Target, Deadline, Start, Generation) ->
     end,
     case Tty of
         none -> {error, #{code => pane_generation_unavailable}};
-        _ -> await_live_exit(Server, Target, Deadline, Start, Generation, Tty)
+        _ ->
+            maybe
+                {ok, Bound} ?= bind_exit_process(Generation),
+                await_live_exit(Server, Target, Deadline, Start, Bound, Tty)
+            end
+    end.
+
+bind_exit_process(#{pid := Pid} = Generation) ->
+    try tmux_identity:observe(binary_to_integer(Pid)) of
+        {ok, Identity} -> {ok, Generation#{process_identity => Identity}};
+        {error, Cause} -> {error, #{code => pane_generation_unavailable, cause => Cause}}
+    catch error:badarg -> {error, #{code => pane_generation_unavailable}}
     end.
 
 await_live_exit(Server, Target, Deadline, Start, Generation, Tty) ->
@@ -393,20 +401,9 @@ await_live_exit(Server, Target, Deadline, Start, Generation, Tty) ->
                 {ok, _, Bound} ?= exit_state(Server, Target),
                 ok ?= bind_exit_generation(Generation, Bound),
                 ok ?= tmux_pane_exit_owner:check(Owner),
-                ok ?= start_after_watch(Start),
-                {ok, _} ?= tmux_operation:await(Operation, infinity),
-                {ok, State, Ended} ?= exit_state(Server, Target),
-                ok ?= same_exit_generation(Generation, Ended),
-                ok ?= tmux_pane_exit_owner:check(Owner),
-                case State of
-                    {exited, Outcome} ->
-                        maybe
-                            {ok, Result} ?= exit_result(Server, Target, Generation, Outcome),
-                            ok ?= tmux_pane_exit_owner:check(Owner),
-                            {ok, Result}
-                        end;
-                    awaiting_exit -> {error, #{code => exit_not_observed}}
-                end
+                {ok, Action} ?= start_after_watch(Start, Operation),
+                Wait = tmux_operation:await(Operation, infinity),
+                finish_live_exit(Action, Wait, Server, Target, Generation, Owner)
             end
         after
             tmux_pane_exit_owner:release(Owner)
@@ -415,6 +412,73 @@ await_live_exit(Server, Target, Deadline, Start, Generation, Tty) ->
         {error, #{code := pane_terminal_unavailable}} ->
             {error, #{code => pane_generation_unavailable}};
         {error, _} = Error -> Error
+    end.
+
+finish_live_exit(inactive, {error, #{code := deadline}} = Error, _, _, _, _) -> Error;
+finish_live_exit(Action, Wait, Server, Target, Generation, Owner) ->
+    case finish_exit_wait(Wait, Server, Target, Generation, Owner) of
+        {ok, _} when Action =:= inactive ->
+            {error, #{code => target_already_exited, outcome => not_started}};
+        Result -> Result
+    end.
+
+finish_exit_wait({ok, _} = Wait, Server, Target, Generation, Owner) ->
+    observe_exit_wait(Wait, Server, Target, Generation, Owner);
+finish_exit_wait({error, #{code := deadline, cleanup := complete}} = Wait,
+                 Server, Target, Generation, Owner) ->
+    observe_exit_wait(Wait, Server, Target, Generation, Owner);
+finish_exit_wait({error, #{code := command_error, cleanup := complete,
+                         stderr := <<"server exited unexpectedly\n">>}} = Wait,
+                 Server, Target, Generation, Owner) ->
+    observe_exit_wait(Wait, Server, Target, Generation, Owner);
+finish_exit_wait({error, _} = Error, _, _, _, _) -> Error.
+
+observe_exit_wait(Wait, Server, Target, Generation, Owner) ->
+    maybe
+        {ok, State, Ended} ?= exit_state(Server, Target),
+        ok ?= same_bound_exit_generation(Generation, Ended),
+        {ok, Process} ?= exit_process_state(Generation),
+        ok ?= tmux_pane_exit_owner:check(Owner),
+        case {Wait, State, Process} of
+            {{ok, _}, {exited, Outcome}, _} ->
+                maybe
+                    {ok, Result} ?= exit_result(Server, Target, Generation, Outcome),
+                    ok ?= tmux_pane_exit_owner:check(Owner),
+                    {ok, Result}
+                end;
+            {{ok, _}, awaiting_exit, _} -> {error, #{code => exit_not_observed}};
+            {{error, #{code := deadline} = Detail}, awaiting_exit, exited} ->
+                {error, unavailable_exit(Server, Detail)};
+            {{error, _} = Error, _, _} -> Error
+        end
+    end.
+
+%% A closed master omits pane_pid on tmux 3.8, before pane_dead becomes true.
+%% Only this bound path has both the original process token and a live PTY pin.
+same_bound_exit_generation(#{tty := Tty, process_identity := _},
+                           #{pid := <<>>, tty := Tty}) -> ok;
+same_bound_exit_generation(Expected, Actual) -> same_exit_generation(Expected, Actual).
+
+exit_process_state(#{pid := Pid, process_identity := Identity}) ->
+    case tmux_identity:observe(binary_to_integer(Pid)) of
+        {ok, Identity} -> {ok, running};
+        {ok, _} -> {error, #{code => stale_pane}};
+        {error, #{code := target_gone}} -> {ok, exited};
+        {error, Cause} -> {error, #{code => pane_generation_unavailable, cause => Cause}}
+    end.
+
+unavailable_exit(Server, Detail) ->
+    Error = Detail#{code => exit_status_unavailable, reason => native_outcome_unpublished,
+        hint => <<"Inspect the connected daemon build and native exit-status reporting.">>},
+    case tmux_server:version(Server) of
+        {ok, Version} ->
+            Versioned = Error#{daemon_version => tmux_version:format(Version)},
+            case tmux_version:at_least(Version, {3, 6}) of
+                true -> Versioned;
+                false -> Versioned#{hint => <<"If the daemon links libutempter, ",
+                    "use a build containing upstream change fa5f3cef or its backport.">>}
+            end;
+        _ -> Error
     end.
 
 exit_result(Server, Target, Generation, Outcome) ->
@@ -428,8 +492,13 @@ exit_result(Server, Target, Generation, Outcome) ->
         {error, _} = Error -> Error
     end.
 
-bind_exit_generation(#{pid := Pid, tty := Tty},
-                     #{pid := Pid, tty := Tty, dead := <<"0">>}) -> ok;
+bind_exit_generation(#{pid := Pid, tty := Tty} = Expected,
+                     #{pid := Pid, tty := Tty, dead := <<"0">>}) ->
+    case exit_process_state(Expected) of
+        {ok, running} -> ok;
+        {ok, exited} -> {error, #{code => pane_generation_unavailable}};
+        {error, _} = Error -> Error
+    end;
 bind_exit_generation(Expected, Actual) ->
     case same_exit_generation(Expected, Actual) of
         ok -> {error, #{code => pane_generation_unavailable}};
@@ -442,8 +511,19 @@ same_exit_generation(#{pid := Pid, tty := Tty}, #{pid := Pid, tty := Tty}) -> ok
 same_exit_generation(#{tty := Tty}, #{pid := <<>>, tty := Tty, dead := <<"1">>}) -> ok;
 same_exit_generation(_, _) -> {error, #{code => stale_pane}}.
 
-start_after_watch(none) -> ok;
-start_after_watch(Start) -> Start().
+start_after_watch(none, _) -> {ok, waiting};
+start_after_watch(Start, Operation) ->
+    maybe
+        {ok, Until} ?= tmux_operation:pending_until(Operation),
+        case is_integer(Until) andalso erlang:monotonic_time(millisecond) < Until of
+            true ->
+                case Start() of
+                    ok -> {ok, waiting};
+                    {error, _} = Error -> Error
+                end;
+            false -> {ok, inactive}
+        end
+    end.
 
 -doc """
 Break a physical pane through its explicit source membership into a destination

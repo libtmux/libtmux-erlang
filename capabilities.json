@@ -115,6 +115,27 @@
     },
     {
       "apis": [
+        "tmux_pane:wait_exit/2"
+      ],
+      "commands": [
+        {
+          "command": "wait-for",
+          "flags": [
+            "-E",
+            "-F",
+            "-l"
+          ]
+        }
+      ],
+      "fallback": "supervised-pane-died-hook",
+      "handling": "fallback",
+      "id": "pane-exit-events",
+      "name": "Native pane exit events",
+      "since": "3.8",
+      "summary": "Wait for a pane's native death event without changing hooks."
+    },
+    {
+      "apis": [
         "tmux_buffer:paste/3"
       ],
       "commands": [

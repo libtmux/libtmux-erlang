@@ -107,3 +107,33 @@ feature_gates_test() ->
           Latest#{candidate => 1, tracking => true},
           Latest#{candidate => 1, patch => <<"a">>},
           Latest#{tracking => true, patch => <<"a">>}]).
+
+pane_exit_event_gate_test() ->
+    {ok, BeforeEvents} = tmux_version:parse(<<"tmux 3.7c">>),
+    {ok, NativeEvents} = tmux_version:parse(<<"tmux 3.8">>),
+    {ok, #{argument_spec := OldFlags}} =
+        tmux_capability:command(BeforeEvents, <<"wait-for">>),
+    {ok, #{argument_spec := NewFlags}} =
+        tmux_capability:command(NativeEvents, <<"wait-for">>),
+    ?assertEqual(nomatch, binary:match(OldFlags, <<"E">>)),
+    ?assertNotEqual(nomatch, binary:match(NewFlags, <<"EF:">>)),
+    ?assertNotEqual(nomatch, binary:match(NewFlags, <<"l">>)),
+    {ok, #{minimum := <<"3.8">>, handling := fallback,
+           flags := #{<<"wait-for">> := [<<"-E">>, <<"-F">>, <<"-l">>]},
+           fallback := <<"supervised-pane-died-hook">>}} =
+        tmux_capability:describe(pane_exit_events),
+    lists:foreach(fun({Release, Supported}) ->
+        {ok, Version} = tmux_version:parse(<<"tmux ", Release/binary>>),
+        ?assertMatch({ok, #{supported := Supported}},
+            tmux_capability:decision(Version, pane_exit_events))
+    end, [{<<"3.3a">>, false}, {<<"3.7c">>, false}, {<<"next-3.8">>, false},
+          {<<"3.8-rc2">>, false}, {<<"3.8">>, true}, {<<"3.8a">>, true}]),
+    lists:foreach(fun(Invalid) ->
+        ?assertMatch({error, #{code := invalid_version}},
+            tmux_capability:decision(Invalid, pane_exit_events))
+    end, [#{major => 3}, NativeEvents#{candidate => invalid},
+          NativeEvents#{tracking => true, patch => <<"a">>}]),
+    #{capabilities := Entries} = tmux_capability:manifest(),
+    [Entry] = [Item || #{id := <<"pane-exit-events">>} = Item <- Entries],
+    ?assertMatch(#{since := <<"3.8">>, handling := <<"fallback">>,
+                   fallback := <<"supervised-pane-died-hook">>}, Entry).

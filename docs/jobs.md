@@ -93,6 +93,9 @@ run(Socket, Executable) ->
 
 ## Read results
 
+See [pane-exit errors](diagnostics.md#read-a-pane-exit-error) if the wait
+returns a deadline, missing outcome or stale target.
+
 - `await_started/2` returns lifecycle status, including for an operation that
   already failed or retired. `await/2` returns the command result.
 - A successful result holds separate stdout and stderr binaries, the stdin

@@ -902,6 +902,26 @@ reject(Id, Error, State) ->
 
 operation_call(Id, status, _, _, State) ->
     {reply, {ok, operation_status(operation(Id, State))}, State};
+operation_call(Id, pending_until, _, _, State) ->
+    Until = case operation(Id, State) of
+        #{result := none, cancel := none, deadline := Deadline}
+          when is_integer(Deadline) -> Deadline;
+        _ -> inactive
+    end,
+    {reply, {ok, Until}, State};
+operation_call(Id, client_pid, Tag, From, State) ->
+    case operation(Id, State) of
+        #{stage := command, handle := Handle} when Handle =/= none ->
+            case add_waiter(Id, client_pid, Tag, From, State) of
+                {noreply, Waiting} ->
+                    Request = tmux_transport:send_request(Handle, started),
+                    Requests = gen_server:reqids_add(Request, {Id, command, {client_pid, Tag}},
+                        maps:get(requests, Waiting)),
+                    {noreply, Waiting#{requests => Requests}};
+                Rejected -> Rejected
+            end;
+        _ -> {reply, {error, #{code => operation_client_unavailable}}, State}
+    end;
 operation_call(Id, cancel, _, _, State) ->
     #{result := Result, handle := Handle} = operation(Id, State),
     Reply = case {Result, Handle} of
@@ -957,6 +977,9 @@ notify(Id, State) ->
         case {Kind, maps:get(phase, Op), maps:get(result, Op)} of
             {started, Phase, _} when Phase =/= queued ->
                 gen_server:reply(From, {ok, operation_status(Op)}), remove_waiter(Id, Tag, Acc);
+            {client_pid, _, Result} when Result =/= none ->
+                gen_server:reply(From, {error, #{code => operation_client_unavailable}}),
+                remove_waiter(Id, Tag, Acc);
             {_, _, Result} when Result =/= none ->
                 gen_server:reply(From, Result), remove_waiter(Id, Tag, Acc);
             _ -> Acc
@@ -1025,12 +1048,33 @@ start_stage(Id, Stage, Args, #{config := Config} = State) ->
 
 response(Message, State) ->
     case gen_server:check_response(Message, maps:get(requests, State), true) of
+        {{reply, Result}, {Id, command, {client_pid, Tag}}, Requests} ->
+            client_ready(Id, Tag, Result, State#{requests => Requests});
+        {{error, _}, {Id, command, {client_pid, Tag}}, Requests} ->
+            client_ready(Id, Tag, {error, #{code => operation_client_unavailable}},
+                State#{requests => Requests});
         {{reply, Result}, {Id, Stage, Kind}, Requests} ->
             transport_result(Id, Stage, Kind, Result, State#{requests => Requests});
         {{error, _}, {Id, _, _}, Requests} ->
             incomplete(Id, #{code => cleanup_incomplete, cause => transport_owner_lost,
                              cleanup => incomplete}, State#{requests => Requests});
         _ -> no_reply
+    end.
+
+client_ready(Id, Tag, Result, #{operations := Operations} = State) ->
+    case maps:find(Id, Operations) of
+        {ok, #{waiters := Waiters}} ->
+            case maps:find(Tag, Waiters) of
+                {ok, {client_pid, From, _}} ->
+                    Reply = case Result of
+                        {ok, #{child_pid := Pid}} when is_integer(Pid), Pid > 0 -> {ok, Pid};
+                        _ -> {error, #{code => operation_client_unavailable}}
+                    end,
+                    gen_server:reply(From, Reply),
+                    remove_waiter(Id, Tag, State);
+                error -> State
+            end;
+        error -> State
     end.
 
 transport_result(Id, _, retired, {_, #{cleanup := complete}}, State) ->
