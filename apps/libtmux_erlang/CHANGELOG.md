@@ -16,10 +16,13 @@
   owned daemons with their ownership token instead.
 - Wait for screen text on live borrowed panes with `tmux_pane:wait_for_text/3`
   or `tmux_pane_text:start/3`. Replacement and respawn end the observation.
-- Supervise `tmux_pane:wait_exit/2` so caller death triggers private-hook
-  cleanup and wait-client retirement. Registered live waits reject pane
-  replacements. A wait can return `pane_generation_unavailable` if it cannot
-  pin the PTY and confirm the live process during registration.
+- Wait for pane exit with `tmux_pane:wait_exit/2`. tmux 3.8 uses a filtered
+  native event. Older supported daemons use a private hook. The owner
+  retires the wait client on caller death and rejects observed replacements.
+- Return `exit_status_unavailable` at the deadline when the bound process
+  has exited and tmux has published neither a status nor a signal. Return
+  `pane_generation_unavailable` if registration cannot pin the terminal
+  and confirm the live process.
 - Report unrecognized tmux client versions as `invalid_tmux_version` when
   starting a managed program. The error includes the required release and
   confirmed probe cleanup.
