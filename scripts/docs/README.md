@@ -1,9 +1,8 @@
 # Documentation checks and build
 
-Two escripts check and build the documentation. CI, the release workflow and
-the mid and outer check loops run them; contributors run them after editing a
-guide, an example or a doc comment. Run both from the repository root after
-the library compiles, because they load the helpers that Rebar3 builds.
+Run the documentation checks and build from the repository root after the
+library compiles, so its helpers are available. CI and the release workflow
+run them; the mid and outer loops run the checks.
 
 ```console
 $ rebar3 compile
@@ -72,3 +71,17 @@ for its reason. They need `git` but no network, ExDoc or tmux.
 $ rebar3 eunit \
     --module docs_util_tests,check_docs_tests,build_docs_tests
 ```
+
+## Remove a closed preview
+
+The default-branch `docs-preview-cleanup` workflow runs `preview_cleanup.erl`
+with `eligibility` before assuming its cleanup role and with `delete` before
+removing objects. Both commands read the current pull request state; a reopened
+pull request keeps its preview. Deletion stays within `en/erlang/pr-N/`.
+
+Both commands require `PR`, `REPOSITORY` and `GH_TOKEN`. `eligibility` appends
+to `GITHUB_OUTPUT`; `delete` also needs `BUCKET`. The workflow compiles the
+library first so commands use its bounded subprocess helper.
+
+The mid loop includes `preview_cleanup_tests`. The tests inject command results
+and issue no GitHub or AWS requests.

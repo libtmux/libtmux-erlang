@@ -1,9 +1,12 @@
 name: docs
 
 # Build a selected source revision with the shared native Erlang producer.
-# Publication remains an explicit manual choice; trunk pushes and pull
-# requests do not deploy documentation. Keep both reusable workflow pins equal.
+# Production publication remains an explicit manual choice. Preview publication
+# stays disabled until the shared publisher rechecks draft and no-preview state.
+# Keep both reusable workflow pins equal.
 on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review, converted_to_draft, labeled, unlabeled]
   workflow_dispatch:
     inputs:
       source-ref:
@@ -40,7 +43,7 @@ permissions:
 
 concurrency:
   group: docs-deploy-${{ github.repository }}
-  cancel-in-progress: false
+  queue: max
 
 jobs:
   build:
@@ -48,6 +51,8 @@ jobs:
     with:
       port: erlang
       tag-prefix: ''
+      # The approved publisher checks the current head, merge and open state.
+      # Enable previews only after it also checks draft and no-preview state.
       publish-previews: false
       source-ref: ${{ inputs.source-ref }}
       version: ${{ inputs.version }}
@@ -58,7 +63,13 @@ jobs:
 
   publish:
     needs: build
-    if: github.event_name == 'workflow_dispatch' && inputs.publish == true && needs.build.outputs.should-publish == 'true'
+    if: >-
+      needs.build.outputs.should-publish == 'true'
+      && ((github.event_name == 'workflow_dispatch' && inputs.publish == true)
+        || (github.event_name == 'pull_request'
+          && github.event.pull_request.head.repo.full_name == github.repository
+          && !github.event.pull_request.draft
+          && !contains(github.event.pull_request.labels.*.name, 'no-preview')))
     strategy:
       fail-fast: false
       matrix: ${{ fromJSON(needs.build.outputs.matrix) }}
@@ -76,8 +87,8 @@ jobs:
       label: ${{ matrix.version }}
       is-default: ${{ matrix.isDefault }}
       resolves-to: ${{ matrix.resolvesTo }}
-      environment: docs
+      environment: ${{ matrix.kind == 'pr' && 'docs-preview' || 'docs' }}
     secrets:
-      role-arn: ${{ secrets.LIBTMUX_DOCS_ROLE_ARN }}
+      role-arn: ${{ secrets[matrix.kind == 'pr' && 'LIBTMUX_DOCS_PREVIEW_ROLE_ARN' || 'LIBTMUX_DOCS_ROLE_ARN'] }}
       bucket: ${{ secrets.LIBTMUX_DOCS_BUCKET }}
       distribution: ${{ secrets.LIBTMUX_DOCS_DISTRIBUTION }}

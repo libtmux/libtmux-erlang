@@ -11,6 +11,8 @@
   inherited borrowed-socket selectors from package checks.
 - Document explicit borrowed-daemon destruction, borrowed pane-text waits and
   native command-alias behavior in the ownership, job and compatibility guides.
+- Build pull request documentation with previews disabled. Native close cleanup
+  rechecks current state and removes only that pull request's Erlang prefix.
 
 ## 0.0.3 - 2026-11-22
 
